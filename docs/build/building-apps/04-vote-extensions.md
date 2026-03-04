@@ -2,85 +2,51 @@
 sidebar_position: 1
 ---
 
-# Vote Extensions
+# Vote Extensions (Mở Rộng Bỏ Phiếu)
 
-:::note Synopsis
-This section describes how the application can define and use vote extensions
-defined in ABCI++.
+:::note Tóm tắt
+Phần này mô tả cách ứng dụng có thể định nghĩa và sử dụng vote extension được xác định trong ABCI++.
 :::
 
-## Extend Vote
+## Extend Vote (Mở Rộng Phiếu Bầu)
 
-ABCI++ allows an application to extend a pre-commit vote with arbitrary data. This
-process does NOT have to be deterministic, and the data returned can be unique to the
-validator process. The Cosmos SDK defines `baseapp.ExtendVoteHandler`:
+ABCI++ cho phép ứng dụng mở rộng một phiếu pre-commit với dữ liệu tùy ý. Quá trình này KHÔNG cần phải có tính xác định (deterministic), và dữ liệu trả về có thể là duy nhất đối với từng tiến trình validator. Cosmos SDK định nghĩa `baseapp.ExtendVoteHandler`:
 
 ```go
 type ExtendVoteHandler func(Context, *abci.ExtendVoteRequest) (*abci.ExtendVoteResponse, error)
 ```
 
-An application can set this handler in `app.go` via the `baseapp.SetExtendVoteHandler`
-`BaseApp` option function. The `sdk.ExtendVoteHandler`, if defined, is called during
-the `ExtendVote` ABCI method. Note, if an application decides to implement
-`baseapp.ExtendVoteHandler`, it MUST return a non-nil `VoteExtension`. However, the vote
-extension can be empty. See [here](https://github.com/cometbft/cometbft/blob/v0.38.0-rc1/spec/abci/abci++_methods.md#extendvote)
-for more details.
+Ứng dụng có thể đặt handler này trong `app.go` thông qua hàm tùy chọn `baseapp.SetExtendVoteHandler` của `BaseApp`. `sdk.ExtendVoteHandler`, nếu được định nghĩa, sẽ được gọi trong quá trình thực thi phương thức ABCI `ExtendVote`. Lưu ý, nếu ứng dụng quyết định triển khai `baseapp.ExtendVoteHandler`, nó PHẢI trả về một `VoteExtension` khác null. Tuy nhiên, vote extension có thể rỗng. Xem [tại đây](https://github.com/cometbft/cometbft/blob/v0.38.0-rc1/spec/abci/abci++_methods.md#extendvote) để biết thêm chi tiết.
 
-There are many decentralized censorship-resistant use cases for vote extensions.
-For example, a validator may want to submit prices for a price oracle or encryption
-shares for an encrypted transaction mempool. Note, an application should be careful
-to consider the size of the vote extensions as they could increase latency in block
-production. See [here](https://github.com/cometbft/cometbft/blob/v0.38.0-rc1/docs/qa/CometBFT-QA-38.md#vote-extensions-testbed)
-for more details.
+Có nhiều trường hợp sử dụng phi tập trung chống kiểm duyệt cho vote extension. Ví dụ, một validator có thể muốn gửi giá cho một oracle giá hoặc các phần chia sẻ mã hóa cho một mempool giao dịch được mã hóa. Lưu ý, ứng dụng nên cẩn thận xem xét kích thước của vote extension vì chúng có thể làm tăng độ trễ trong sản xuất block. Xem [tại đây](https://github.com/cometbft/cometbft/blob/v0.38.0-rc1/docs/qa/CometBFT-QA-38.md#vote-extensions-testbed) để biết thêm chi tiết.
 
-## Verify Vote Extension
+## Verify Vote Extension (Xác Minh Mở Rộng Phiếu Bầu)
 
-Similar to extending a vote, an application can also verify vote extensions from
-other validators when validating their pre-commits. For a given vote extension,
-this process MUST be deterministic. The Cosmos SDK defines `sdk.VerifyVoteExtensionHandler`:
+Tương tự như việc mở rộng phiếu bầu, ứng dụng cũng có thể xác minh vote extension từ các validator khác khi xác thực pre-commit của họ. Đối với một vote extension nhất định, quá trình này PHẢI có tính xác định (deterministic). Cosmos SDK định nghĩa `sdk.VerifyVoteExtensionHandler`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/types/abci.go#L26-L27
 ```
 
-An application can set this handler in `app.go` via the `baseapp.SetVerifyVoteExtensionHandler`
-`BaseApp` option function. The `sdk.VerifyVoteExtensionHandler`, if defined, is called
-during the `VerifyVoteExtension` ABCI method. If an application defines a vote
-extension handler, it should also define a verification handler. Note, not all
-validators will share the same view of what vote extensions they verify depending
-on how votes are propagated. See [here](https://github.com/cometbft/cometbft/blob/v0.38.0-rc1/spec/abci/abci++_methods.md#verifyvoteextension)
-for more details.
+Ứng dụng có thể đặt handler này trong `app.go` thông qua hàm tùy chọn `baseapp.SetVerifyVoteExtensionHandler` của `BaseApp`. `sdk.VerifyVoteExtensionHandler`, nếu được định nghĩa, sẽ được gọi trong quá trình thực thi phương thức ABCI `VerifyVoteExtension`. Nếu ứng dụng định nghĩa một handler vote extension, nó cũng nên định nghĩa một handler xác minh. Lưu ý, không phải tất cả validator đều có cùng quan điểm về những vote extension mà họ xác minh, tùy thuộc vào cách các phiếu bầu được lan truyền. Xem [tại đây](https://github.com/cometbft/cometbft/blob/v0.38.0-rc1/spec/abci/abci++_methods.md#verifyvoteextension) để biết thêm chi tiết.
 
-## Vote Extension Propagation
+## Lan Truyền Vote Extension
 
-The agreed upon vote extensions at height `H` are provided to the proposing validator
-at height `H+1` during `PrepareProposal`. As a result, the vote extensions are
-not natively provided or exposed to the remaining validators during `ProcessProposal`.
-As a result, if an application requires that the agreed upon vote extensions from
-height `H` are available to all validators at `H+1`, the application must propagate
-these vote extensions manually in the block proposal itself. This can be done by
-"injecting" them into the block proposal, since the `Txs` field in `PrepareProposal`
-is just a slice of byte slices.
+Các vote extension đã được thống nhất tại chiều cao `H` được cung cấp cho validator đề xuất tại chiều cao `H+1` trong quá trình `PrepareProposal`. Do đó, các vote extension không được cung cấp hoặc hiển thị gốc cho các validator còn lại trong quá trình `ProcessProposal`. Vì vậy, nếu ứng dụng yêu cầu các vote extension đã được thống nhất từ chiều cao `H` phải khả dụng cho tất cả validator tại `H+1`, ứng dụng phải lan truyền các vote extension này thủ công trong chính đề xuất block. Điều này có thể được thực hiện bằng cách "đưa vào" (inject) chúng vào đề xuất block, vì trường `Txs` trong `PrepareProposal` chỉ là một slice của các byte slice.
 
-`FinalizeBlock` will ignore any byte slice that doesn't implement an `sdk.Tx`, so
-any injected vote extensions will safely be ignored in `FinalizeBlock`. For more
-details on propagation, see the [ABCI++ 2.0 ADR](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-064-abci-2.0.md#vote-extension-propagation--verification).
+`FinalizeBlock` sẽ bỏ qua bất kỳ byte slice nào không triển khai `sdk.Tx`, vì vậy bất kỳ vote extension nào được đưa vào sẽ được bỏ qua một cách an toàn trong `FinalizeBlock`. Để biết thêm chi tiết về việc lan truyền, hãy xem [ABCI++ 2.0 ADR](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-064-abci-2.0.md#vote-extension-propagation--verification).
 
-### Recovery of injected Vote Extensions
+### Khôi Phục Vote Extension Được Đưa Vào
 
-As stated before, vote extensions can be injected into a block proposal (along with
-other transactions in the `Txs` field). The Cosmos SDK provides a pre-FinalizeBlock
-hook to allow applications to recover vote extensions, perform any necessary
-computation on them, and then store the results in the cached store. These results
-will be available to the application during the subsequent `FinalizeBlock` call.
+Như đã đề cập trước đó, các vote extension có thể được đưa vào một đề xuất block (cùng với các giao dịch khác trong trường `Txs`). Cosmos SDK cung cấp một hook pre-FinalizeBlock để cho phép ứng dụng khôi phục vote extension, thực hiện bất kỳ phép tính cần thiết nào trên chúng, và sau đó lưu kết quả vào cached store. Những kết quả này sẽ khả dụng cho ứng dụng trong lần gọi `FinalizeBlock` tiếp theo.
 
-An example of how a pre-FinalizeBlock hook could look is shown below:
+Một ví dụ về cách một hook pre-FinalizeBlock có thể trông như thế nào được hiển thị dưới đây:
 
 ```go
 app.SetPreBlocker(func(ctx sdk.Context, req *abci.FinalizeBlockRequest) error {
-    allVEs := []VE{} // store all parsed vote extensions here
+    allVEs := []VE{} // lưu tất cả vote extension đã phân tích ở đây
     for _, tx := range req.Txs {
-        // define a custom function that tries to parse the tx as a vote extension
+        // định nghĩa một hàm tùy chỉnh cố gắng phân tích tx như một vote extension
         ve, ok := parseVoteExtension(tx)
         if !ok {
             continue
@@ -89,8 +55,8 @@ app.SetPreBlocker(func(ctx sdk.Context, req *abci.FinalizeBlockRequest) error {
         allVEs = append(allVEs, ve)
     }
 
-    // perform any necessary computation on the vote extensions and store the result
-    // in the cached store
+    // thực hiện bất kỳ phép tính cần thiết nào trên vote extension và lưu kết quả
+    // vào cached store
     result := compute(allVEs)
     err := storeVEResult(ctx, result)
     if err != nil {
@@ -102,18 +68,17 @@ app.SetPreBlocker(func(ctx sdk.Context, req *abci.FinalizeBlockRequest) error {
 
 ```
 
-Then, in an app's module, the application can retrieve the result of the computation
-of vote extensions from the cached store:
+Sau đó, trong một module của ứng dụng, ứng dụng có thể lấy kết quả của phép tính trên vote extension từ cached store:
 
 ```go
 func (k Keeper) BeginBlocker(ctx context.Context) error {
-    // retrieve the result of the computation of vote extensions from the cached store
+    // lấy kết quả của phép tính trên vote extension từ cached store
     result, err := k.GetVEResult(ctx)
     if err != nil {
         return err
     }
 
-    // use the result of the computation of vote extensions
+    // sử dụng kết quả của phép tính trên vote extension
     k.setSomething(result)
 
     return nil

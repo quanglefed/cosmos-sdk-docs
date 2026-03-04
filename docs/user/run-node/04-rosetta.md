@@ -1,42 +1,42 @@
 # Rosetta
 
-The `rosetta` project implements Coinbase's [Rosetta API](https://www.rosetta-api.org). This document provides instructions on how to use the Rosetta API integration. For information about the motivation and design choices, refer to [ADR 035](https://docs.cosmos.network/main/architecture/adr-035-rosetta-api-support).
+Dự án `rosetta` triển khai [Rosetta API](https://www.rosetta-api.org) của Coinbase. Tài liệu này cung cấp hướng dẫn về cách sử dụng tích hợp Rosetta API. Để biết thông tin về động lực và các lựa chọn thiết kế, hãy tham khảo [ADR 035](https://docs.cosmos.network/main/architecture/adr-035-rosetta-api-support).
 
-## Installing Rosetta
+## Cài Đặt Rosetta
 
-The Rosetta API server is a stand-alone server that connects to a node of a chain developed with Cosmos SDK.
+Máy chủ Rosetta API là một dịch vụ độc lập kết nối đến một node của chuỗi được phát triển với Cosmos SDK.
 
-Rosetta can be added to any cosmos chain node. standalone or natively.
+Rosetta có thể được thêm vào bất kỳ node chuỗi Cosmos nào. Có thể chạy độc lập hoặc tích hợp gốc.
 
-### Standalone 
+### Độc Lập (Standalone)
 
-Rosetta can be executed as a standalone service, it connects to the node endpoints and expose the required endpoints.
+Rosetta có thể được thực thi như một dịch vụ độc lập, nó kết nối đến các endpoint của node và hiển thị các endpoint cần thiết.
 
-Install Rosetta standalone server with the following command:
+Cài đặt máy chủ Rosetta độc lập bằng lệnh sau:
 
 ```bash
 go install github.com/cosmos/rosetta
 ```
 
-Alternatively, for building from source, simply run `make build`. The binary will be located in the root folder.
+Hoặc, để xây dựng từ mã nguồn, đơn giản chạy `make build`. Binary sẽ nằm trong thư mục gốc.
 
-### Native - As a node command
+### Tích Hợp Gốc - Là Một Lệnh Node
 
-To enable Native Rosetta API support, it's required to add the `RosettaCommand` to your application's root command file (e.g. `simd/cmd/root.go`).
+Để bật hỗ trợ Rosetta API tích hợp gốc, cần thêm `RosettaCommand` vào file lệnh gốc của ứng dụng (ví dụ: `simd/cmd/root.go`).
 
-Import the `rosettaCmd` package:
+Import gói `rosettaCmd`:
 
 ```go
 import "github.com/cosmos/rosetta/cmd"
 ```
 
-Find the following line:
+Tìm dòng sau:
 
 ```go
 initRootCmd(rootCmd, encodingConfig)
 ```
 
-After that line, add the following:
+Sau dòng đó, thêm đoạn sau:
 
 ```go
 rootCmd.AddCommand(
@@ -44,64 +44,64 @@ rootCmd.AddCommand(
 )
 ```
 
-The `RosettaCommand` function builds the `rosetta` root command and is defined in the `rosettaCmd` package (`github.com/cosmos/rosetta/cmd`).
+Hàm `RosettaCommand` xây dựng lệnh gốc `rosetta` và được định nghĩa trong gói `rosettaCmd` (`github.com/cosmos/rosetta/cmd`).
 
-Since we’ve updated the Cosmos SDK to work with the Rosetta API, updating the application's root command file is all you need to do.
+Vì chúng ta đã cập nhật Cosmos SDK để hoạt động với Rosetta API, việc cập nhật file lệnh gốc của ứng dụng là tất cả những gì bạn cần làm.
 
-An implementation example can be found in `simapp` package.
+Có thể tìm thấy ví dụ triển khai trong gói `simapp`.
 
-## Use Rosetta Command
+## Sử Dụng Lệnh Rosetta
 
-To run Rosetta in your application CLI, use the following command:
+Để chạy Rosetta trong CLI ứng dụng của bạn, sử dụng lệnh sau:
 
-> **Note:** if using the native approach, add your node name before any rosetta command.
+> **Lưu ý:** nếu sử dụng phương pháp tích hợp gốc, hãy thêm tên node của bạn trước bất kỳ lệnh rosetta nào.
 
 ```shell
 rosetta --help
 ```
 
-To test and run Rosetta API endpoints for applications that are running and exposed, use the following command:
+Để kiểm thử và chạy các endpoint Rosetta API cho các ứng dụng đang chạy và được hiển thị, sử dụng lệnh sau:
 
 ```shell
 rosetta
-     --blockchain "your application name (ex: gaia)"
-     --network "your chain identifier (ex: testnet-1)"
-     --tendermint "tendermint endpoint (ex: localhost:26657)"
-     --grpc "gRPC endpoint (ex: localhost:9090)"
-     --addr "rosetta binding address (ex: :8080)"
-     --grpc-types-server (optional) "gRPC endpoint for message descriptor types"
+     --blockchain "tên ứng dụng của bạn (vd: gaia)"
+     --network "mã định danh chuỗi của bạn (vd: testnet-1)"
+     --tendermint "endpoint tendermint (vd: localhost:26657)"
+     --grpc "endpoint gRPC (vd: localhost:9090)"
+     --addr "địa chỉ binding của rosetta (vd: :8080)"
+     --grpc-types-server (tùy chọn) "endpoint gRPC cho các kiểu mô tả thông điệp"
 ```
 
-## Plugins - Multi chain connections
+## Plugin - Kết Nối Đa Chuỗi
 
-Rosetta will try to reflect the node types trough reflection over the node gRPC endpoints, there may be cases were this approach is not enough. It is possible to extend or implement the required types easily through plugins.
+Rosetta sẽ cố gắng phản chiếu (reflect) các kiểu của node thông qua reflection qua các endpoint gRPC của node, có thể có những trường hợp cách tiếp cận này không đủ. Có thể dễ dàng mở rộng hoặc triển khai các kiểu cần thiết thông qua plugin.
 
-To use Rosetta over any chain, it is required to set up prefixes and registering zone specific interfaces through plugins.
+Để sử dụng Rosetta trên bất kỳ chuỗi nào, cần thiết lập các tiền tố (prefix) và đăng ký các interface đặc thù của zone thông qua plugin.
 
-Each plugin is a minimalist implementation of `InitZone` and `RegisterInterfaces` which allow Rosetta to parse chain specific data. There is an example for cosmos-hub chain under `plugins/cosmos-hun/` folder
-- **InitZone**: An empty method that is executed first and defines prefixes, parameters and other settings.
-- **RegisterInterfaces**: This method receives an interface registry which is were the zone specific types and interfaces will be loaded
+Mỗi plugin là một triển khai tối giản của `InitZone` và `RegisterInterfaces`, cho phép Rosetta phân tích dữ liệu đặc thù của chuỗi. Có một ví dụ cho chuỗi cosmos-hub trong thư mục `plugins/cosmos-hub/`:
+- **InitZone**: Một phương thức rỗng được thực thi đầu tiên và định nghĩa các tiền tố, tham số và các cài đặt khác.
+- **RegisterInterfaces**: Phương thức này nhận một registry interface, nơi các kiểu và interface đặc thù của zone sẽ được tải.
 
-In order to add a new plugin: 
-1. Create a folder over `plugins` folder with the name of the desired zone
-2. Add a `main.go` file with the mentioned methods above.
-3. Build the code binary through `go build -buildmode=plugin -o main.so main.go` 
+Để thêm plugin mới:
+1. Tạo một thư mục trong thư mục `plugins` với tên của zone mong muốn
+2. Thêm file `main.go` với các phương thức đã đề cập ở trên.
+3. Build binary mã bằng `go build -buildmode=plugin -o main.so main.go`
 
-The plugin folder is selected through the cli `--plugin` flag and loaded into the Rosetta server.
+Thư mục plugin được chọn thông qua cờ `--plugin` của CLI và được tải vào máy chủ Rosetta.
 
-## Extensions
+## Mở Rộng
 
-There are two ways in which you can customize and extend the implementation with your custom settings.
+Có hai cách để bạn tùy chỉnh và mở rộng triển khai với các cài đặt tùy chỉnh của mình.
 
-### Message extension
+### Mở Rộng Thông Điệp
 
-In order to make an `sdk.Msg` understandable by rosetta the only thing which is required is adding the methods to your messages that satisfy the `rosetta.Msg` interface. Examples on how to do so can be found in the staking types such as `MsgDelegate`, or in bank types such as `MsgSend`.
+Để làm cho một `sdk.Msg` được Rosetta hiểu, điều duy nhất cần thiết là thêm các phương thức vào các thông điệp của bạn để thỏa mãn interface `rosetta.Msg`. Có thể tìm thấy ví dụ về cách thực hiện trong các kiểu staking như `MsgDelegate`, hoặc trong các kiểu bank như `MsgSend`.
 
-### Client interface override
+### Ghi Đè Interface Client
 
-In case more customization is required, it's possible to embed the Client type and override the methods which require customizations.
+Trong trường hợp cần tùy chỉnh nhiều hơn, có thể nhúng (embed) kiểu Client và ghi đè các phương thức cần tùy chỉnh.
 
-Example:
+Ví dụ:
 
 ```go
 package custom_client
@@ -112,26 +112,26 @@ import (
 "github.com/cosmos/rosetta/lib"
 )
 
-// CustomClient embeds the standard cosmos client
-// which means that it implements the cosmos-rosetta-gateway Client
-// interface while at the same time allowing to customize certain methods
+// CustomClient nhúng cosmos client tiêu chuẩn
+// có nghĩa là nó triển khai interface Client của cosmos-rosetta-gateway
+// đồng thời cho phép tùy chỉnh một số phương thức nhất định
 type CustomClient struct {
     *rosetta.Client
 }
 
 func (c *CustomClient) ConstructionPayload(_ context.Context, request *types.ConstructionPayloadsRequest) (resp *types.ConstructionPayloadsResponse, err error) {
-    // provide custom signature bytes
+    // cung cấp các byte chữ ký tùy chỉnh
     panic("implement me")
 }
 ```
 
-NOTE: when using a customized client, the command cannot be used as the constructors required **may** differ, so it's required to create a new one. We intend to provide a way to init a customized client without writing extra code in the future.
+LƯU Ý: khi sử dụng client tùy chỉnh, không thể sử dụng lệnh vì các constructor cần thiết **có thể** khác nhau, vì vậy cần tạo một lệnh mới. Chúng tôi có ý định cung cấp cách khởi tạo client tùy chỉnh mà không cần viết thêm code trong tương lai.
 
-### Error extension
+### Mở Rộng Lỗi
 
-Since rosetta requires to provide 'returned' errors to network options. In order to declare a new rosetta error, we use the `errors` package in cosmos-rosetta-gateway.
+Vì rosetta yêu cầu cung cấp các lỗi 'đã trả về' cho các tùy chọn mạng, để khai báo một lỗi rosetta mới, chúng ta sử dụng gói `errors` trong cosmos-rosetta-gateway.
 
-Example:
+Ví dụ:
 
 ```go
 package custom_errors
@@ -141,4 +141,4 @@ var customErrRetriable = true
 var CustomError = crgerrs.RegisterError(100, "custom message", customErrRetriable, "description")
 ```
 
-Note: errors must be registered before cosmos-rosetta-gateway's `Server`.`Start` method is called. Otherwise the registration will be ignored. Errors with same code will be ignored too.
+Lưu ý: các lỗi phải được đăng ký trước khi phương thức `Start` của `Server` trong cosmos-rosetta-gateway được gọi. Nếu không, việc đăng ký sẽ bị bỏ qua. Các lỗi có cùng mã cũng sẽ bị bỏ qua.

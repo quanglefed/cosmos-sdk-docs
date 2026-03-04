@@ -2,175 +2,170 @@
 sidebar_position: 1
 ---
 
-# Running a Node
+# Chạy Một Node
 
-:::note Synopsis
-Now that the application is ready and the keyring populated, it's time to see how to run the blockchain node. In this section, the application we are running is called [`simapp`](https://github.com/cosmos/cosmos-sdk/tree/main/simapp), and its corresponding CLI binary `simd`.
+:::note Tóm tắt
+Bây giờ ứng dụng đã sẵn sàng và keyring đã được điền, đã đến lúc xem cách chạy blockchain node. Trong phần này, ứng dụng chúng ta đang chạy được gọi là [`simapp`](https://github.com/cosmos/cosmos-sdk/tree/main/simapp), và binary CLI tương ứng là `simd`.
 :::
 
-:::note Pre-requisite Readings
+:::note Đọc Trước
 
-* [Anatomy of a Cosmos SDK Application](../../learn/beginner/00-app-anatomy.md)
-* [Setting up the keyring](./00-keyring.md)
+* [Cấu trúc của một ứng dụng Cosmos SDK](../../learn/beginner/00-app-anatomy.md)
+* [Thiết lập keyring](./00-keyring.md)
 
 :::
 
-## Initialize the Chain
+## Khởi Tạo Chain
 
 :::warning
-Make sure you can build your own binary, and replace `simd` with the name of your binary in the snippets.
+Hãy đảm bảo bạn có thể build binary của riêng mình, và thay `simd` bằng tên binary của bạn trong các đoạn code.
 :::
 
-Before actually running the node, we need to initialize the chain, and most importantly, its genesis file. This is done with the `init` subcommand:
+Trước khi thực sự chạy node, chúng ta cần khởi tạo chain, và quan trọng nhất là genesis file của nó. Điều này được thực hiện bằng lệnh con `init`:
 
 ```bash
-# The argument <moniker> is the custom username of your node, it should be human-readable.
+# Đối số <moniker> là tên người dùng tùy chỉnh của node, nên dễ đọc.
 simd init <moniker> --chain-id my-test-chain
 ```
 
-The command above creates all the configuration files needed for your node to run, as well as a default genesis file, which defines the initial state of the network.
+Lệnh trên tạo ra tất cả các file cấu hình cần thiết để node của bạn chạy, cũng như một genesis file mặc định, định nghĩa trạng thái ban đầu của mạng lưới.
 
 :::tip
-All these configuration files are in `~/.simapp` by default, but you can overwrite the location of this folder by passing the `--home` flag to each command,
-or set an `$APPD_HOME` environment variable (where `APPD` is the name of the binary).
+Tất cả các file cấu hình này nằm trong `~/.simapp` theo mặc định, nhưng bạn có thể ghi đè vị trí của thư mục này bằng cách truyền flag `--home` vào mỗi lệnh, hoặc đặt biến môi trường `$APPD_HOME` (trong đó `APPD` là tên của binary).
 :::
 
-The `~/.simapp` folder has the following structure:
+Thư mục `~/.simapp` có cấu trúc như sau:
 
 ```bash
 .                                   # ~/.simapp
-  |- data                           # Contains the databases used by the node.
+  |- data                           # Chứa các database được node sử dụng.
   |- config/
-      |- app.toml                   # Application-related configuration file.
-      |- config.toml                # CometBFT-related configuration file.
-      |- genesis.json               # The genesis file.
-      |- node_key.json              # Private key to use for node authentication in the p2p protocol.
-      |- priv_validator_key.json    # Private key to use as a validator in the consensus protocol.
+      |- app.toml                   # File cấu hình liên quan đến ứng dụng.
+      |- config.toml                # File cấu hình liên quan đến CometBFT.
+      |- genesis.json               # Genesis file.
+      |- node_key.json              # Khóa private để xác thực node trong giao thức p2p.
+      |- priv_validator_key.json    # Khóa private để dùng làm validator trong giao thức đồng thuận.
 ```
 
-## Updating Some Default Settings
+## Cập Nhật Một Số Cài Đặt Mặc Định
 
-If you want to change any field values in configuration files (for ex: genesis.json) you can use `jq` ([installation](https://stedolan.github.io/jq/download/) & [docs](https://stedolan.github.io/jq/manual/#Assignment)) & `sed` commands to do that. A few examples are listed here.
+Nếu bạn muốn thay đổi bất kỳ giá trị trường nào trong file cấu hình (ví dụ: genesis.json), bạn có thể dùng lệnh `jq` ([cài đặt](https://stedolan.github.io/jq/download/) & [tài liệu](https://stedolan.github.io/jq/manual/#Assignment)) & `sed` để làm điều đó. Một vài ví dụ được liệt kê ở đây.
 
 ```bash
-# to change the chain-id
+# để thay đổi chain-id
 jq '.chain_id = "testing"' genesis.json > temp.json && mv temp.json genesis.json
 
-# to enable the api server
+# để bật api server
 sed -i '/\[api\]/,+3 s/enable = false/enable = true/' app.toml
 
-# to change the voting_period
+# để thay đổi voting_period
 jq '.app_state.gov.voting_params.voting_period = "600s"' genesis.json > temp.json && mv temp.json genesis.json
 
-# to change the inflation
+# để thay đổi inflation
 jq '.app_state.mint.minter.inflation = "0.300000000000000000"' genesis.json > temp.json && mv temp.json genesis.json
 ```
 
-### Client Interaction
+### Tương Tác Client
 
-When instantiating a node, GRPC and REST are defaulted to localhost to avoid unknown exposure of your node to the public. It is recommended not to expose these endpoints without a proxy that can handle load balancing or authentication set up between your node and the public. 
+Khi khởi tạo một node, GRPC và REST mặc định là localhost để tránh việc node của bạn bị lộ ra công cộng. Khuyến nghị không nên để lộ các endpoint này mà không có một proxy xử lý cân bằng tải hoặc xác thực được thiết lập giữa node và công cộng.
 
 :::tip
-A commonly used tool for this is [nginx](https://nginx.org).
+Một công cụ thường được dùng cho mục đích này là [nginx](https://nginx.org).
 :::
 
+## Thêm Tài Khoản Genesis
 
-## Adding Genesis Accounts
+Trước khi khởi động chain, bạn cần điền trạng thái với ít nhất một tài khoản. Để làm vậy, trước tiên [tạo một tài khoản mới trong keyring](./00-keyring.md#adding-keys-to-the-keyring) tên là `my_validator` trong backend keyring `test` (bạn có thể chọn tên khác và backend khác).
 
-Before starting the chain, you need to populate the state with at least one account. To do so, first [create a new account in the keyring](./00-keyring.md#adding-keys-to-the-keyring) named `my_validator` under the `test` keyring backend (feel free to choose another name and another backend).
-
-Now that you have created a local account, go ahead and grant it some `stake` tokens in your chain's genesis file. Doing so will also make sure your chain is aware of this account's existence:
+Bây giờ bạn đã tạo một tài khoản cục bộ, hãy cấp cho nó một số token `stake` trong genesis file của chain. Làm như vậy cũng đảm bảo rằng chain biết đến sự tồn tại của tài khoản này:
 
 ```bash
 simd genesis add-genesis-account $MY_VALIDATOR_ADDRESS 100000000000stake
 ```
 
-Recall that `$MY_VALIDATOR_ADDRESS` is a variable that holds the address of the `my_validator` key in the [keyring](./00-keyring.md#adding-keys-to-the-keyring). Also note that the tokens in the Cosmos SDK have the `{amount}{denom}` format: `amount` is an 18-digit-precision decimal number, and `denom` is the unique token identifier with its denomination key (e.g. `atom` or `uatom`). Here, we are granting `stake` tokens, as `stake` is the token identifier used for staking in [`simapp`](https://github.com/cosmos/cosmos-sdk/tree/main/simapp). For your own chain with its own staking denom, that token identifier should be used instead.
+Nhớ rằng `$MY_VALIDATOR_ADDRESS` là biến lưu địa chỉ của khóa `my_validator` trong [keyring](./00-keyring.md#adding-keys-to-the-keyring). Cũng lưu ý rằng các token trong Cosmos SDK có định dạng `{amount}{denom}`: `amount` là số thập phân có độ chính xác 18 chữ số, và `denom` là định danh token duy nhất với khóa mệnh giá (ví dụ: `atom` hoặc `uatom`). Ở đây, chúng ta đang cấp token `stake`, vì `stake` là định danh token được dùng để staking trong [`simapp`](https://github.com/cosmos/cosmos-sdk/tree/main/simapp). Với chain của riêng bạn có denom staking riêng, định danh token đó nên được sử dụng thay thế.
 
-Now that your account has some tokens, you need to add a validator to your chain. Validators are special full-nodes that participate in the consensus process (implemented in the [underlying consensus engine](../../learn/intro/02-sdk-app-architecture.md#cometbft)) in order to add new blocks to the chain. Any account can declare its intention to become a validator operator, but only those with sufficient delegation get to enter the active set (for example, only the top 125 validator candidates with the most delegation get to be validators in the Cosmos Hub). For this guide, you will add your local node (created via the `init` command above) as a validator of your chain. Validators can be declared before a chain is first started via a special transaction included in the genesis file called a `gentx`:
+Bây giờ tài khoản của bạn đã có một số token, bạn cần thêm một validator vào chain. Validator là các full-node đặc biệt tham gia vào quá trình đồng thuận (được triển khai trong [consensus engine bên dưới](../../learn/intro/02-sdk-app-architecture.md#cometbft)) để thêm các block mới vào chain. Bất kỳ tài khoản nào cũng có thể tuyên bố ý định trở thành validator operator, nhưng chỉ những người có đủ delegation mới được vào tập hợp hoạt động (ví dụ, chỉ 125 ứng viên validator hàng đầu có nhiều delegation nhất được làm validator ở Cosmos Hub). Đối với hướng dẫn này, bạn sẽ thêm node cục bộ của mình (được tạo qua lệnh `init` ở trên) làm validator của chain. Validator có thể được khai báo trước khi chain được khởi động lần đầu qua một giao dịch đặc biệt được đưa vào genesis file gọi là `gentx`:
 
 ```bash
-# Create a gentx.
+# Tạo một gentx.
 simd genesis gentx my_validator 100000000stake --chain-id my-test-chain --keyring-backend test
 
-# Add the gentx to the genesis file.
+# Thêm gentx vào genesis file.
 simd genesis collect-gentxs
 ```
 
-A `gentx` does three things:
+Một `gentx` làm ba việc:
 
-1. Registers the `validator` account you created as a validator operator account (i.e., the account that controls the validator).
-2. Self-delegates the provided `amount` of staking tokens.
-3. Link the operator account with a CometBFT node pubkey that will be used for signing blocks. If no `--pubkey` flag is provided, it defaults to the local node pubkey created via the `simd init` command above.
+1. Đăng ký tài khoản `validator` bạn đã tạo làm tài khoản validator operator (tức là tài khoản kiểm soát validator).
+2. Tự ủy thác `amount` token staking được cung cấp.
+3. Liên kết tài khoản operator với CometBFT node pubkey sẽ được dùng để ký block. Nếu không có flag `--pubkey` nào được cung cấp, nó mặc định là pubkey của node cục bộ được tạo qua lệnh `simd init` ở trên.
 
-For more information on `gentx`, use the following command:
+Để biết thêm thông tin về `gentx`, sử dụng lệnh sau:
 
 ```bash
 simd genesis gentx --help
 ```
 
-## Configuring the Node Using `app.toml` and `config.toml`
+## Cấu Hình Node Sử Dụng `app.toml` và `config.toml`
 
-The Cosmos SDK automatically generates two configuration files inside `~/.simapp/config`:
+Cosmos SDK tự động tạo ra hai file cấu hình bên trong `~/.simapp/config`:
 
-* `config.toml`: used to configure the CometBFT, learn more on [CometBFT's documentation](https://docs.cometbft.com/v0.37/core/configuration),
-* `app.toml`: generated by the Cosmos SDK, and used to configure your app, such as state pruning strategies, telemetry, gRPC and REST servers configuration, state sync...
+* `config.toml`: dùng để cấu hình CometBFT, tìm hiểu thêm trên [tài liệu của CometBFT](https://docs.cometbft.com/v0.37/core/configuration),
+* `app.toml`: được tạo bởi Cosmos SDK, dùng để cấu hình ứng dụng của bạn, chẳng hạn như chiến lược pruning trạng thái, telemetry, cấu hình gRPC và REST server, state sync...
 
-Both files are heavily commented, please refer to them directly to tweak your node.
+Cả hai file đều có nhiều comment, vui lòng tham khảo trực tiếp chúng để điều chỉnh node của bạn.
 
-One example config to tweak is the `minimum-gas-prices` field inside `app.toml`, which defines the minimum gas prices the validator node is willing to accept for processing a transaction. Depending on the chain, it might be an empty string or not. If it's empty, make sure to edit the field with some value, for example `10token`, or else the node will halt on startup. For the purpose of this tutorial, let's set the minimum gas price to 0:
+Một ví dụ cấu hình cần điều chỉnh là trường `minimum-gas-prices` bên trong `app.toml`, định nghĩa mức giá gas tối thiểu mà validator node sẵn sàng chấp nhận để xử lý giao dịch. Tùy thuộc vào chain, nó có thể là chuỗi rỗng hoặc không. Nếu nó rỗng, hãy đảm bảo chỉnh sửa trường với một giá trị nào đó, ví dụ `10token`, nếu không node sẽ dừng khi khởi động. Để phục vụ mục đích của tutorial này, hãy đặt giá gas tối thiểu là 0:
 
 ```toml
- # The minimum gas prices a validator is willing to accept for processing a
- # transaction. A transaction's fees must meet the minimum of any denomination
- # specified in this config (e.g. 0.25token1;0.0001token2).
+ # Giá gas tối thiểu mà validator sẵn sàng chấp nhận để xử lý giao dịch.
+ # Phí của giao dịch phải đáp ứng mức tối thiểu của bất kỳ mệnh giá nào
+ # được chỉ định trong cấu hình này (vd: 0.25token1;0.0001token2).
  minimum-gas-prices = "0stake"
 ```
 
 :::tip
-When running a node (not a validator!) and not wanting to run the application mempool, set the `max-txs` field to `-1`.
+Khi chạy một node (không phải validator!) và không muốn chạy application mempool, đặt trường `max-txs` thành `-1`.
 
 ```toml
 [mempool]
-# Setting max-txs to 0 will allow for an unbounded amount of transactions in the mempool.
-# Setting max_txs to negative 1 (-1) will disable transactions from being inserted into the mempool.
-# Setting max_txs to a positive number (> 0) will limit the number of transactions in the mempool, by the specified amount.
+# Đặt max-txs thành 0 sẽ cho phép số lượng giao dịch không giới hạn trong mempool.
+# Đặt max_txs thành âm 1 (-1) sẽ vô hiệu hóa việc chèn giao dịch vào mempool.
+# Đặt max_txs thành số dương (> 0) sẽ giới hạn số lượng giao dịch trong mempool theo số lượng được chỉ định.
 #
-# Note, this configuration only applies to SDK built-in app-side mempool
-# implementations.
+# Lưu ý, cấu hình này chỉ áp dụng cho các triển khai mempool phía ứng dụng
+# được tích hợp sẵn trong SDK.
 max-txs = "-1"
 ```
 
 :::
 
-## Run a Localnet
+## Chạy Localnet
 
-Now that everything is set up, you can finally start your node:
+Bây giờ mọi thứ đã được thiết lập, bạn cuối cùng có thể khởi động node:
 
 ```bash
 simd start
 ```
 
-You should see blocks come in.
+Bạn sẽ thấy các block xuất hiện.
 
-The previous command allows you to run a single node. This is enough for the next section on interacting with this node, but you may wish to run multiple nodes at the same time, and see how consensus happens between them.
+Lệnh trên cho phép bạn chạy một node đơn. Điều này đủ cho phần tiếp theo về tương tác với node này, nhưng bạn có thể muốn chạy nhiều node cùng lúc và xem đồng thuận diễn ra giữa chúng như thế nào.
 
-The naive way would be to run the same commands again in separate terminal windows. This is possible, however, in the Cosmos SDK, we leverage the power of [Docker Compose](https://docs.docker.com/compose/) to run a localnet. If you need inspiration on how to set up your own localnet with Docker Compose, you can have a look at the Cosmos SDK's [`docker-compose.yml`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/docker-compose.yml).
+Cách đơn giản nhất là chạy các lệnh tương tự trong các cửa sổ terminal riêng biệt. Điều này có thể thực hiện được, tuy nhiên, trong Cosmos SDK, chúng ta tận dụng sức mạnh của [Docker Compose](https://docs.docker.com/compose/) để chạy một localnet. Nếu bạn cần nguồn cảm hứng về cách thiết lập localnet của riêng mình với Docker Compose, bạn có thể xem [`docker-compose.yml`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/docker-compose.yml) của Cosmos SDK.
 
-### Standalone App/CometBFT
+### Ứng Dụng Độc Lập/CometBFT
 
-By default, the Cosmos SDK runs CometBFT in-process with the application
-If you want to run the application and CometBFT in separate processes,
-start the application with the `--with-comet=false` flag
-and set `rpc.laddr` in `config.toml` to the CometBFT node's RPC address.
+Theo mặc định, Cosmos SDK chạy CometBFT trong cùng tiến trình với ứng dụng. Nếu bạn muốn chạy ứng dụng và CometBFT trong các tiến trình riêng biệt, hãy khởi động ứng dụng với flag `--with-comet=false` và đặt `rpc.laddr` trong `config.toml` thành địa chỉ RPC của CometBFT node.
 
-## Logging
+## Ghi Log
 
-Logging provides a way to see what is going on with a node. The default logging level is info. This is a global level and all info logs will be outputted to the terminal. If you would like to filter specific logs to the terminal instead of all, then setting `module:log_level` is how this can work. 
+Ghi log cung cấp cách để xem những gì đang xảy ra với một node. Mức log mặc định là info. Đây là mức toàn cục và tất cả log info sẽ được xuất ra terminal. Nếu bạn muốn lọc các log cụ thể ra terminal thay vì tất cả, thì việc đặt `module:log_level` là cách để làm điều đó.
 
-Example: 
+Ví dụ:
 
-In config.toml:
+Trong config.toml:
 
 ```toml
 log_level: "state:info,p2p:info,consensus:info,x/staking:info,x/ibc:info,*error"
@@ -178,22 +173,21 @@ log_level: "state:info,p2p:info,consensus:info,x/staking:info,x/ibc:info,*error"
 
 ## State Sync
 
-State sync is the act in which a node syncs the latest or close to the latest state of a blockchain. This is useful for users who don't want to sync all the blocks in history. Read more in [CometBFT documentation](https://docs.cometbft.com/v0.37/core/state-sync).
+State sync là hành động mà một node đồng bộ trạng thái mới nhất hoặc gần mới nhất của blockchain. Điều này hữu ích cho người dùng không muốn đồng bộ tất cả các block trong lịch sử. Đọc thêm trong [tài liệu CometBFT](https://docs.cometbft.com/v0.37/core/state-sync).
 
-State sync works thanks to snapshots. Read how the SDK handles snapshots [here](https://github.com/cosmos/cosmos-sdk/blob/825245d/store/snapshots/README.md).
+State sync hoạt động nhờ snapshot. Đọc cách SDK xử lý snapshot [tại đây](https://github.com/cosmos/cosmos-sdk/blob/825245d/store/snapshots/README.md).
 
-### Local State Sync
+### State Sync Cục Bộ
 
-Local state sync works similar to normal state sync except that it works off a local snapshot of state instead of one provided via the p2p network. The steps to start local state sync are similar to normal state sync with a few different designs. 
+State sync cục bộ hoạt động tương tự như state sync thông thường ngoại trừ nó hoạt động từ snapshot cục bộ của trạng thái thay vì snapshot được cung cấp qua mạng p2p. Các bước để bắt đầu state sync cục bộ tương tự như state sync thông thường với một số thiết kế khác nhau.
 
-1. As mentioned in https://docs.cometbft.com/v0.37/core/state-sync, one must set a height and hash in the config.toml along with a few rpc servers (the aforementioned link has instructions on how to do this). 
-2. Run `<appd snapshot restore <height> <format>` to restore a local snapshot (note: first load it from a file with the *load* command). 
-3. Bootstrapping Comet state to start the node after the snapshot has been ingested. This can be done with the bootstrap command `<app> comet bootstrap-state`
+1. Như đã đề cập trong https://docs.cometbft.com/v0.37/core/state-sync, bạn phải đặt chiều cao và hash trong config.toml cùng với một vài rpc server (link đã đề cập có hướng dẫn cách làm điều này).
+2. Chạy `<appd snapshot restore <height> <format>` để khôi phục snapshot cục bộ (lưu ý: trước tiên tải nó từ file bằng lệnh *load*).
+3. Bootstrapping Comet state để khởi động node sau khi snapshot đã được nhập. Điều này có thể được thực hiện với lệnh bootstrap `<app> comet bootstrap-state`.
 
-### Snapshots Commands
+### Lệnh Snapshots
 
-The Cosmos SDK provides commands for managing snapshots.
-These commands can be added in an app with the following snippet in `cmd/<app>/root.go`:
+Cosmos SDK cung cấp các lệnh để quản lý snapshot. Các lệnh này có thể được thêm vào ứng dụng với đoạn code sau trong `cmd/<app>/root.go`:
 
 ```go
 import (
@@ -208,11 +202,11 @@ func initRootCmd(/* ... */) {
 }
 ```
 
-Then the following commands are available at `<appd> snapshots [command]`:
+Sau đó các lệnh sau có sẵn tại `<appd> snapshots [command]`:
 
-* **list**: list local snapshots
-* **load**: Load a snapshot archive file into snapshot store
-* **restore**: Restore app state from local snapshot
-* **export**: Export app state to snapshot store
-* **dump**: Dump the snapshot as portable archive format
-* **delete**: Delete a local snapshot
+* **list**: liệt kê các snapshot cục bộ
+* **load**: Tải một file snapshot vào snapshot store
+* **restore**: Khôi phục trạng thái ứng dụng từ snapshot cục bộ
+* **export**: Xuất trạng thái ứng dụng vào snapshot store
+* **dump**: Dump snapshot dưới dạng định dạng lưu trữ portable
+* **delete**: Xóa một snapshot cục bộ

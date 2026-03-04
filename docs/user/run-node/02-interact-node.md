@@ -2,87 +2,81 @@
 sidebar_position: 1
 ---
 
-# Interacting with the Node
+# Tương Tác Với Node
 
-:::note Synopsis
-There are multiple ways to interact with a node: using the CLI, using gRPC or using the REST endpoints.
+:::note Tóm tắt
+Có nhiều cách để tương tác với một node: sử dụng CLI, sử dụng gRPC hoặc sử dụng các REST endpoint.
 :::
 
-:::note Pre-requisite Readings
+:::note Đọc Trước
 
-* [gRPC, REST and CometBFT Endpoints](../../learn/advanced/06-grpc_rest.md)
-* [Running a Node](./01-run-node.md)
+* [Các Endpoint gRPC, REST và CometBFT](../../learn/advanced/06-grpc_rest.md)
+* [Chạy Một Node](./01-run-node.md)
 
 :::
 
-## Using the CLI
+## Sử Dụng CLI
 
-Now that your chain is running, it is time to try sending tokens from the first account you created to a second account. In a new terminal window, start by running the following query command:
+Bây giờ chain của bạn đang chạy, đã đến lúc thử gửi token từ tài khoản đầu tiên bạn tạo đến tài khoản thứ hai. Trong một cửa sổ terminal mới, bắt đầu bằng cách chạy lệnh truy vấn sau:
 
 ```bash
 simd query bank balances $MY_VALIDATOR_ADDRESS
 ```
 
-You should see the current balance of the account you created, equal to the original balance of `stake` you granted it minus the amount you delegated via the `gentx`. Now, create a second account:
+Bạn sẽ thấy số dư hiện tại của tài khoản bạn đã tạo. Bây giờ, tạo một tài khoản thứ hai:
 
 ```bash
 simd keys add recipient --keyring-backend test
 
-# Put the generated address in a variable for later use.
+# Đặt địa chỉ được tạo ra vào một biến để sử dụng sau.
 RECIPIENT=$(simd keys show recipient -a --keyring-backend test)
 ```
 
-The command above creates a local key-pair that is not yet registered on the chain. An account is created the first time it receives tokens from another account. Now, run the following command to send tokens to the `recipient` account:
+Lệnh trên tạo ra một cặp khóa cục bộ chưa được đăng ký trên chain. Một tài khoản được tạo khi lần đầu nó nhận token từ tài khoản khác. Bây giờ, chạy lệnh sau để gửi token đến tài khoản `recipient`:
 
 ```bash
 simd tx bank send $MY_VALIDATOR_ADDRESS $RECIPIENT 1000000stake --chain-id my-test-chain --keyring-backend test
 
-# Check that the recipient account did receive the tokens.
+# Kiểm tra tài khoản recipient đã nhận được token chưa.
 simd query bank balances $RECIPIENT
 ```
 
-Finally, delegate some of the stake tokens sent to the `recipient` account to the validator:
+Cuối cùng, ủy thác một số token stake đến validator:
 
 ```bash
 simd tx staking delegate $(simd keys show my_validator --bech val -a --keyring-backend test) 500stake --from recipient --chain-id my-test-chain --keyring-backend test
 
-# Query the total delegations to `validator`.
+# Truy vấn tổng số delegation cho `validator`.
 simd query staking delegations-to $(simd keys show my_validator --bech val -a --keyring-backend test)
 ```
 
-You should see two delegations, the first one made from the `gentx`, and the second one you just performed from the `recipient` account.
+Bạn sẽ thấy hai delegation: cái đầu tiên từ `gentx`, cái thứ hai bạn vừa thực hiện từ tài khoản `recipient`.
 
-## Using gRPC
+## Sử Dụng gRPC
 
-The Protobuf ecosystem developed tools for different use cases, including code-generation from `*.proto` files into various languages. These tools allow the building of clients easily. Often, the client connection (i.e. the transport) can be plugged and replaced very easily. Let's explore one of the most popular transports: [gRPC](../../learn/advanced/06-grpc_rest.md).
+Hệ sinh thái Protobuf đã phát triển các công cụ cho nhiều trường hợp sử dụng, bao gồm tạo code từ các file `*.proto` sang nhiều ngôn ngữ. Chúng ta sẽ chỉ trình bày ba lựa chọn:
 
-Since the code generation library largely depends on your own tech stack, we will only present three alternatives:
-
-* `grpcurl` for generic debugging and testing,
-* programmatically via Go,
-* CosmJS for JavaScript/TypeScript developers.
+* `grpcurl` cho debug và kiểm thử chung,
+* lập trình qua Go,
+* CosmJS cho các nhà phát triển JavaScript/TypeScript.
 
 ### grpcurl
 
-[grpcurl](https://github.com/fullstorydev/grpcurl) is like `curl` but for gRPC. It is also available as a Go library, but we will use it only as a CLI command for debugging and testing purposes. Follow the instructions in the previous link to install it.
-
-Assuming you have a local node running (either a localnet, or connected to a live network), you should be able to run the following command to list the Protobuf services available (you can replace `localhost:9000` by the gRPC server endpoint of another node, which is configured under the `grpc.address` field inside [`app.toml`](../../user/run-node/01-run-node.md#configuring-the-node-using-apptoml-and-configtoml)):
+[grpcurl](https://github.com/fullstorydev/grpcurl) giống như `curl` nhưng dành cho gRPC. Làm theo hướng dẫn trong link trước để cài đặt.
 
 ```bash
 grpcurl -plaintext localhost:9090 list
 ```
 
-You should see a list of gRPC services, like `cosmos.bank.v1beta1.Query`. This is called reflection, which is a Protobuf endpoint returning a description of all available endpoints. Each of these represents a different Protobuf service, and each service exposes multiple RPC methods you can query against.
-
-In order to get a description of the service you can run the following command:
+Bạn sẽ thấy danh sách các dịch vụ gRPC, như `cosmos.bank.v1beta1.Query`. Để lấy mô tả của dịch vụ:
 
 ```bash
 grpcurl -plaintext \
     localhost:9090 \
-    describe cosmos.bank.v1beta1.Query                  # Service we want to inspect
+    describe cosmos.bank.v1beta1.Query
 ```
 
-It's also possible to execute an RPC call to query the node for information:
+Để thực thi một lệnh gọi RPC:
 
 ```bash
 grpcurl \
@@ -92,11 +86,7 @@ grpcurl \
     cosmos.bank.v1beta1.Query/AllBalances
 ```
 
-The list of all available gRPC query endpoints is [coming soon](https://github.com/cosmos/cosmos-sdk/issues/7786).
-
-#### Query for historical state using grpcurl
-
-You may also query for historical data by passing some [gRPC metadata](https://github.com/grpc/grpc-go/blob/master/Documentation/grpc-metadata.md) to the query: the `x-cosmos-block-height` metadata should contain the block to query. Using grpcurl as above, the command looks like:
+#### Truy Vấn Dữ Liệu Lịch Sử Sử Dụng grpcurl
 
 ```bash
 grpcurl \
@@ -107,18 +97,7 @@ grpcurl \
     cosmos.bank.v1beta1.Query/AllBalances
 ```
 
-Assuming the state at that block has not yet been pruned by the node, this query should return a non-empty response.
-
-### Programmatically via Go
-
-The following snippet shows how to query the state using gRPC inside a Go program. The idea is to create a gRPC connection, and use the Protobuf-generated client code to query the gRPC server.
-
-#### Install Cosmos SDK
-
-
-```bash
-go get github.com/cosmos/cosmos-sdk@main
-```
+### Lập Trình Qua Go
 
 ```go
 package main
@@ -135,17 +114,14 @@ import (
 )
 
 func queryState() error {
-    myAddress, err := sdk.AccAddressFromBech32("cosmos1...") // the my_validator or recipient address.
+    myAddress, err := sdk.AccAddressFromBech32("cosmos1...")
     if err != nil {
         return err
     }
 
-    // Create a connection to the gRPC server.
     grpcConn, err := grpc.Dial(
-        "127.0.0.1:9090", // your gRPC server address.
-        grpc.WithInsecure(), // The Cosmos SDK doesn't support any transport security mechanism. 
-        // This instantiates a general gRPC codec which handles proto bytes. We pass in a nil interface registry
-        // if the request/response types contain interface instead of 'nil' you should pass the application specific codec.
+        "127.0.0.1:9090",
+        grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(grpc.ForceCodec(codec.NewProtoCodec(nil).GRPCCodec())),
 	)
     if err != nil {
@@ -153,7 +129,6 @@ func queryState() error {
     }
     defer grpcConn.Close()
 
-    // This creates a gRPC client to query the x/bank service.
     bankClient := banktypes.NewQueryClient(grpcConn)
     bankRes, err := bankClient.Balance(
         context.Background(),
@@ -163,8 +138,7 @@ func queryState() error {
         return err
     }
 
-    fmt.Println(bankRes.GetBalance()) // Prints the account balance
-
+    fmt.Println(bankRes.GetBalance())
     return nil
 }
 
@@ -175,11 +149,7 @@ func main() {
 }
 ```
 
-You can replace the query client (here we are using `x/bank`'s) with one generated from any other Protobuf service. The list of all available gRPC query endpoints is [coming soon](https://github.com/cosmos/cosmos-sdk/issues/7786).
-
-#### Query for historical state using Go
-
-Querying for historical blocks is done by adding the block height metadata in the gRPC request.
+#### Truy Vấn Dữ Liệu Lịch Sử Sử Dụng Go
 
 ```go
 package main
@@ -198,17 +168,14 @@ import (
 )
 
 func queryState() error {
-	myAddress, err := sdk.AccAddressFromBech32("cosmos1yerherx4d43gj5wa3zl5vflj9d4pln42n7kuzu") // the my_validator or recipient address.
+	myAddress, err := sdk.AccAddressFromBech32("cosmos1yerherx4d43gj5wa3zl5vflj9d4pln42n7kuzu")
 	if err != nil {
 		return err
 	}
 
-	// Create a connection to the gRPC server.
 	grpcConn, err := grpc.Dial(
-		"127.0.0.1:9090",    // your gRPC server address.
-		grpc.WithInsecure(), // The Cosmos SDK doesn't support any transport security mechanism.
-		// This instantiates a general gRPC codec which handles proto bytes. We pass in a nil interface registry
-		// if the request/response types contain interface instead of 'nil' you should pass the application specific codec.
+		"127.0.0.1:9090",
+		grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(grpc.ForceCodec(codec.NewProtoCodec(nil).GRPCCodec())),
 	)
 	if err != nil {
@@ -216,22 +183,20 @@ func queryState() error {
 	}
 	defer grpcConn.Close()
 
-	// This creates a gRPC client to query the x/bank service.
 	bankClient := banktypes.NewQueryClient(grpcConn)
 
 	var header metadata.MD
 	_, err = bankClient.Balance(
-		metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, "12"), // Add metadata to request
+		metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, "12"),
 		&banktypes.QueryBalanceRequest{Address: myAddress.String(), Denom: "stake"},
-		grpc.Header(&header), // Retrieve header from response
+		grpc.Header(&header),
 	)
 	if err != nil {
 		return err
 	}
 	blockHeight := header.Get(grpctypes.GRPCBlockHeightHeader)
 
-	fmt.Println(blockHeight) // Prints the block height (12)
-
+	fmt.Println(blockHeight)
 	return nil
 }
 
@@ -244,20 +209,19 @@ func main() {
 
 ### CosmJS
 
-CosmJS documentation can be found at [https://cosmos.github.io/cosmjs](https://cosmos.github.io/cosmjs). As of January 2021, CosmJS documentation is still a work in progress.
+Tài liệu CosmJS có thể tìm thấy tại [https://cosmos.github.io/cosmjs](https://cosmos.github.io/cosmjs). Tính đến tháng 1 năm 2021, tài liệu CosmJS vẫn đang trong quá trình hoàn thiện.
 
-## Using the REST Endpoints
+## Sử Dụng Các REST Endpoint
 
-As described in the [gRPC guide](../../learn/advanced/06-grpc_rest.md), all gRPC services on the Cosmos SDK are made available for more convenient REST-based queries through gRPC-gateway. The format of the URL path is based on the Protobuf service method's full-qualified name, but may contain small customizations so that final URLs look more idiomatic. For example, the REST endpoint for the `cosmos.bank.v1beta1.Query/AllBalances` method is `GET /cosmos/bank/v1beta1/balances/{address}`. Request arguments are passed as query parameters.
+Như được mô tả trong [hướng dẫn gRPC](../../learn/advanced/06-grpc_rest.md), tất cả các dịch vụ gRPC trên Cosmos SDK được cung cấp qua gRPC-gateway. Ví dụ, REST endpoint cho `cosmos.bank.v1beta1.Query/AllBalances` là `GET /cosmos/bank/v1beta1/balances/{address}`.
 
-Note that the REST endpoints are not enabled by default. To enable them, edit the `api` section of your `~/.simapp/config/app.toml` file:
+REST endpoint không được bật theo mặc định. Để bật, chỉnh sửa phần `api` trong `~/.simapp/config/app.toml`:
 
 ```toml
-# Enable defines if the API server should be enabled.
 enable = true
 ```
 
-As a concrete example, the `curl` command to make balances request is:
+Ví dụ lệnh `curl` truy vấn số dư:
 
 ```bash
 curl \
@@ -266,13 +230,9 @@ curl \
     http://localhost:1317/cosmos/bank/v1beta1/balances/$MY_VALIDATOR_ADDRESS
 ```
 
-Make sure to replace `localhost:1317` with the REST endpoint of your node, configured under the `api.address` field.
+Danh sách tất cả các REST endpoint có sẵn dưới dạng Swagger tại `localhost:1317/swagger`.
 
-The list of all available REST endpoints is available as a Swagger specification file, it can be viewed at `localhost:1317/swagger`. Make sure that the `api.swagger` field is set to true in your [`app.toml`](../../user/run-node/01-run-node.md#configuring-the-node-using-apptoml-and-configtoml) file.
-
-### Query for historical state using REST
-
-Querying for historical state is done using the HTTP header `x-cosmos-block-height`. For example, a curl command would look like:
+### Truy Vấn Dữ Liệu Lịch Sử Sử Dụng REST
 
 ```bash
 curl \
@@ -282,8 +242,6 @@ curl \
     http://localhost:1317/cosmos/bank/v1beta1/balances/$MY_VALIDATOR_ADDRESS
 ```
 
-Assuming the state at that block has not yet been pruned by the node, this query should return a non-empty response.
-
 ### Cross-Origin Resource Sharing (CORS)
 
-[CORS policies](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) are not enabled by default to help with security. If you would like to use the rest-server in a public environment we recommend you provide a reverse proxy, this can be done with [nginx](https://www.nginx.com/). For testing and development purposes there is an `enabled-unsafe-cors` field inside [`app.toml`](../../user/run-node/01-run-node.md#configuring-the-node-using-apptoml-and-configtoml).
+[Chính sách CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) không được bật theo mặc định. Nếu muốn sử dụng rest-server trong môi trường công cộng, khuyến nghị dùng reverse proxy như [nginx](https://www.nginx.com/). Để kiểm thử và phát triển, có trường `enabled-unsafe-cors` trong [`app.toml`](../../user/run-node/01-run-node.md#configuring-the-node-using-apptoml-and-configtoml).

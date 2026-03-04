@@ -4,16 +4,13 @@ sidebar_position: 1
 
 # Application Mempool
 
-:::note Synopsis
-This section describes how the app-side mempool can be used and replaced. 
+:::note Tóm tắt
+Phần này mô tả cách mempool phía ứng dụng có thể được sử dụng và thay thế.
 :::
 
-Since `v0.47` the application has its own mempool to allow much more granular
-block building than previous versions. This change was enabled by
-[ABCI 1.0](https://github.com/cometbft/cometbft/blob/v0.37.0/spec/abci).
-Notably it introduces the `PrepareProposal` and `ProcessProposal` steps of ABCI++.
+Kể từ `v0.47`, ứng dụng có mempool riêng để cho phép xây dựng block chi tiết hơn nhiều so với các phiên bản trước. Thay đổi này được kích hoạt bởi [ABCI 1.0](https://github.com/cometbft/cometbft/blob/v0.37.0/spec/abci). Đáng chú ý là nó giới thiệu các bước `PrepareProposal` và `ProcessProposal` của ABCI++.
 
-:::note Pre-requisite Readings
+:::note Đọc Trước
 
 * [BaseApp](../../learn/advanced/00-baseapp.md)
 * [ABCI](../abci/00-introduction.md)
@@ -22,14 +19,13 @@ Notably it introduces the `PrepareProposal` and `ProcessProposal` steps of ABCI+
 
 ## Mempool
 
-There are countless designs that an application developer can write for a mempool, the SDK opted to provide only simple mempool implementations.
-Namely, the SDK provides the following mempools:
+Có vô số thiết kế mà nhà phát triển ứng dụng có thể viết cho mempool, SDK chỉ cung cấp các triển khai mempool đơn giản. Cụ thể, SDK cung cấp các mempool sau:
 
 * [No-op Mempool](#no-op-mempool)
 * [Sender Nonce Mempool](#sender-nonce-mempool)
 * [Priority Nonce Mempool](#priority-nonce-mempool)
 
-By default, the SDK uses the [No-op Mempool](#no-op-mempool), but it can be replaced by the application developer in [`app.go`](./01-app-go-di.md):
+Theo mặc định, SDK sử dụng [No-op Mempool](#no-op-mempool), nhưng có thể được thay thế bởi nhà phát triển ứng dụng trong [`app.go`](./01-app-go-di.md):
 
 ```go
 nonceMempool := mempool.NewSenderNonceMempool()
@@ -39,56 +35,52 @@ baseAppOptions = append(baseAppOptions, mempoolOpt)
 
 ### No-op Mempool
 
-A no-op mempool is a mempool where transactions are completely discarded and ignored when BaseApp interacts with the mempool.
-When this mempool is used, it is assumed that an application will rely on CometBFT's transaction ordering defined in `RequestPrepareProposal`,
-which is FIFO-ordered by default.
+No-op mempool là mempool mà các giao dịch bị loại bỏ và bỏ qua hoàn toàn khi BaseApp tương tác với mempool. Khi mempool này được sử dụng, người ta giả định rằng ứng dụng sẽ dựa vào thứ tự giao dịch của CometBFT được định nghĩa trong `RequestPrepareProposal`, vốn được sắp xếp theo FIFO theo mặc định.
 
-> Note: If a NoOp mempool is used, PrepareProposal and ProcessProposal both should be aware of this as
-> PrepareProposal could include transactions that could fail verification in ProcessProposal.
+> Lưu ý: Nếu sử dụng NoOp mempool, cả PrepareProposal và ProcessProposal đều nên nhận thức được điều này vì PrepareProposal có thể bao gồm các giao dịch có thể thất bại khi xác minh trong ProcessProposal.
 
 ### Sender Nonce Mempool
 
-The nonce mempool is a mempool that keeps transactions from a sender sorted by nonce in order to avoid the issues with nonces. 
-It works by storing the transaction in a list sorted by the transaction nonce. When the proposer asks for transactions to be included in a block it randomly selects a sender and gets the first transaction in the list. It repeats this until the mempool is empty or the block is full. 
+Nonce mempool là mempool giữ các giao dịch từ một người gửi được sắp xếp theo nonce để tránh các vấn đề với nonce. Nó hoạt động bằng cách lưu trữ giao dịch trong một danh sách được sắp xếp theo nonce của giao dịch. Khi proposer yêu cầu các giao dịch để đưa vào block, nó ngẫu nhiên chọn một người gửi và lấy giao dịch đầu tiên trong danh sách. Nó lặp lại điều này cho đến khi mempool rỗng hoặc block đầy.
 
-It is configurable with the following parameters:
+Có thể cấu hình với các tham số sau:
 
 #### MaxTxs
 
-It is an integer value that sets the mempool in one of three modes, *bounded*, *unbounded*, or *disabled*.
+Là giá trị nguyên đặt mempool ở một trong ba chế độ: *bounded* (giới hạn), *unbounded* (không giới hạn) hoặc *disabled* (vô hiệu hóa).
 
-* **negative**: Disabled, mempool does not insert new transaction and return early.
-* **zero**: Unbounded mempool has no transaction limit and will never fail with `ErrMempoolTxMaxCapacity`.
-* **positive**: Bounded, it fails with `ErrMempoolTxMaxCapacity` when the `maxTx` value is the same as `CountTx()`
+* **âm**: Vô hiệu hóa, mempool không chèn giao dịch mới và trả về sớm.
+* **không**: Mempool không giới hạn không có giới hạn giao dịch và sẽ không bao giờ thất bại với `ErrMempoolTxMaxCapacity`.
+* **dương**: Giới hạn, nó thất bại với `ErrMempoolTxMaxCapacity` khi giá trị `maxTx` bằng `CountTx()`.
 
 #### Seed
 
-Set the seed for the random number generator used to select transactions from the mempool.
+Đặt seed cho bộ tạo số ngẫu nhiên được dùng để chọn giao dịch từ mempool.
 
 ### Priority Nonce Mempool
 
-The [priority nonce mempool](https://github.com/cosmos/cosmos-sdk/blob/main/types/mempool/priority_nonce_spec.md) is a mempool implementation that stores txs in a partially ordered set by 2 dimensions:
+[Priority nonce mempool](https://github.com/cosmos/cosmos-sdk/blob/main/types/mempool/priority_nonce_spec.md) là triển khai mempool lưu trữ các tx trong một tập được sắp xếp một phần theo 2 chiều:
 
-* priority
+* priority (ưu tiên)
 * sender-nonce (sequence number)
 
-Internally it uses one priority ordered [skip list](https://pkg.go.dev/github.com/huandu/skiplist) and one skip list per sender ordered by sender-nonce (sequence number). When there are multiple txs from the same sender, they are not always comparable by priority to other sender txs and must be partially ordered by both sender-nonce and priority.
+Nội bộ nó sử dụng một [skip list](https://pkg.go.dev/github.com/huandu/skiplist) được sắp xếp theo priority và một skip list cho mỗi người gửi được sắp xếp theo sender-nonce (sequence number). Khi có nhiều tx từ cùng một người gửi, chúng không phải lúc nào cũng có thể so sánh theo priority với các tx của người gửi khác và phải được sắp xếp một phần theo cả sender-nonce và priority.
 
-It is configurable with the following parameters:
+Có thể cấu hình với các tham số sau:
 
 #### MaxTxs
 
-It is an integer value that sets the mempool in one of three modes, *bounded*, *unbounded*, or *disabled*.
+Là giá trị nguyên đặt mempool ở một trong ba chế độ: *bounded* (giới hạn), *unbounded* (không giới hạn) hoặc *disabled* (vô hiệu hóa).
 
-* **negative**: Disabled, mempool does not insert new transaction and return early.
-* **zero**: Unbounded mempool has no transaction limit and will never fail with `ErrMempoolTxMaxCapacity`.
-* **positive**: Bounded, it fails with `ErrMempoolTxMaxCapacity` when the `maxTx` value is the same as `CountTx()`
+* **âm**: Vô hiệu hóa, mempool không chèn giao dịch mới và trả về sớm.
+* **không**: Mempool không giới hạn không có giới hạn giao dịch và sẽ không bao giờ thất bại với `ErrMempoolTxMaxCapacity`.
+* **dương**: Giới hạn, nó thất bại với `ErrMempoolTxMaxCapacity` khi giá trị `maxTx` bằng `CountTx()`.
 
 #### Callback
 
-The priority nonce mempool provides mempool options allowing the application to set callback(s).
+Priority nonce mempool cung cấp các tùy chọn mempool cho phép ứng dụng đặt callback.
 
-* **OnRead**: Set a callback to be called when a transaction is read from the mempool.
-* **TxReplacement**: Sets a callback to be called when duplicate transaction nonce detected during mempool insert. Application can define a transaction replacement rule based on tx priority or certain transaction fields.
+* **OnRead**: Đặt callback được gọi khi một giao dịch được đọc từ mempool.
+* **TxReplacement**: Đặt callback được gọi khi phát hiện nonce giao dịch trùng lặp trong quá trình chèn vào mempool. Ứng dụng có thể định nghĩa quy tắc thay thế giao dịch dựa trên priority của tx hoặc một số trường giao dịch nhất định.
 
-More information on the SDK mempool implementation can be found in the [godocs](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/types/mempool).
+Thông tin thêm về triển khai mempool của SDK có thể tìm thấy trong [godocs](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/types/mempool).

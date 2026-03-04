@@ -2,72 +2,71 @@
 sidebar_position: 1
 ---
 
-# Overview of `app_di.go`
+# Tổng Quan Về `app_di.go`
 
-:::note Synopsis
+:::note Tóm tắt
 
-The Cosmos SDK makes wiring of an `app.go` much easier thanks to [runtime](./00-runtime.md) and app wiring.
-Learn more about the rationale of App Wiring in [ADR-057](../../../architecture/adr-057-app-wiring.md).
+Cosmos SDK giúp việc wiring một `app.go` trở nên dễ dàng hơn nhiều nhờ [runtime](./00-runtime.md) và app wiring.
+Tìm hiểu thêm về lý do của App Wiring trong [ADR-057](../../../architecture/adr-057-app-wiring.md).
 
 :::
 
-:::note Pre-requisite Readings
+:::note Đọc Trước
 
-* [What is `runtime`?](./00-runtime.md)
-* [Depinject documentation](../packages/01-depinject.md)
-* [Modules depinject-ready](../building-modules/15-depinject.md)
+* [`runtime` Là Gì?](./00-runtime.md)
+* [Tài liệu Depinject](../packages/01-depinject.md)
+* [Các module hỗ trợ depinject](../building-modules/15-depinject.md)
 * [ADR 057: App Wiring](../../../architecture/adr-057-app-wiring.md)
 
 :::
 
-This section is intended to provide an overview of the `SimApp` `app_di.go` file with App Wiring.
+Phần này nhằm cung cấp tổng quan về file `app_di.go` của `SimApp` với App Wiring.
 
 ## `app_config.go`
 
-The `app_config.go` file is the single place to configure all modules parameters.
+File `app_config.go` là nơi duy nhất để cấu hình tất cả các tham số module.
 
-1. Create the `AppConfig` variable:
+1. Tạo biến `AppConfig`:
 
     ```go reference
     https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/simapp/app_config.go#L289-L303
     ```
 
-    Where the `appConfig` combines the [runtime](./00-runtime.md) configuration and the (extra) modules configuration.
+    Trong đó `appConfig` kết hợp cấu hình [runtime](./00-runtime.md) và cấu hình các module (bổ sung).
 
     ```go reference
     https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/simapp/app_di.go#L113-L161
     ```
 
-2. Configure the `runtime` module:
+2. Cấu hình module `runtime`:
 
-    In this configuration, the order in which the modules are defined in PreBlockers, BeginBlocks, and EndBlockers is important.
-    They are named in the order they should be executed by the module manager.
+    Trong cấu hình này, thứ tự mà các module được định nghĩa trong PreBlockers, BeginBlocks và EndBlockers là quan trọng. Chúng được đặt tên theo thứ tự chúng nên được thực thi bởi module manager.
 
     ```go reference
     https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/simapp/app_config.go#L103-L188
     ```
 
-3. Wire the other modules:
+3. Wiring các module khác:
 
-    Next to runtime, the other (depinject-enabled) modules are wired in the `AppConfig`:
+    Bên cạnh runtime, các module khác (hỗ trợ depinject) được wired trong `AppConfig`:
 
     ```go reference
     https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/simapp/app_config.go#L103-L286
     ```
 
-    Note: the `tx` isn't a module, but a configuration. It should be wired in the `AppConfig` as well.
+    Lưu ý: `tx` không phải là module mà là cấu hình. Nó cũng nên được wired trong `AppConfig`.
 
     ```go reference
     https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/simapp/app_config.go#L222-L227
     ```
 
-See the complete `app_config.go` file for `SimApp` [here](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/simapp/app_config.go).
+Xem file `app_config.go` đầy đủ cho `SimApp` [tại đây](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/simapp/app_config.go).
 
-### Alternative formats
+### Các Định Dạng Thay Thế
 
 :::tip
-The example above shows how to create an `AppConfig` using Go. However, it is also possible to create an `AppConfig` using YAML, or JSON.  
-The configuration can then be embedded with `go:embed` and read with [`appconfig.LoadYAML`](https://pkg.go.dev/cosmossdk.io/core/appconfig#LoadYAML), or [`appconfig.LoadJSON`](https://pkg.go.dev/cosmossdk.io/core/appconfig#LoadJSON), in `app_di.go`.
+Ví dụ trên cho thấy cách tạo `AppConfig` bằng Go. Tuy nhiên, cũng có thể tạo `AppConfig` bằng YAML hoặc JSON.
+Cấu hình sau đó có thể được nhúng với `go:embed` và đọc bằng [`appconfig.LoadYAML`](https://pkg.go.dev/cosmossdk.io/core/appconfig#LoadYAML) hoặc [`appconfig.LoadJSON`](https://pkg.go.dev/cosmossdk.io/core/appconfig#LoadJSON) trong `app_di.go`.
 
 ```go
 //go:embed app_config.yaml
@@ -103,41 +102,38 @@ modules:
       "@type": cosmos.tx.module.v1.Module
 ```
 
-A more complete example of `app.yaml` can be found [here](https://github.com/cosmos/cosmos-sdk/blob/release/v0.53.x/simapp/example_app.yaml).
+Có thể tìm thấy ví dụ đầy đủ hơn về `app.yaml` [tại đây](https://github.com/cosmos/cosmos-sdk/blob/release/v0.53.x/simapp/example_app.yaml).
 
 ## `app_di.go`
 
-`app_di.go` is the place where `SimApp` is constructed. `depinject.Inject` automatically wires the app modules and keepers when provided with an application configuration (`AppConfig`). `SimApp` is constructed upon calling the injected `*runtime.AppBuilder` with `appBuilder.Build(...)`.    
-In short `depinject` and the [`runtime` package](./00-runtime.md) abstract the wiring of the app, and the `AppBuilder` is the place where the app is constructed. [`runtime`](./00-runtime.md) takes care of registering the codecs, KV store, subspaces and instantiating `baseapp`.
+`app_di.go` là nơi `SimApp` được xây dựng. `depinject.Inject` tự động wire các module và keeper của ứng dụng khi được cung cấp cấu hình ứng dụng (`AppConfig`). `SimApp` được xây dựng khi gọi `*runtime.AppBuilder` được inject với `appBuilder.Build(...)`.
+Tóm lại, `depinject` và [package `runtime`](./00-runtime.md) trừu tượng hóa việc wiring của ứng dụng, và `AppBuilder` là nơi ứng dụng được xây dựng. [`runtime`](./00-runtime.md) đảm nhận việc đăng ký các codec, KV store, subspace và khởi tạo `baseapp`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/simapp/app_di.go#L100-L270
 ```
 
 :::warning
-When using `depinject.Inject`, the injected types must be pointers.
+Khi sử dụng `depinject.Inject`, các kiểu được inject phải là con trỏ.
 :::
 
-### Advanced Configuration
+### Cấu Hình Nâng Cao
 
-In advanced cases, it is possible to inject extra (module) configuration in a way that is not (yet) supported by `AppConfig`.  
-In this case, use `depinject.Configs` for combining the extra configuration, and `AppConfig` and `depinject.Supply` for providing the extra configuration.
-More information on how `depinject.Configs` and `depinject.Supply` function can be found in the [`depinject` documentation](https://pkg.go.dev/cosmossdk.io/depinject).
+Trong các trường hợp nâng cao, có thể inject thêm cấu hình (module) theo cách mà `AppConfig` chưa hỗ trợ. Trong trường hợp này, sử dụng `depinject.Configs` để kết hợp cấu hình bổ sung, và `AppConfig` cùng `depinject.Supply` để cung cấp cấu hình bổ sung. Thông tin thêm về cách `depinject.Configs` và `depinject.Supply` hoạt động có thể tìm thấy trong [tài liệu `depinject`](https://pkg.go.dev/cosmossdk.io/depinject).
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/simapp/app_di.go#L114-L162
 ```
 
-### Registering non app wiring modules
+### Đăng Ký Các Module Không Dùng App Wiring
 
-It is possible to combine app wiring / depinject enabled modules with non-app wiring modules.
-To do so, use the `app.RegisterModules` method to register the modules on your app, as well as `app.RegisterStores` for registering the extra stores needed.
+Có thể kết hợp các module hỗ trợ app wiring / depinject với các module không dùng app wiring. Để làm vậy, sử dụng phương thức `app.RegisterModules` để đăng ký các module trên ứng dụng, cũng như `app.RegisterStores` để đăng ký các store bổ sung cần thiết.
 
 ```go
 // ....
 app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 
-// register module manually
+// đăng ký module thủ công
 app.RegisterStores(storetypes.NewKVStoreKey(example.ModuleName))
 app.ExampleKeeper = examplekeeper.NewKeeper(app.appCodec, app.AccountKeeper.AddressCodec(), runtime.NewKVStoreService(app.GetKey(example.ModuleName)), authtypes.NewModuleAddress(govtypes.ModuleName).String())
 exampleAppModule := examplemodule.NewAppModule(app.ExampleKeeper)
@@ -149,14 +145,13 @@ if err := app.RegisterModules(&exampleAppModule); err != nil {
 ```
 
 :::warning
-When using AutoCLI and combining app wiring and non-app wiring modules. The AutoCLI options should be manually constructed instead of injected.
-Otherwise it will miss the non depinject modules and not register their CLI.
+Khi sử dụng AutoCLI và kết hợp các module app wiring và non-app wiring, các tùy chọn AutoCLI nên được xây dựng thủ công thay vì inject. Nếu không, nó sẽ bỏ lỡ các module không dùng depinject và không đăng ký CLI của chúng.
 :::
 
-### Complete `app_di.go`
+### `app_di.go` Đầy Đủ
 
 :::tip
-Note that in the complete `SimApp` `app_di.go` file, testing utilities are also defined, but they could as well be defined in a separate file.
+Lưu ý rằng trong file `app_di.go` đầy đủ của `SimApp`, các tiện ích kiểm thử cũng được định nghĩa, nhưng chúng cũng có thể được định nghĩa trong một file riêng biệt.
 :::
 
 ```go reference

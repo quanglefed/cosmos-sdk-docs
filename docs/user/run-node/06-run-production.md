@@ -2,92 +2,92 @@
 sidebar_position: 1
 ---
 
-# Running in Production
+# Chạy Trong Môi Trường Production
 
-:::note Synopsis
-This section describes how to securely run a node in a public setting and/or on a mainnet on one of the many Cosmos SDK public blockchains. 
+:::note Tóm tắt
+Phần này mô tả cách chạy an toàn một node trong môi trường công cộng và/hoặc trên mainnet của một trong nhiều blockchain công khai của Cosmos SDK.
 :::
 
-When operating a node, full node or validator, in production it is important to set your server up securely. 
+Khi vận hành một node, full node hoặc validator, trong production, điều quan trọng là phải thiết lập server của bạn một cách bảo mật.
 
 :::note
-There are many different ways to secure a server and your node, the described steps here is one way. To see another way of setting up a server see the [run in production tutorial](https://tutorials.cosmos.network/hands-on-exercise/4-run-in-prod).
+Có nhiều cách khác nhau để bảo mật server và node của bạn, các bước được mô tả ở đây chỉ là một cách. Để xem một cách khác để thiết lập server, xem [tutorial chạy trong production](https://tutorials.cosmos.network/hands-on-exercise/4-run-in-prod).
 :::
 
 :::note
-This walkthrough assumes the underlying operating system is Ubuntu. 
+Hướng dẫn này giả định hệ điều hành bên dưới là Ubuntu.
 :::
 
-## Server Setup
+## Thiết Lập Server
 
-### User
+### Người Dùng
 
-When creating a server most times it is created as user `root`. This user has heightened privileges on the server. When operating a node, it is recommended to not run your node as the root user.  
+Khi tạo server, hầu hết các lần nó được tạo với user `root`. User này có quyền cao hơn trên server. Khi vận hành một node, khuyến nghị không chạy node của bạn với tư cách user root.
 
-1. Create a new user
+1. Tạo user mới
 
 ```bash
 sudo adduser change_me
 ```
 
-2. We want to allow this user to perform sudo tasks
+2. Chúng ta muốn cho phép user này thực hiện các tác vụ sudo
 
 ```bash
 sudo usermod -aG sudo change_me
 ```
 
-Now when logging into the server, the non `root` user can be used. 
+Bây giờ khi đăng nhập vào server, có thể sử dụng user không phải `root`.
 
 ### Go
 
-1. Install the [Go](https://go.dev/doc/install) version preconized by the application.
+1. Cài đặt phiên bản [Go](https://go.dev/doc/install) được ứng dụng khuyến nghị.
 
 :::warning
-In the past, validators [have had issues](https://github.com/cosmos/cosmos-sdk/issues/13976) when using different versions of Go. It is recommended that the whole validator set uses the version of Go that is preconized by the application.
+Trong quá khứ, các validator [đã gặp vấn đề](https://github.com/cosmos/cosmos-sdk/issues/13976) khi sử dụng các phiên bản Go khác nhau. Khuyến nghị toàn bộ tập hợp validator sử dụng phiên bản Go được ứng dụng khuyến nghị.
 :::
 
 ### Firewall
 
-Nodes should not have all ports open to the public, this is a simple way to get DDOS'd. Secondly it is recommended by [CometBFT](https://github.com/cometbft/cometbft) to never expose ports that are not required to operate a node. 
+Các node không nên có tất cả các cổng mở ra công cộng — đây là cách đơn giản để bị DDOS. Thứ hai, [CometBFT](https://github.com/cometbft/cometbft) khuyến nghị không bao giờ expose các cổng không cần thiết để vận hành node.
 
-When setting up a firewall there are a few ports that can be open when operating a Cosmos SDK node. There is the CometBFT json-RPC, prometheus, p2p, remote signer and Cosmos SDK GRPC and REST. If the node is being operated as a node that does not offer endpoints to be used for submission or querying then a max of three endpoints are needed.
+Khi thiết lập firewall, có một số cổng có thể mở khi vận hành Cosmos SDK node. Có CometBFT json-RPC, prometheus, p2p, remote signer và Cosmos SDK GRPC và REST. Nếu node được vận hành như một node không cung cấp endpoint để gửi hoặc truy vấn, thì tối đa ba endpoint là cần thiết.
 
-Most, if not all servers come equipped with [ufw](https://help.ubuntu.com/community/UFW). Ufw will be used in this tutorial. 
+Hầu hết, nếu không phải tất cả server đều được trang bị [ufw](https://help.ubuntu.com/community/UFW). Ufw sẽ được dùng trong tutorial này.
 
-1. Reset UFW to disallow all incoming connections and allow outgoing
+1. Reset UFW để không cho phép tất cả kết nối đến và cho phép kết nối đi
 
 ```bash
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 ```
 
-2. Lets make sure that port 22 (ssh) stays open. 
+2. Hãy đảm bảo rằng cổng 22 (ssh) vẫn mở.
 
 ```bash
 sudo ufw allow ssh
 ```
 
-or 
+hoặc
 
 ```bash
 sudo ufw allow 22
 ```
 
-Both of the above commands are the same. 
+Cả hai lệnh trên đều tương đương nhau.
 
-3. Allow Port 26656 (cometbft p2p port). If the node has a modified p2p port then that port must be used here.
+3. Cho phép Cổng 26656 (cometbft p2p port). Nếu node có p2p port đã được sửa đổi thì phải sử dụng cổng đó ở đây.
 
 ```bash
 sudo ufw allow 26656/tcp
 ```
 
-4. Allow port 26660 (cometbft [prometheus](https://prometheus.io)). This acts as the applications monitoring port as well. 
+4. Cho phép cổng 26660 (cometbft [prometheus](https://prometheus.io)). Đây cũng là cổng theo dõi của ứng dụng.
 
 ```bash
 sudo ufw allow 26660/tcp
 ```
 
-5. IF the node which is being setup would like to expose CometBFTs jsonRPC and Cosmos SDK GRPC and REST then follow this step. (Optional)
+5. NẾU node được thiết lập muốn expose jsonRPC của CometBFT và GRPC và REST của Cosmos SDK thì làm theo bước này. (Tùy chọn)
 
 ##### CometBFT JsonRPC
 
@@ -107,57 +107,57 @@ sudo ufw allow 9090/tcp
 sudo ufw allow 1317/tcp
 ```
 
-6. Lastly, enable ufw
+6. Cuối cùng, bật ufw
 
 ```bash
 sudo ufw enable
 ```
 
-### Signing
+### Ký
 
-If the node that is being started is a validator there are multiple ways a validator could sign blocks. 
+Nếu node đang được khởi động là validator, có nhiều cách validator có thể ký block.
 
 #### File
 
-File based signing is the simplest and default approach. This approach works by storing the consensus key, generated on initialization, to sign blocks. This approach is only as safe as your server setup as if the server is compromised so is your key.  This key is located in the `config/priv_val_key.json` directory generated on initialization.
+Ký dựa trên file là cách tiếp cận đơn giản và mặc định. Cách này hoạt động bằng cách lưu trữ khóa đồng thuận được tạo khi khởi tạo để ký block. Cách này chỉ an toàn như thiết lập server của bạn vì nếu server bị xâm phạm thì khóa của bạn cũng vậy. Khóa này nằm trong thư mục `config/priv_val_key.json` được tạo khi khởi tạo.
 
-A second file exists that user must be aware of, the file is located in the data directory `data/priv_val_state.json`. This file protects your node from double signing. It keeps track of the consensus keys last sign height, round and latest signature. If the node crashes and needs to be recovered this file must be kept in order to ensure that the consensus key will not be used for signing a block that was previously signed. 
+Một file thứ hai tồn tại mà người dùng cần biết, file nằm trong thư mục data `data/priv_val_state.json`. File này bảo vệ node của bạn khỏi việc ký đôi. Nó theo dõi chiều cao ký cuối cùng, vòng và chữ ký mới nhất của khóa đồng thuận. Nếu node gặp sự cố và cần được khôi phục, file này phải được giữ lại để đảm bảo rằng khóa đồng thuận sẽ không được sử dụng để ký một block đã được ký trước đó.
 
 #### Remote Signer
 
-A remote signer is a secondary server that is separate from the running node that signs blocks with the consensus key. This means that the consensus key does not live on the node itself. This increases security because your full node which is connected to the remote signer can be swapped without missing blocks. 
+Remote signer là một server thứ cấp tách biệt với node đang chạy dùng để ký block bằng khóa đồng thuận. Điều này có nghĩa là khóa đồng thuận không nằm trên chính node. Điều này tăng bảo mật vì full node kết nối với remote signer có thể được thay thế mà không bỏ lỡ block.
 
-The two most used remote signers are [tmkms](https://github.com/iqlusioninc/tmkms) from [Iqlusion](https://www.iqlusion.io) and [horcrux](https://github.com/strangelove-ventures/horcrux) from [Strangelove](https://strange.love).
+Hai remote signer được sử dụng nhiều nhất là [tmkms](https://github.com/iqlusioninc/tmkms) từ [Iqlusion](https://www.iqlusion.io) và [horcrux](https://github.com/strangelove-ventures/horcrux) từ [Strangelove](https://strange.love).
 
-##### TMKMS 
+##### TMKMS
 
-###### Dependencies
+###### Các Dependency
 
-1. Update server dependencies and install extras needed. 
+1. Cập nhật dependency server và cài đặt thêm những thứ cần thiết.
 
 ```sh
 sudo apt update -y && sudo apt install build-essential curl jq -y
 ```
 
-2. Install Rust: 
+2. Cài đặt Rust:
 
 ```sh
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-3. Install Libusb:
+3. Cài đặt Libusb:
 
 ```sh
 sudo apt install libusb-1.0-0-dev
 ```
 
-###### Setup
+###### Thiết Lập
 
-There are two ways to install tmkms, from source or `cargo install`. In the examples we will cover downloading or building from source and using softsign. Softsign stands for software signing, but you could use a [yubihsm](https://www.yubico.com/products/hardware-security-module/) as your signing key if you wish. 
+Có hai cách để cài đặt tmkms, từ source hoặc `cargo install`. Trong các ví dụ, chúng ta sẽ đề cập đến việc tải xuống hoặc build từ source và sử dụng softsign. Softsign là viết tắt của software signing (ký bằng phần mềm), nhưng bạn có thể sử dụng [yubihsm](https://www.yubico.com/products/hardware-security-module/) làm khóa ký nếu muốn.
 
 1. Build:
 
-From source:
+Từ source:
 
 ```bash
 cd $HOME
@@ -168,9 +168,9 @@ tmkms init config
 tmkms softsign keygen ./config/secrets/secret_connection_key
 ```
 
-or 
+hoặc
 
-Cargo install: 
+Cargo install:
 
 ```bash
 cargo install tmkms --features=softsign
@@ -179,51 +179,51 @@ tmkms softsign keygen ./config/secrets/secret_connection_key
 ```
 
 :::note
-To use tmkms with a yubikey install the binary with `--features=yubihsm`.
+Để sử dụng tmkms với yubikey, cài đặt binary với `--features=yubihsm`.
 :::
 
-2. Migrate the validator key from the full node to the new tmkms instance. 
+2. Di chuyển khóa validator từ full node đến instance tmkms mới.
 
 ```bash
 scp user@123.456.32.123:~/.simd/config/priv_validator_key.json ~/tmkms/config/secrets
 ```
 
-3. Import the validator key into tmkms. 
+3. Import khóa validator vào tmkms.
 
 ```bash
 tmkms softsign import $HOME/tmkms/config/secrets/priv_validator_key.json $HOME/tmkms/config/secrets/priv_validator_key
 ```
 
-At this point, it is necessary to delete the `priv_validator_key.json` from the validator node and the tmkms node. Since the key has been imported into tmkms (above) it is no longer necessary on the nodes. The key can be safely stored offline. 
+Tại đây, cần xóa `priv_validator_key.json` khỏi cả validator node và tmkms node. Vì khóa đã được import vào tmkms (ở trên), nó không còn cần thiết trên các node nữa. Khóa có thể được lưu trữ an toàn offline.
 
-4. Modify the `tmkms.toml`. 
+4. Sửa đổi `tmkms.toml`.
 
 ```bash
 vim $HOME/tmkms/config/tmkms.toml
 ```
 
-This example shows a configuration that could be used for soft signing. The example has an IP of `123.456.12.345` with a port of `26659` a chain_id of `test-chain-waSDSe`. These are items that must be modified for the usecase of tmkms and the network. 
+Ví dụ này cho thấy cấu hình có thể được dùng cho soft signing. Ví dụ có IP là `123.456.12.345` với cổng `26659` và chain_id là `test-chain-waSDSe`. Đây là các mục phải được sửa đổi cho usecase của tmkms và mạng lưới.
 
 ```toml
-# CometBFT KMS configuration file
+# File cấu hình CometBFT KMS
 
-## Chain Configuration
+## Cấu Hình Chain
 
 [[chain]]
 id = "osmosis-1"
 key_format = { type = "bech32", account_key_prefix = "cosmospub", consensus_key_prefix = "cosmosvalconspub" }
 state_file = "/root/tmkms/config/state/priv_validator_state.json"
 
-## Signing Provider Configuration
+## Cấu Hình Signing Provider
 
-### Software-based Signer Configuration
+### Cấu Hình Software-based Signer
 
 [[providers.softsign]]
 chain_ids = ["test-chain-waSDSe"]
 key_type = "consensus"
 path = "/root/tmkms/config/secrets/priv_validator_key"
 
-## Validator Configuration
+## Cấu Hình Validator
 
 [[validator]]
 chain_id = "test-chain-waSDSe"
@@ -233,7 +233,7 @@ protocol_version = "v0.34"
 reconnect = true
 ```
 
-5. Set the address of the tmkms instance. 
+5. Đặt địa chỉ của instance tmkms.
 
 ```bash
 vim $HOME/.simd/config/config.toml
@@ -242,23 +242,23 @@ priv_validator_laddr = "tcp://0.0.0.0:26659"
 ```
 
 :::tip
-The above address it set to `0.0.0.0` but it is recommended to set the tmkms server to secure the startup
+Địa chỉ trên được đặt thành `0.0.0.0` nhưng khuyến nghị đặt tmkms server để bảo mật khi khởi động.
 :::
 
 :::tip
-It is recommended to comment or delete the lines that specify the path of the validator key and validator:
+Khuyến nghị comment hoặc xóa các dòng chỉ định đường dẫn của khóa validator và validator:
 
 ```toml
-# Path to the JSON file containing the private key to use as a validator in the consensus protocol
+# Đường dẫn đến file JSON chứa khóa private để dùng làm validator trong giao thức đồng thuận
 # priv_validator_key_file = "config/priv_validator_key.json"
 
-# Path to the JSON file containing the last sign state of a validator
+# Đường dẫn đến file JSON chứa trạng thái ký cuối cùng của validator
 # priv_validator_state_file = "data/priv_validator_state.json"
 ```
 
 :::
 
-6. Start the two processes. 
+6. Khởi động hai tiến trình.
 
 ```bash
 tmkms start -c $HOME/tmkms/config/tmkms.toml

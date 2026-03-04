@@ -2,30 +2,30 @@
 sidebar_position: 1
 ---
 
-# Application Testnets
+# Testnet Ứng Dụng
 
-Building an application is complicated and requires a lot of testing. The Cosmos SDK provides a way to test your application in a real-world environment: a testnet. 
+Xây dựng ứng dụng rất phức tạp và đòi hỏi nhiều kiểm thử. Cosmos SDK cung cấp một cách để kiểm thử ứng dụng của bạn trong môi trường thực tế: một testnet.
 
-We allow developers to take the state from their mainnet and run tests against the state. This is useful for testing upgrade migrations, or for testing the application in a real-world environment.
+Chúng tôi cho phép các nhà phát triển lấy trạng thái từ mainnet của họ và chạy kiểm thử trên trạng thái đó. Điều này hữu ích để kiểm thử các migration nâng cấp, hoặc để kiểm thử ứng dụng trong môi trường thực tế.
 
-## Testnet Setup
+## Thiết Lập Testnet
 
-We will be breaking down the steps to create a testnet from mainnet state. 
+Chúng ta sẽ phân tích các bước để tạo một testnet từ trạng thái mainnet.
 
 ```go 
-  // InitSimAppForTestnet is broken down into two sections:
-  // Required Changes: Changes that, if not made, will cause the testnet to halt or panic
-  // Optional Changes: Changes to customize the testnet to one's liking (lower vote times, fund accounts, etc)
+  // InitSimAppForTestnet được chia thành hai phần:
+  // Thay đổi Bắt buộc: Các thay đổi mà nếu không thực hiện sẽ khiến testnet bị dừng hoặc panic
+  // Thay đổi Tùy chọn: Các thay đổi để tùy chỉnh testnet theo ý muốn (giảm thời gian bỏ phiếu, nạp tiền tài khoản, v.v.)
   func InitSimAppForTestnet(app *SimApp, newValAddr bytes.HexBytes, newValPubKey crypto.PubKey, newOperatorAddress, upgradeToTrigger string) *SimApp {
   ...
   }
 ```
 
-### Required Changes
+### Thay Đổi Bắt Buộc
 
 #### Staking
 
-When creating a testnet the important part is to migrate the validator set from many validators to one or a few. This allows developers to spin up the chain without needing to replace validator keys. 
+Khi tạo testnet, phần quan trọng là di chuyển bộ validator từ nhiều validator sang một hoặc vài validator. Điều này cho phép các nhà phát triển khởi động chuỗi mà không cần phải thay thế các khóa validator.
 
 ```go
 	ctx := app.BaseApp.NewUncachedContext(true, tmproto.Header{})
@@ -38,7 +38,7 @@ When creating a testnet the important part is to migrate the validator set from 
 	// STAKING
 	//
 
-	// Create Validator struct for our new validator.
+	// Tạo cấu trúc Validator cho validator mới.
 	_, bz, err := bech32.DecodeAndConvert(newOperatorAddress)
 	if err != nil {
 		tmos.Exit(err.Error())
@@ -67,7 +67,7 @@ When creating a testnet the important part is to migrate the validator set from 
 		MinSelfDelegation: sdk.OneInt(),
 	}
 
-	// Remove all validators from power store
+	// Xóa tất cả validator khỏi power store
 	stakingKey := app.GetKey(stakingtypes.ModuleName)
 	stakingStore := ctx.KVStore(stakingKey)
 	iterator := app.StakingKeeper.ValidatorsPowerStoreIterator(ctx)
@@ -76,14 +76,14 @@ When creating a testnet the important part is to migrate the validator set from 
 	}
 	iterator.Close()
 
-	// Remove all validators from last validators store
+	// Xóa tất cả validator khỏi last validators store
 	iterator = app.StakingKeeper.LastValidatorsIterator(ctx)
 	for ; iterator.Valid(); iterator.Next() {
 		app.StakingKeeper.LastValidatorPower.Delete(iterator.Key())
 	}
 	iterator.Close()
 
-	// Add our validator to power and last validators store
+	// Thêm validator của chúng ta vào power store và last validators store
 	app.StakingKeeper.SetValidator(ctx, newVal)
 	err = app.StakingKeeper.SetValidatorByConsAddr(ctx, newVal)
 	if err != nil {
@@ -96,13 +96,12 @@ When creating a testnet the important part is to migrate the validator set from 
 	}
 ```
 
-#### Distribution
+#### Distribution (Phân Phối)
 
-Since the validator set has changed, we need to update the distribution records for the new validator.
-
+Vì bộ validator đã thay đổi, chúng ta cần cập nhật các bản ghi phân phối cho validator mới.
 
 ```go
-	// Initialize records for this validator across all distribution stores
+	// Khởi tạo bản ghi cho validator này trên tất cả các distribution store
 	app.DistrKeeper.ValidatorHistoricalRewards.Set(ctx, newVal.GetOperator(), 0, distrtypes.NewValidatorHistoricalRewards(sdk.DecCoins{}, 1))
 	app.DistrKeeper.ValidatorCurrentRewards.Set(ctx, newVal.GetOperator(), distrtypes.NewValidatorCurrentRewards(sdk.DecCoins{}, 1))
 	app.DistrKeeper.ValidatorAccumulatedCommission.Set(ctx, newVal.GetOperator(), distrtypes.InitialValidatorAccumulatedCommission())
@@ -111,13 +110,13 @@ Since the validator set has changed, we need to update the distribution records 
 
 #### Slashing
 
-We also need to set the validator signing info for the new validator.
+Chúng ta cũng cần đặt thông tin ký (signing info) của validator cho validator mới.
 
 ```go
   // SLASHING
 	//
 
-	// Set validator signing info for our new validator.
+	// Đặt thông tin ký của validator cho validator mới.
 	newConsAddr := sdk.ConsAddress(newValAddr.Bytes())
 	newValidatorSigningInfo := slashingtypes.ValidatorSigningInfo{
 		Address:     newConsAddr.String(),
@@ -129,7 +128,7 @@ We also need to set the validator signing info for the new validator.
 
 #### Bank
 
-It is useful to create new accounts for your testing purposes. This avoids the need to have the same key as you may have on mainnet. 
+Việc tạo các tài khoản mới cho mục đích kiểm thử rất hữu ích. Điều này giúp tránh cần phải có cùng khóa như trên mainnet.
 
 ```go
   // BANK
@@ -151,7 +150,7 @@ It is useful to create new accounts for your testing purposes. This avoids the n
 		sdk.MustAccAddressFromBech32("cosmos14gs9zqh8m49yy9kscjqu9h72exyf295afg6kgk"),
 		sdk.MustAccAddressFromBech32("cosmos1jllfytsz4dryxhz5tl7u73v29exsf80vz52ucc")}
 
-  // Fund localSimApp accounts
+  // Nạp tiền cho các tài khoản localSimApp
 	for _, account := range localSimAppAccounts {
 		err := app.BankKeeper.MintCoins(ctx, minttypes.ModuleName, defaultCoins)
 		if err != nil {
@@ -164,9 +163,9 @@ It is useful to create new accounts for your testing purposes. This avoids the n
 	}
 ```
 
-#### Upgrade
+#### Upgrade (Nâng Cấp)
 
-If you would like to schedule an upgrade the below can be used. 
+Nếu bạn muốn lên lịch một lần nâng cấp, có thể sử dụng đoạn code dưới đây.
 
 ```go
 	// UPGRADE
@@ -184,28 +183,28 @@ If you would like to schedule an upgrade the below can be used.
 	}
 ```
 
-### Optional Changes
+### Thay Đổi Tùy Chọn
 
-If you have custom modules that rely on specific state from the above modules and/or you would like to test your custom module, you will need to update the state of your custom module to reflect your needs
+Nếu bạn có các module tùy chỉnh phụ thuộc vào trạng thái cụ thể từ các module trên và/hoặc bạn muốn kiểm thử module tùy chỉnh của mình, bạn sẽ cần cập nhật trạng thái của module tùy chỉnh đó để phản ánh nhu cầu của bạn.
 
-## Running the Testnet
+## Chạy Testnet
 
-Before we can run the testnet we must plug everything together. 
+Trước khi có thể chạy testnet, chúng ta phải kết nối mọi thứ lại với nhau.
 
-in `root.go`, in the `initRootCmd` function we add:
+Trong `root.go`, trong hàm `initRootCmd`, thêm:
 
 ```diff
   server.AddCommands(rootCmd, simapp.DefaultNodeHome, newApp, createSimAppAndExport, addModuleInitFlags)
 	++ server.AddTestnetCreatorCommand(rootCmd, simapp.DefaultNodeHome, newTestnetApp, addModuleInitFlags)
 ```
 
-Next we will add a newTestnetApp helper function:
+Tiếp theo, chúng ta sẽ thêm hàm helper `newTestnetApp`:
 
 ```diff
-// newTestnetApp starts by running the normal newApp method. From there, the app interface returned is modified in order
-// for a testnet to be created from the provided app.
+// newTestnetApp bắt đầu bằng cách chạy phương thức newApp thông thường. Từ đó, interface ứng dụng
+// được trả về sẽ được sửa đổi để tạo một testnet từ ứng dụng đã cung cấp.
 func newTestnetApp(logger log.Logger, db cometbftdb.DB, traceStore io.Writer, appOpts servertypes.AppOptions) servertypes.Application {
-	// Create an app and type cast to an SimApp
+	// Tạo một app và ép kiểu thành SimApp
 	app := newApp(logger, db, traceStore, appOpts)
 	simApp, ok := app.(*simapp.SimApp)
 	if !ok {
@@ -229,7 +228,7 @@ func newTestnetApp(logger log.Logger, db cometbftdb.DB, traceStore io.Writer, ap
 		panic("upgradeToTrigger is not of type string")
 	}
 
-	// Make modifications to the normal SimApp required to run the network locally
+	// Thực hiện các sửa đổi cần thiết cho SimApp thông thường để chạy mạng cục bộ
 	return simapp.InitSimAppForTestnet(simApp, newValAddr, newValPubKey, newOperatorAddress, upgradeToTrigger)
 }
 ```

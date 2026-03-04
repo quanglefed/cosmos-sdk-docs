@@ -2,20 +2,19 @@
 sidebar_position: 1
 ---
 
-# What is `runtime`?
+# `runtime` Là Gì?
 
-The `runtime` package in the Cosmos SDK provides a flexible framework for configuring and managing blockchain applications. It serves as the foundation for creating modular blockchain applications using a declarative configuration approach.
+Package `runtime` trong Cosmos SDK cung cấp một framework linh hoạt để cấu hình và quản lý các ứng dụng blockchain. Nó đóng vai trò là nền tảng để tạo ra các ứng dụng blockchain theo dạng module bằng cách sử dụng phương pháp cấu hình khai báo.
 
-## Overview
+## Tổng Quan
 
-The runtime package acts as a wrapper around the `BaseApp` and `ModuleManager`, offering a hybrid approach where applications can be configured both declaratively through configuration files and programmatically through traditional methods.
-It is a layer of abstraction between `baseapp` and the application modules that simplifies the process of building a Cosmos SDK application.
+Package runtime hoạt động như một wrapper bao quanh `BaseApp` và `ModuleManager`, cung cấp một phương pháp kết hợp trong đó các ứng dụng có thể được cấu hình cả theo cách khai báo thông qua file cấu hình lẫn theo cách lập trình thông qua các phương thức truyền thống. Đây là một lớp trừu tượng giữa `baseapp` và các module ứng dụng, đơn giản hóa quá trình xây dựng ứng dụng Cosmos SDK.
 
-## Core Components
+## Các Thành Phần Cốt Lõi
 
-### App Structure
+### Cấu Trúc App
 
-The runtime App struct contains several key components:
+Struct App của runtime chứa một số thành phần chính:
 
 ```go
 type App struct {
@@ -24,129 +23,124 @@ type App struct {
     configurator     module.Configurator
     config           *runtimev1alpha1.Module
     storeKeys        []storetypes.StoreKey
-    // ... other fields
+    // ... các trường khác
 }
 ```
 
-Cosmos SDK applications should embed the `*runtime.App` struct to leverage the runtime module.
+Các ứng dụng Cosmos SDK nên nhúng struct `*runtime.App` để tận dụng module runtime.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/app_di.go#L60-L61
 ```
 
-### Configuration
+### Cấu Hình
 
-The runtime module is configured using App Wiring. The main configuration object is the [`Module` message](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/proto/cosmos/app/runtime/v1alpha1/module.proto), which supports the following key settings:
+Module runtime được cấu hình bằng App Wiring. Đối tượng cấu hình chính là [message `Module`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/proto/cosmos/app/runtime/v1alpha1/module.proto), hỗ trợ các cài đặt chính sau:
 
-* `app_name`: The name of the application
-* `begin_blockers`: List of module names to call during BeginBlock
-* `end_blockers`: List of module names to call during EndBlock
-* `init_genesis`: Order of module initialization during genesis
-* `export_genesis`: Order for exporting module genesis data
-* `pre_blockers`: Modules to execute before block processing
+* `app_name`: Tên của ứng dụng
+* `begin_blockers`: Danh sách tên module để gọi trong BeginBlock
+* `end_blockers`: Danh sách tên module để gọi trong EndBlock
+* `init_genesis`: Thứ tự khởi tạo module trong quá trình genesis
+* `export_genesis`: Thứ tự để xuất dữ liệu genesis của module
+* `pre_blockers`: Các module để thực thi trước khi xử lý block
 
-Learn more about wiring `runtime` in the [next section](./01-app-go-di.md).
+Tìm hiểu thêm về wiring `runtime` trong [phần tiếp theo](./01-app-go-di.md).
 
-#### Store Configuration
+#### Cấu Hình Store
 
-By default, the runtime module uses the module name as the store key.
-However it provides a flexible store key configuration through:
+Theo mặc định, module runtime sử dụng tên module làm store key. Tuy nhiên, nó cung cấp cấu hình store key linh hoạt thông qua:
 
-* `override_store_keys`: Allows customizing module store keys
-* `skip_store_keys`: Specifies store keys to skip during keeper construction
+* `override_store_keys`: Cho phép tùy chỉnh store key của module
+* `skip_store_keys`: Chỉ định các store key cần bỏ qua trong quá trình xây dựng keeper
 
-Example configuration:
+Ví dụ cấu hình:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/app_config.go#L133-L138
 ```
 
-## Key Features
+## Các Tính Năng Chính
 
-### 1. BaseApp and other Core SDK components integration
+### 1. Tích Hợp BaseApp và Các Thành Phần Cốt Lõi SDK
 
-The runtime module integrates with the `BaseApp` and other core SDK components to provide a seamless experience for developers.
+Module runtime tích hợp với `BaseApp` và các thành phần cốt lõi SDK khác để cung cấp trải nghiệm liền mạch cho các nhà phát triển.
 
-The developer only needs to embed the `runtime.App` struct in their application to leverage the runtime module.
-The configuration of the module manager and other core components is handled internally via the [`AppBuilder`](#4-application-building).
+Nhà phát triển chỉ cần nhúng struct `runtime.App` vào ứng dụng của mình để tận dụng module runtime. Việc cấu hình module manager và các thành phần cốt lõi khác được xử lý nội bộ qua [`AppBuilder`](#4-xây-dựng-ứng-dụng).
 
-### 2. Module Registration
+### 2. Đăng Ký Module
 
-Runtime has built-in support for [`depinject`-enabled modules](../building-modules/15-depinject.md).
-Such modules can be registered through the configuration file (often named `app_config.go`), with no additional code required.
+Runtime có hỗ trợ tích hợp sẵn cho [các module hỗ trợ `depinject`](../building-modules/15-depinject.md). Các module như vậy có thể được đăng ký thông qua file cấu hình (thường được đặt tên là `app_config.go`), không cần code bổ sung.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/app_config.go#L210-L216
 ```
 
-Additionally, the runtime package facilitates manual module registration through the `RegisterModules` method. This is the primary integration point for modules not registered via configuration.
+Ngoài ra, package runtime tạo điều kiện cho việc đăng ký module thủ công thông qua phương thức `RegisterModules`. Đây là điểm tích hợp chính cho các module không được đăng ký qua cấu hình.
 
 :::warning
-Even when using manual registration, the module should still be configured in the `Module` message in AppConfig.
+Ngay cả khi sử dụng đăng ký thủ công, module vẫn nên được cấu hình trong message `Module` trong AppConfig.
 :::
 
 ```go
 func (a *App) RegisterModules(modules ...module.AppModule) error
 ```
 
-The SDK recommends using the declarative approach with `depinject` for module registration whenever possible.
+SDK khuyến nghị sử dụng cách tiếp cận khai báo với `depinject` để đăng ký module bất cứ khi nào có thể.
 
-### 3. Service Registration
+### 3. Đăng Ký Dịch Vụ
 
-Runtime registers all [core services](https://pkg.go.dev/cosmossdk.io/core) required by modules.
-These services include `store`, `event manager`, `context`, and `logger`.
-Runtime ensures that services are scoped to their respective modules during the wiring process.
+Runtime đăng ký tất cả [các dịch vụ cốt lõi](https://pkg.go.dev/cosmossdk.io/core) cần thiết bởi các module. Các dịch vụ này bao gồm `store`, `event manager`, `context` và `logger`. Runtime đảm bảo rằng các dịch vụ được phân phạm vi cho các module tương ứng trong quá trình wiring.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/runtime/module.go#L201-L235
 ```
 
-Additionally, runtime provides automatic registration of other essential (i.e., gRPC routes) services available to the App:
+Ngoài ra, runtime cung cấp đăng ký tự động các dịch vụ thiết yếu khác (tức là các route gRPC) có sẵn cho App:
 
-* AutoCLI Query Service
-* Reflection Service
-* Custom module services
+* Dịch vụ AutoCLI Query
+* Dịch vụ Reflection
+* Các dịch vụ module tùy chỉnh
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/runtime/builder.go#L52-L54
 ```
 
-### 4. Application Building
+### 4. Xây Dựng Ứng Dụng
 
-The `AppBuilder` type provides a structured way to build applications:
+Kiểu `AppBuilder` cung cấp một cách có cấu trúc để xây dựng ứng dụng:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/runtime/builder.go#L14-L19
 ```
 
-Key building steps:
+Các bước xây dựng chính:
 
-1. Configuration loading
-2. Module registration
-3. Service setup
-4. Store mounting
-5. Router configuration
+1. Tải cấu hình
+2. Đăng ký module
+3. Thiết lập dịch vụ
+4. Gắn store
+5. Cấu hình router
 
-An application only needs to call `AppBuilder.Build` to create a fully configured application (`runtime.App`).
+Ứng dụng chỉ cần gọi `AppBuilder.Build` để tạo một ứng dụng được cấu hình đầy đủ (`runtime.App`).
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/runtime/builder.go#L26-L57
 ```
 
-More information on building applications can be found in the [next section](./02-app-building.md).
+Thông tin thêm về xây dựng ứng dụng có thể tìm thấy trong [phần tiếp theo](./02-app-building.md).
 
-## Best Practices
+## Các Thực Hành Tốt Nhất
 
-1. **Module Order**: Carefully consider the order of modules in begin_blockers, end_blockers, and pre_blockers.
-2. **Store Keys**: Use override_store_keys only when necessary to maintain clarity
-3. **Genesis Order**: Maintain correct initialization order in init_genesis
-4. **Migration Management**: Use order_migrations to control upgrade paths
+1. **Thứ Tự Module**: Cân nhắc kỹ thứ tự của các module trong begin_blockers, end_blockers và pre_blockers.
+2. **Store Keys**: Chỉ sử dụng override_store_keys khi cần thiết để duy trì sự rõ ràng.
+3. **Thứ Tự Genesis**: Duy trì thứ tự khởi tạo đúng trong init_genesis.
+4. **Quản Lý Migration**: Sử dụng order_migrations để kiểm soát các đường dẫn nâng cấp.
 
-### Migration Considerations
+### Các Cân Nhắc Migration
 
-When upgrading between versions:
+Khi nâng cấp giữa các phiên bản:
 
-1. Review the migration order specified in `order_migrations`
-2. Ensure all required modules are included in the configuration
-3. Validate store key configurations
-4. Test the upgrade path thoroughly
+1. Xem xét thứ tự migration được chỉ định trong `order_migrations`.
+2. Đảm bảo tất cả các module cần thiết được bao gồm trong cấu hình.
+3. Xác thực các cấu hình store key.
+4. Kiểm thử kỹ đường dẫn nâng cấp.

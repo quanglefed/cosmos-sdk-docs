@@ -1,17 +1,17 @@
 # CheckTx
 
-CheckTx is called by the `BaseApp` when comet receives a transaction from a client, over the p2p network or RPC. The CheckTx method is responsible for validating the transaction and returning an error if the transaction is invalid. 
+CheckTx được gọi bởi `BaseApp` khi CometBFT nhận được giao dịch từ client, qua mạng p2p hoặc RPC. Phương thức CheckTx chịu trách nhiệm xác thực giao dịch và trả về lỗi nếu giao dịch không hợp lệ.
 
 ```mermaid
 graph TD
     subgraph SDK[Cosmos SDK]
         B[Baseapp]
         A[AnteHandlers]
-        B <-->|Validate TX| A
+        B <-->|Xác thực TX| A
     end
     C[CometBFT] <-->|CheckTx|SDK
-    U((User)) -->|Submit TX| C
-    N[P2P] -->|Receive TX| C
+    U((Người dùng)) -->|Gửi TX| C
+    N[P2P] -->|Nhận TX| C
 ```
 
 ```go reference
@@ -20,17 +20,17 @@ https://github.com/cosmos/cosmos-sdk/blob/31c604762a434c7b676b6a89897ecbd7c4653a
 
 ## CheckTx Handler
 
-`CheckTxHandler` allows users to extend the logic of `CheckTx`. `CheckTxHandler` is called by passing context and the transaction bytes received through ABCI. It is required that the handler returns deterministic results given the same transaction bytes. 
+`CheckTxHandler` cho phép người dùng mở rộng logic của `CheckTx`. `CheckTxHandler` được gọi bằng cách truyền context và các byte giao dịch nhận được qua ABCI. Yêu cầu rằng handler phải trả về kết quả xác định (deterministic) với cùng một chuỗi byte giao dịch.
 
 :::note
-we return the raw decoded transaction here to avoid decoding it twice.
+Chúng ta trả về giao dịch đã được giải mã thô ở đây để tránh phải giải mã hai lần.
 :::
 
 ```go
 type CheckTxHandler func(ctx sdk.Context, tx []byte) (Tx, error)
 ```
 
-Setting a custom `CheckTxHandler` is optional. It can be done from your app.go file:
+Việc đặt `CheckTxHandler` tùy chỉnh là tùy chọn. Nó có thể được thực hiện từ file app.go của bạn:
 
 ```go
 func NewSimApp(
@@ -42,7 +42,7 @@ func NewSimApp(
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *SimApp {
   ...
-  // Create ChecktxHandler
+  // Tạo ChecktxHandler
   checktxHandler := abci.NewCustomCheckTxHandler(...)
   app.SetCheckTxHandler(checktxHandler)
   ...

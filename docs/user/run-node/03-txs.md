@@ -2,119 +2,119 @@
 sidebar_position: 1
 ---
 
-# Generating, Signing and Broadcasting Transactions
+# Tạo, Ký và Phát Sóng Giao Dịch
 
-:::note Synopsis
-This document describes how to generate an (unsigned) transaction, signing it (with one or multiple keys), and broadcasting it to the network.
+:::note Tóm tắt
+Tài liệu này mô tả cách tạo một giao dịch (chưa ký), ký giao dịch đó (với một hoặc nhiều khóa), và phát sóng nó lên mạng.
 :::
 
-## Using the CLI
+## Sử Dụng CLI
 
-The easiest way to send transactions is using the CLI, as we have seen in the previous page when [interacting with a node](./02-interact-node.md#using-the-cli). For example, running the following command
+Cách đơn giản nhất để gửi giao dịch là sử dụng CLI, như chúng ta đã thấy ở trang trước khi [tương tác với một node](./02-interact-node.md#using-the-cli). Ví dụ, chạy lệnh sau:
 
 ```bash
 simd tx bank send $MY_VALIDATOR_ADDRESS $RECIPIENT 1000stake --chain-id my-test-chain --keyring-backend test
 ```
 
-will run the following steps:
+sẽ thực hiện các bước sau:
 
-* generate a transaction with one `Msg` (`x/bank`'s `MsgSend`), and print the generated transaction to the console.
-* ask the user for confirmation to send the transaction from the `$MY_VALIDATOR_ADDRESS` account.
-* fetch `$MY_VALIDATOR_ADDRESS` from the keyring. This is possible because we have [set up the CLI's keyring](./00-keyring.md) in a previous step.
-* sign the generated transaction with the keyring's account.
-* broadcast the signed transaction to the network. This is possible because the CLI connects to the node's CometBFT RPC endpoint.
+* tạo một giao dịch với một `Msg` (`MsgSend` của `x/bank`), và in giao dịch đã tạo ra console.
+* yêu cầu người dùng xác nhận gửi giao dịch từ tài khoản `$MY_VALIDATOR_ADDRESS`.
+* lấy `$MY_VALIDATOR_ADDRESS` từ keyring. Điều này khả thi vì chúng ta đã [thiết lập keyring cho CLI](./00-keyring.md) ở bước trước.
+* ký giao dịch đã tạo bằng tài khoản trong keyring.
+* phát sóng giao dịch đã ký lên mạng. Điều này khả thi vì CLI kết nối đến endpoint CometBFT RPC của node.
 
-The CLI bundles all the necessary steps into a simple-to-use user experience. However, it's possible to run all the steps individually too.
+CLI gộp tất cả các bước cần thiết vào một trải nghiệm người dùng đơn giản. Tuy nhiên, cũng có thể thực hiện từng bước một cách riêng lẻ.
 
-### Generating a Transaction
+### Tạo Giao Dịch
 
-Generating a transaction can simply be done by appending the `--generate-only` flag on any `tx` command, e.g.:
+Tạo giao dịch có thể được thực hiện đơn giản bằng cách thêm cờ `--generate-only` vào bất kỳ lệnh `tx` nào, ví dụ:
 
 ```bash
 simd tx bank send $MY_VALIDATOR_ADDRESS $RECIPIENT 1000stake --chain-id my-test-chain --generate-only
 ```
 
-This will output the unsigned transaction as JSON in the console. We can also save the unsigned transaction to a file (to be passed around between signers more easily) by appending `> unsigned_tx.json` to the above command.
+Lệnh này sẽ in giao dịch chưa ký dưới dạng JSON ra console. Chúng ta cũng có thể lưu giao dịch chưa ký vào một file (để dễ dàng chuyển giữa các người ký) bằng cách thêm `> unsigned_tx.json` vào lệnh trên.
 
-### Signing a Transaction
+### Ký Giao Dịch
 
-Signing a transaction using the CLI requires the unsigned transaction to be saved in a file. Let's assume the unsigned transaction is in a file called `unsigned_tx.json` in the current directory (see previous paragraph on how to do that). Then, simply run the following command:
+Ký giao dịch bằng CLI yêu cầu giao dịch chưa ký phải được lưu trong một file. Giả sử giao dịch chưa ký nằm trong file `unsigned_tx.json` ở thư mục hiện tại (xem đoạn trước về cách thực hiện). Sau đó, đơn giản chạy lệnh sau:
 
 ```bash
 simd tx sign unsigned_tx.json --chain-id my-test-chain --keyring-backend test --from $MY_VALIDATOR_ADDRESS
 ```
 
-This command will decode the unsigned transaction and sign it with `SIGN_MODE_DIRECT` with `$MY_VALIDATOR_ADDRESS`'s key, which we already set up in the keyring. The signed transaction will be output as JSON to the console, and, as above, we can save it to a file by appending `--output-document signed_tx.json`.
+Lệnh này sẽ giải mã giao dịch chưa ký và ký nó với `SIGN_MODE_DIRECT` bằng khóa của `$MY_VALIDATOR_ADDRESS`, mà chúng ta đã thiết lập trong keyring. Giao dịch đã ký sẽ được xuất ra dưới dạng JSON ra console, và tương tự như trên, chúng ta có thể lưu vào file bằng cách thêm `--output-document signed_tx.json`.
 
-Some useful flags to consider in the `tx sign` command:
+Một số cờ hữu ích cần xem xét trong lệnh `tx sign`:
 
-* `--sign-mode`: you may use `amino-json` to sign the transaction using `SIGN_MODE_LEGACY_AMINO_JSON`,
-* `--offline`: sign in offline mode. This means that the `tx sign` command doesn't connect to the node to retrieve the signer's account number and sequence, both needed for signing. In this case, you must manually supply the `--account-number` and `--sequence` flags. This is useful for offline signing, i.e. signing in a secure environment which doesn't have access to the internet.
+* `--sign-mode`: bạn có thể sử dụng `amino-json` để ký giao dịch bằng `SIGN_MODE_LEGACY_AMINO_JSON`,
+* `--offline`: ký ở chế độ ngoại tuyến (offline). Điều này có nghĩa là lệnh `tx sign` không kết nối đến node để lấy số tài khoản và số thứ tự (sequence) của người ký, vốn cần thiết để ký. Trong trường hợp này, bạn phải cung cấp thủ công các cờ `--account-number` và `--sequence`. Điều này hữu ích cho việc ký ngoại tuyến, tức là ký trong môi trường bảo mật không có quyền truy cập internet.
 
-#### Signing with Multiple Signers
+#### Ký với Nhiều Người Ký
 
 :::warning
-Please note that signing a transaction with multiple signers or with a multisig account, where at least one signer uses `SIGN_MODE_DIRECT`, is not yet possible. You may follow [this Github issue](https://github.com/cosmos/cosmos-sdk/issues/8141) for more info.
+Xin lưu ý rằng việc ký giao dịch với nhiều người ký hoặc với tài khoản multisig, trong đó có ít nhất một người ký sử dụng `SIGN_MODE_DIRECT`, hiện chưa khả dụng. Bạn có thể theo dõi [issue Github này](https://github.com/cosmos/cosmos-sdk/issues/8141) để biết thêm thông tin.
 :::
 
-Signing with multiple signers is done with the `tx multisign` command. This command assumes that all signers use `SIGN_MODE_LEGACY_AMINO_JSON`. The flow is similar to the `tx sign` command flow, but instead of signing an unsigned transaction file, each signer signs the file signed by previous signer(s). The `tx multisign` command will append signatures to the existing transactions. It is important that signers sign the transaction **in the same order** as given by the transaction, which is retrievable using the `GetSigners()` method.
+Ký với nhiều người ký được thực hiện bằng lệnh `tx multisign`. Lệnh này giả định rằng tất cả người ký đều sử dụng `SIGN_MODE_LEGACY_AMINO_JSON`. Quy trình tương tự như quy trình lệnh `tx sign`, nhưng thay vì ký một file giao dịch chưa ký, mỗi người ký ký file đã được ký bởi những người ký trước đó. Lệnh `tx multisign` sẽ bổ sung chữ ký vào các giao dịch hiện có. Điều quan trọng là các người ký phải ký giao dịch **theo cùng thứ tự** như được chỉ định trong giao dịch, có thể truy xuất bằng phương thức `GetSigners()`.
 
-For example, starting with the `unsigned_tx.json`, and assuming the transaction has 4 signers, we would run:
+Ví dụ, bắt đầu với `unsigned_tx.json`, và giả sử giao dịch có 4 người ký, chúng ta sẽ chạy:
 
 ```bash
-# Let signer1 sign the unsigned tx.
+# Để signer1 ký giao dịch chưa ký.
 simd tx multisign unsigned_tx.json signer_key_1 --chain-id my-test-chain --keyring-backend test > partial_tx_1.json
-# Now signer1 will send the partial_tx_1.json to the signer2.
-# Signer2 appends their signature:
+# Bây giờ signer1 sẽ gửi partial_tx_1.json cho signer2.
+# Signer2 thêm chữ ký của mình:
 simd tx multisign partial_tx_1.json signer_key_2 --chain-id my-test-chain --keyring-backend test > partial_tx_2.json
-# Signer2 sends the partial_tx_2.json file to signer3, and signer3 can append his signature:
+# Signer2 gửi file partial_tx_2.json cho signer3, và signer3 có thể thêm chữ ký của mình:
 simd tx multisign partial_tx_2.json signer_key_3 --chain-id my-test-chain --keyring-backend test > partial_tx_3.json
 ```
 
-### Broadcasting a Transaction
+### Phát Sóng Giao Dịch
 
-Broadcasting a transaction is done using the following command:
+Phát sóng giao dịch được thực hiện bằng lệnh sau:
 
 ```bash
 simd tx broadcast tx_signed.json
 ```
 
-You may optionally pass the `--broadcast-mode` flag to specify which response to receive from the node:
+Bạn có thể tùy chọn truyền cờ `--broadcast-mode` để chỉ định phản hồi nào sẽ nhận từ node:
 
-* `sync`: the CLI waits for a CheckTx execution response only.
-* `async`: the CLI returns immediately (transaction might fail).
+* `sync`: CLI chờ phản hồi thực thi CheckTx.
+* `async`: CLI trả về ngay lập tức (giao dịch có thể thất bại).
 
-### Encoding a Transaction
+### Mã Hóa Giao Dịch
 
-In order to broadcast a transaction using the gRPC or REST endpoints, the transaction will need to be encoded first. This can be done using the CLI.
+Để phát sóng giao dịch sử dụng các endpoint gRPC hoặc REST, giao dịch cần được mã hóa trước. Điều này có thể được thực hiện bằng CLI.
 
-Encoding a transaction is done using the following command:
+Mã hóa giao dịch được thực hiện bằng lệnh sau:
 
 ```bash
 simd tx encode tx_signed.json
 ```
 
-This will read the transaction from the file, serialize it using Protobuf, and output the transaction bytes as base64 in the console.
+Lệnh này sẽ đọc giao dịch từ file, tuần tự hóa (serialize) nó bằng Protobuf, và in các byte giao dịch dưới dạng base64 ra console.
 
-### Decoding a Transaction
+### Giải Mã Giao Dịch
 
-The CLI can also be used to decode transaction bytes.
+CLI cũng có thể được sử dụng để giải mã các byte giao dịch.
 
-Decoding a transaction is done using the following command:
+Giải mã giao dịch được thực hiện bằng lệnh sau:
 
 ```bash
 simd tx decode [protobuf-byte-string]
 ```
 
-This will decode the transaction bytes and output the transaction as JSON in the console. You can also save the transaction to a file by appending `> tx.json` to the above command.
+Lệnh này sẽ giải mã các byte giao dịch và in giao dịch dưới dạng JSON ra console. Bạn cũng có thể lưu giao dịch vào file bằng cách thêm `> tx.json` vào lệnh trên.
 
-## Programmatically with Go
+## Lập Trình Với Go
 
-It is possible to manipulate transactions programmatically via Go using the Cosmos SDK's `TxBuilder` interface.
+Có thể thao tác giao dịch theo chương trình thông qua Go bằng cách sử dụng giao diện `TxBuilder` của Cosmos SDK.
 
-### Generating a Transaction
+### Tạo Giao Dịch
 
-Before generating a transaction, a new instance of a `TxBuilder` needs to be created. Since the Cosmos SDK supports both Amino and Protobuf transactions, the first step would be to decide which encoding scheme to use. All the subsequent steps remain unchanged, whether you're using Amino or Protobuf, as `TxBuilder` abstracts the encoding mechanisms. In the following snippet, we will use Protobuf.
+Trước khi tạo giao dịch, cần tạo một phiên bản mới của `TxBuilder`. Vì Cosmos SDK hỗ trợ cả giao dịch Amino và Protobuf, bước đầu tiên là quyết định sử dụng phương thức mã hóa nào. Tất cả các bước tiếp theo vẫn giữ nguyên, cho dù bạn sử dụng Amino hay Protobuf, vì `TxBuilder` trừu tượng hóa các cơ chế mã hóa. Trong đoạn mã dưới đây, chúng ta sẽ sử dụng Protobuf.
 
 ```go
 import (
@@ -122,17 +122,17 @@ import (
 )
 
 func sendTx() error {
-    // Choose your codec: Amino or Protobuf. Here, we use Protobuf, given by the following function.
+    // Chọn codec của bạn: Amino hoặc Protobuf. Ở đây, chúng ta sử dụng Protobuf, được cung cấp bởi hàm sau.
     app := simapp.NewSimApp(...)
 
-    // Create a new TxBuilder.
+    // Tạo một TxBuilder mới.
     txBuilder := app.TxConfig().NewTxBuilder()
 
     // --snip--
 }
 ```
 
-We can also set up some keys and addresses that will send and receive the transactions. Here, for the purpose of the tutorial, we will be using some dummy data to create keys.
+Chúng ta cũng có thể thiết lập một số khóa và địa chỉ sẽ gửi và nhận các giao dịch. Ở đây, cho mục đích hướng dẫn, chúng ta sẽ sử dụng một số dữ liệu giả để tạo khóa.
 
 ```go
 import (
@@ -144,7 +144,7 @@ priv2, _, addr2 := testdata.KeyTestPubAddr()
 priv3, _, addr3 := testdata.KeyTestPubAddr()
 ```
 
-Populating the `TxBuilder` can be done via its methods:
+Có thể điền vào `TxBuilder` thông qua các phương thức của nó:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/client/tx_config.go#L39-L57
@@ -158,10 +158,10 @@ import (
 func sendTx() error {
     // --snip--
 
-    // Define two x/bank MsgSend messages:
-    // - from addr1 to addr3,
-    // - from addr2 to addr3.
-    // This means that the transaction needs two signers: addr1 and addr2.
+    // Định nghĩa hai thông điệp MsgSend của x/bank:
+    // - từ addr1 đến addr3,
+    // - từ addr2 đến addr3.
+    // Điều này có nghĩa là giao dịch cần hai người ký: addr1 và addr2.
     msg1 := banktypes.NewMsgSend(addr1, addr3, types.NewCoins(types.NewInt64Coin("atom", 12)))
     msg2 := banktypes.NewMsgSend(addr2, addr3, types.NewCoins(types.NewInt64Coin("atom", 34)))
 
@@ -177,23 +177,23 @@ func sendTx() error {
 }
 ```
 
-At this point, `TxBuilder`'s underlying transaction is ready to be signed.
+Tại thời điểm này, giao dịch bên trong `TxBuilder` đã sẵn sàng để được ký.
 
-#### Generating an Unordered Transaction
+#### Tạo Giao Dịch Không Theo Thứ Tự (Unordered Transaction)
 
-Starting with Cosmos SDK v0.53.0, users may send unordered transactions to chains that have the feature enabled.
+Bắt đầu từ Cosmos SDK v0.53.0, người dùng có thể gửi các giao dịch không theo thứ tự đến các chuỗi đã bật tính năng này.
 
 :::warning
 
-Unordered transactions MUST leave sequence values unset. When a transaction is both unordered and contains a non-zero sequence value,
-the transaction will be rejected. External services that operate on prior assumptions about transaction sequence values should be updated to handle unordered transactions.
-Services should be aware that when the transaction is unordered, the transaction sequence will always be zero.
+Giao dịch không theo thứ tự PHẢI để trống giá trị sequence. Khi một giao dịch vừa không theo thứ tự vừa chứa giá trị sequence khác không,
+giao dịch đó sẽ bị từ chối. Các dịch vụ bên ngoài hoạt động dựa trên các giả định trước đây về giá trị sequence của giao dịch nên được cập nhật để xử lý các giao dịch không theo thứ tự.
+Các dịch vụ cần biết rằng khi giao dịch không theo thứ tự, sequence của giao dịch sẽ luôn bằng không.
 
 :::
 
-Using the example above, we can set the required fields to mark a transaction as unordered. 
-By default, unordered transactions charge an extra 2240 units of gas to offset the additional storage overhead that supports their functionality.
-The extra units of gas are customizable and therefore vary by chain, so be sure to check the chain's ante handler for the gas value set, if any.
+Sử dụng ví dụ ở trên, chúng ta có thể đặt các trường bắt buộc để đánh dấu giao dịch là không theo thứ tự.
+Theo mặc định, các giao dịch không theo thứ tự tính thêm 2240 đơn vị gas để bù đắp chi phí lưu trữ bổ sung hỗ trợ chức năng của chúng.
+Các đơn vị gas bổ sung có thể tùy chỉnh và do đó khác nhau tùy theo chuỗi, vì vậy hãy kiểm tra ante handler của chuỗi để biết giá trị gas được đặt, nếu có.
 
 ```go
 func sendTx() error {
@@ -204,31 +204,12 @@ func sendTx() error {
 }
 ```
 
-Unordered transactions from the same account must use a unique timeout timestamp value. The difference between each timeout timestamp value may be as small as a nanosecond, however.
+Để ký giao dịch, cần thực hiện hai bước:
 
-```go
-import (
-	"github.com/cosmos/cosmos-sdk/client"
-)
+* với mỗi người ký, điền vào `SignerInfo` của người ký đó trong `TxBuilder`,
+* một khi tất cả `SignerInfo` đã được điền, với mỗi người ký, ký `SignDoc` (phần dữ liệu cần được ký).
 
-func sendMessages(txBuilders []client.TxBuilder) error {
-    // --snip--
-    expiration := 5 * time.Minute
-    for _, txb := range txBuilders {
-        txb.SetUnordered(true)
-        txb.SetTimeoutTimestamp(time.Now().Add(expiration + (1 * time.Nanosecond)))
-    }
-}
-```
-
-### Signing a Transaction
-
-We set encoding config to use Protobuf, which will use `SIGN_MODE_DIRECT` by default. As per [ADR-020](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-020-protobuf-transaction-encoding.md), each signer needs to sign the `SignerInfo`s of all other signers. This means that we need to perform two steps sequentially:
-
-* for each signer, populate the signer's `SignerInfo` inside `TxBuilder`,
-* once all `SignerInfo`s are populated, for each signer, sign the `SignDoc` (the payload to be signed).
-
-In the current `TxBuilder`'s API, both steps are done using the same method: `SetSignatures()`. The current API requires us to first perform a round of `SetSignatures()` _with empty signatures_, only to populate `SignerInfo`s, and a second round of `SetSignatures()` to actually sign the correct payload.
+Trong API hiện tại của `TxBuilder`, cả hai bước đều được thực hiện bằng cùng một phương thức: `SetSignatures()`. API hiện tại yêu cầu chúng ta trước tiên thực hiện một lần `SetSignatures()` _với chữ ký rỗng_, chỉ để điền `SignerInfo`, và lần thứ hai `SetSignatures()` để thực sự ký đúng payload.
 
 ```go
 import (
@@ -241,11 +222,11 @@ func sendTx() error {
     // --snip--
 
     privs := []cryptotypes.PrivKey{priv1, priv2}
-    accNums:= []uint64{..., ...} // The accounts' account numbers
-    accSeqs:= []uint64{..., ...} // The accounts' sequence numbers
+    accNums:= []uint64{..., ...} // Số tài khoản của các tài khoản
+    accSeqs:= []uint64{..., ...} // Số thứ tự (sequence) của các tài khoản
 
-    // First round: we gather all the signer infos. We use the "set empty
-    // signature" hack to do that.
+    // Lần đầu: chúng ta thu thập tất cả thông tin người ký. Chúng ta sử dụng thủ thuật
+    // "đặt chữ ký rỗng" để làm điều đó.
     var sigsV2 []signing.SignatureV2
     for i, priv := range privs {
         sigV2 := signing.SignatureV2{
@@ -264,7 +245,7 @@ func sendTx() error {
         return err
     }
 
-    // Second round: all signer infos are set, so each signer can sign.
+    // Lần hai: tất cả thông tin người ký đã được đặt, vì vậy mỗi người ký có thể ký.
     sigsV2 = []signing.SignatureV2{}
     for i, priv := range privs {
         signerData := xauthsigning.SignerData{
@@ -288,19 +269,19 @@ func sendTx() error {
 }
 ```
 
-The `TxBuilder` is now correctly populated. To print it, you can use the `TxConfig` interface from the initial encoding config `encCfg`:
+`TxBuilder` hiện đã được điền đầy đủ. Để in nó, bạn có thể sử dụng giao diện `TxConfig` từ cấu hình mã hóa ban đầu `encCfg`:
 
 ```go
 func sendTx() error {
     // --snip--
 
-    // Generated Protobuf-encoded bytes.
+    // Tạo các byte được mã hóa Protobuf.
     txBytes, err := encCfg.TxConfig.TxEncoder()(txBuilder.GetTx())
     if err != nil {
         return err
     }
 
-    // Generate a JSON string.
+    // Tạo một chuỗi JSON.
     txJSONBytes, err := encCfg.TxConfig.TxJSONEncoder()(txBuilder.GetTx())
     if err != nil {
         return err
@@ -309,9 +290,9 @@ func sendTx() error {
 }
 ```
 
-### Broadcasting a Transaction
+### Phát Sóng Giao Dịch
 
-The preferred way to broadcast a transaction is to use gRPC, though using REST (via `gRPC-gateway`) or the CometBFT RPC is also possible. An overview of the differences between these methods is exposed [here](../../learn/advanced/06-grpc_rest.md). For this tutorial, we will only describe the gRPC method.
+Cách phát sóng giao dịch được ưu tiên là sử dụng gRPC, mặc dù việc sử dụng REST (thông qua `gRPC-gateway`) hoặc CometBFT RPC cũng khả thi. Tổng quan về sự khác biệt giữa các phương pháp này được trình bày [ở đây](../../learn/advanced/06-grpc_rest.md). Trong hướng dẫn này, chúng ta chỉ mô tả phương pháp gRPC.
 
 ```go
 import (
@@ -326,37 +307,36 @@ import (
 func sendTx(ctx context.Context) error {
     // --snip--
 
-    // Create a connection to the gRPC server.
+    // Tạo kết nối đến máy chủ gRPC.
     grpcConn := grpc.Dial(
-        "127.0.0.1:9090", // Or your gRPC server address.
-        grpc.WithInsecure(), // The Cosmos SDK doesn't support any transport security mechanism.
+        "127.0.0.1:9090", // Hoặc địa chỉ máy chủ gRPC của bạn.
+        grpc.WithInsecure(), // Cosmos SDK không hỗ trợ bất kỳ cơ chế bảo mật truyền tải nào.
     )
     defer grpcConn.Close()
 
-    // Broadcast the tx via gRPC. We create a new client for the Protobuf Tx
-    // service.
+    // Phát sóng giao dịch qua gRPC. Chúng ta tạo một client mới cho dịch vụ Protobuf Tx.
     txClient := tx.NewServiceClient(grpcConn)
-    // We then call the BroadcastTx method on this client.
+    // Sau đó chúng ta gọi phương thức BroadcastTx trên client này.
     grpcRes, err := txClient.BroadcastTx(
         ctx,
         &tx.BroadcastTxRequest{
             Mode:    tx.BroadcastMode_BROADCAST_MODE_SYNC,
-            TxBytes: txBytes, // Proto-binary of the signed transaction, see previous step.
+            TxBytes: txBytes, // Dữ liệu nhị phân Proto của giao dịch đã ký, xem bước trước.
         },
     )
     if err != nil {
         return err
     }
 
-    fmt.Println(grpcRes.TxResponse.Code) // Should be `0` if the tx is successful
+    fmt.Println(grpcRes.TxResponse.Code) // Nên là `0` nếu giao dịch thành công
 
     return nil
 }
 ```
 
-#### Simulating a Transaction
+#### Mô Phỏng Giao Dịch
 
-Before broadcasting a transaction, we sometimes may want to dry-run the transaction, to estimate some information about the transaction without actually committing it. This is called simulating a transaction, and can be done as follows:
+Trước khi phát sóng giao dịch, đôi khi chúng ta muốn chạy thử (dry-run) giao dịch để ước tính một số thông tin về giao dịch mà không thực sự commit nó. Đây được gọi là mô phỏng giao dịch, và có thể thực hiện như sau:
 
 ```go
 import (
@@ -372,12 +352,11 @@ import (
 func simulateTx() error {
     // --snip--
 
-    // Simulate the tx via gRPC. We create a new client for the Protobuf Tx
-    // service.
+    // Mô phỏng giao dịch qua gRPC. Chúng ta tạo một client mới cho dịch vụ Protobuf Tx.
     txClient := tx.NewServiceClient(grpcConn)
-    txBytes := /* Fill in with your signed transaction bytes. */
+    txBytes := /* Điền vào với các byte giao dịch đã ký của bạn. */
 
-    // We then call the Simulate method on this client.
+    // Sau đó chúng ta gọi phương thức Simulate trên client này.
     grpcRes, err := txClient.Simulate(
         context.Background(),
         &tx.SimulateRequest{
@@ -388,19 +367,19 @@ func simulateTx() error {
         return err
     }
 
-    fmt.Println(grpcRes.GasInfo) // Prints estimated gas used.
+    fmt.Println(grpcRes.GasInfo) // In ra lượng gas ước tính đã sử dụng.
 
     return nil
 }
 ```
 
-## Using gRPC
+## Sử Dụng gRPC
 
-It is not possible to generate or sign a transaction using gRPC, only to broadcast one. In order to broadcast a transaction using gRPC, you will need to generate, sign, and encode the transaction using either the CLI or programmatically with Go.
+Không thể tạo hoặc ký giao dịch bằng gRPC, chỉ có thể phát sóng. Để phát sóng giao dịch bằng gRPC, bạn cần tạo, ký và mã hóa giao dịch bằng CLI hoặc lập trình với Go.
 
-### Broadcasting a Transaction
+### Phát Sóng Giao Dịch
 
-Broadcasting a transaction using the gRPC endpoint can be done by sending a `BroadcastTx` request as follows, where the `txBytes` are the protobuf-encoded bytes of a signed transaction:
+Phát sóng giao dịch bằng endpoint gRPC có thể được thực hiện bằng cách gửi yêu cầu `BroadcastTx` như sau, trong đó `txBytes` là các byte được mã hóa Protobuf của giao dịch đã ký:
 
 ```bash
 grpcurl -plaintext \
@@ -409,13 +388,13 @@ grpcurl -plaintext \
     cosmos.tx.v1beta1.Service/BroadcastTx
 ```
 
-## Using REST
+## Sử Dụng REST
 
-It is not possible to generate or sign a transaction using REST, only to broadcast one. In order to broadcast a transaction using REST, you will need to generate, sign, and encode the transaction using either the CLI or programmatically with Go.
+Không thể tạo hoặc ký giao dịch bằng REST, chỉ có thể phát sóng. Để phát sóng giao dịch bằng REST, bạn cần tạo, ký và mã hóa giao dịch bằng CLI hoặc lập trình với Go.
 
-### Broadcasting a Transaction
+### Phát Sóng Giao Dịch
 
-Broadcasting a transaction using the REST endpoint (served by `gRPC-gateway`) can be done by sending a POST request as follows, where the `txBytes` are the protobuf-encoded bytes of a signed transaction:
+Phát sóng giao dịch bằng endpoint REST (được phục vụ bởi `gRPC-gateway`) có thể được thực hiện bằng cách gửi yêu cầu POST như sau, trong đó `txBytes` là các byte được mã hóa Protobuf của giao dịch đã ký:
 
 ```bash
 curl -X POST \
@@ -424,6 +403,6 @@ curl -X POST \
     localhost:1317/cosmos/tx/v1beta1/txs
 ```
 
-## Using CosmJS (JavaScript & TypeScript)
+## Sử Dụng CosmJS (JavaScript & TypeScript)
 
-CosmJS aims to build client libraries in JavaScript that can be embedded in web applications. Please see [https://cosmos.github.io/cosmjs](https://cosmos.github.io/cosmjs) for more information. As of January 2021, CosmJS documentation is still a work in progress.
+CosmJS hướng đến việc xây dựng các thư viện client bằng JavaScript có thể được nhúng vào các ứng dụng web. Vui lòng xem [https://cosmos.github.io/cosmjs](https://cosmos.github.io/cosmjs) để biết thêm thông tin. Tính đến tháng 1 năm 2021, tài liệu CosmJS vẫn đang trong quá trình phát triển.

@@ -2,12 +2,12 @@
 sidebar_position: 1
 ---
 
-# Overview of `app.go`
+# Tổng Quan về `app.go`
 
-This section is intended to provide an overview of the `SimApp` `app.go` file and is still a work in progress.
-For now please instead read the [tutorials](https://tutorials.cosmos.network) for a deep dive on how to build a chain.
+Phần này nhằm cung cấp tổng quan về file `app.go` của `SimApp` và vẫn đang được hoàn thiện.
+Hiện tại, thay vào đó hãy đọc các [hướng dẫn](https://tutorials.cosmos.network) để có cái nhìn sâu sắc về cách xây dựng một chuỗi.
 
-## Complete `app.go`
+## `app.go` Đầy Đủ
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/simapp/app.go
