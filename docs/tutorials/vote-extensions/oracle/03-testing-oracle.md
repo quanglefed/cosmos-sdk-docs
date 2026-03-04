@@ -1,57 +1,57 @@
-# Testing the Oracle Module
+# Kiểm Thử Module Oracle
 
-We will guide you through the process of testing the Oracle module in your application. The Oracle module uses vote extensions to provide current price data. If you would like to see the complete working oracle module please see [here](https://github.com/cosmos/sdk-tutorials/blob/master/tutorials/oracle/base/x/oracle).
+Chúng ta sẽ hướng dẫn bạn qua quá trình kiểm thử module Oracle trong ứng dụng của bạn. Module Oracle sử dụng vote extension để cung cấp dữ liệu giá hiện tại. Nếu bạn muốn xem module oracle hoàn chỉnh đang hoạt động, vui lòng xem [tại đây](https://github.com/cosmos/sdk-tutorials/blob/master/tutorials/oracle/base/x/oracle).
 
-## Step 1: Compile and Install the Application
+## Bước 1: Biên Dịch và Cài Đặt Ứng Dụng
 
-First, we need to compile and install the application. Please ensure you are in the `tutorials/oracle/base` directory. Run the following command in your terminal:
+Đầu tiên, chúng ta cần biên dịch và cài đặt ứng dụng. Hãy đảm bảo bạn đang ở trong thư mục `tutorials/oracle/base`. Chạy lệnh sau trong terminal:
 
 ```shell
 make install
 ```
 
-This command compiles the application and moves the resulting binary to a location in your system's PATH.
+Lệnh này biên dịch ứng dụng và chuyển binary kết quả đến một vị trí trong PATH của hệ thống.
 
-## Step 2: Initialise the Application
+## Bước 2: Khởi Tạo Ứng Dụng
 
-Next, we need to initialise the application. Run the following command in your terminal:
+Tiếp theo, chúng ta cần khởi tạo ứng dụng. Chạy lệnh sau trong terminal:
 
 ```shell
 make init
 ```
 
-This command runs the script `tutorials/oracle/base/scripts/init.sh`, which sets up the necessary configuration for your application to run. This includes creating the `app.toml` configuration file and initialising the blockchain with a genesis block.
+Lệnh này chạy script `tutorials/oracle/base/scripts/init.sh`, thiết lập cấu hình cần thiết để ứng dụng chạy. Bao gồm tạo file cấu hình `app.toml` và khởi tạo blockchain với genesis block.
 
-## Step 3: Start the Application
+## Bước 3: Khởi Động Ứng Dụng
 
-Now, we can start the application. Run the following command in your terminal:
+Bây giờ, chúng ta có thể khởi động ứng dụng. Chạy lệnh sau trong terminal:
 
 ```shell
 exampled start
 ```
 
-This command starts your application, begins the blockchain node, and starts processing transactions.
+Lệnh này khởi động ứng dụng của bạn, bắt đầu blockchain node và bắt đầu xử lý giao dịch.
 
-## Step 4: Query the Oracle Prices
+## Bước 4: Truy Vấn Giá Oracle
 
-Finally, we can query the current prices from the Oracle module. Run the following command in your terminal:
+Cuối cùng, chúng ta có thể truy vấn các giá hiện tại từ module Oracle. Chạy lệnh sau trong terminal:
 
 ```shell
 exampled q oracle prices
 ```
 
-This command queries the current prices from the Oracle module. The expected output shows that the vote extensions were successfully included in the block and the Oracle module was able to retrieve the price data.
+Lệnh này truy vấn các giá hiện tại từ module Oracle. Đầu ra dự kiến cho thấy rằng vote extension đã được đưa vào block thành công và module Oracle đã có thể lấy dữ liệu giá.
 
-## Understanding Vote Extensions in Oracle
+## Hiểu Vote Extension Trong Oracle
 
-In the Oracle module, the `ExtendVoteHandler` function is responsible for creating the vote extensions. This function fetches the current prices from the provider, creates a `OracleVoteExtension` struct with these prices, and then marshals this struct into bytes. These bytes are then set as the vote extension.
+Trong module Oracle, hàm `ExtendVoteHandler` chịu trách nhiệm tạo vote extension. Hàm này lấy giá hiện tại từ provider, tạo struct `OracleVoteExtension` với các giá này, sau đó marshal struct này thành bytes. Các bytes này sau đó được đặt làm vote extension.
 
-In the context of testing, the Oracle module uses a mock provider to simulate the behavior of a real price provider. This mock provider is defined in the mockprovider package and is used to return predefined prices for specific currency pairs.
+Trong bối cảnh kiểm thử, module Oracle sử dụng một mock provider để mô phỏng hành vi của một price provider thực. Mock provider này được định nghĩa trong package `mockprovider` và được dùng để trả về các giá được định nghĩa trước cho các cặp tiền tệ cụ thể.
 
-## Conclusion
+## Kết Luận
 
-In this tutorial, we've delved into the concept of Oracle's in blockchain technology, focusing on their role in providing external data to a blockchain network. We've explored vote extensions, a powerful feature of ABCI++, and integrated them into a Cosmos SDK application to create a price oracle module.
+Trong tutorial này, chúng ta đã đi sâu vào khái niệm Oracle trong công nghệ blockchain, tập trung vào vai trò của chúng trong việc cung cấp dữ liệu bên ngoài cho mạng lưới blockchain. Chúng ta đã khám phá vote extension — một tính năng mạnh mẽ của ABCI++ — và tích hợp chúng vào một ứng dụng Cosmos SDK để tạo ra một module price oracle.
 
-Through hands-on exercises, you've implemented vote extensions, and tested their effectiveness in providing timely and accurate asset price information. You've gained practical insights by setting up a mock provider for testing and analysing the process of extending votes, verifying vote extensions, and preparing and processing proposals.
+Qua các bài tập thực hành, bạn đã triển khai vote extension và kiểm tra hiệu quả của chúng trong việc cung cấp thông tin giá tài sản kịp thời và chính xác. Bạn đã có được những hiểu biết thực tế bằng cách thiết lập mock provider để kiểm thử và phân tích quá trình mở rộng phiếu bầu, xác minh vote extension, cũng như chuẩn bị và xử lý proposal.
 
-Keep experimenting with these concepts, engage with the community, and stay updated on new advancements. The knowledge you've acquired here is crucial for developing robust and reliable blockchain applications that can interact with real-world data.
+Hãy tiếp tục thử nghiệm với các khái niệm này, tham gia cộng đồng và cập nhật các tiến bộ mới. Kiến thức bạn đã có được ở đây rất quan trọng để phát triển các ứng dụng blockchain mạnh mẽ và đáng tin cậy có thể tương tác với dữ liệu thực tế.

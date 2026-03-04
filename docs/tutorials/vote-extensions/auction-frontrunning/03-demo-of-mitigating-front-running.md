@@ -1,32 +1,32 @@
-# Demo of Mitigating Front-Running with Vote Extensions
+# Demo Giảm Thiểu Front-Running Với Vote Extensions
 
-The purpose of this demo is to test the implementation of the `VoteExtensionHandler` and `PrepareProposalHandler` that we have just added to the codebase. These handlers are designed to mitigate front-running by ensuring that all validators have a consistent view of the mempool when preparing proposals.
+Mục đích của demo này là kiểm tra việc triển khai `VoteExtensionHandler` và `PrepareProposalHandler` mà chúng ta vừa thêm vào codebase. Các handler này được thiết kế để giảm thiểu front-running bằng cách đảm bảo tất cả validator có cùng góc nhìn nhất quán về mempool khi chuẩn bị proposal.
 
-In this demo, we are using a 3 validator network. The Beacon validator is special because it has a custom transaction provider enabled. This means that it can potentially manipulate the order of transactions in a proposal to its advantage (i.e., front-running).
+Trong demo này, chúng ta đang sử dụng mạng lưới 3 validator. Validator Beacon đặc biệt vì nó có một custom transaction provider được bật. Điều này có nghĩa là nó có thể thao túng thứ tự giao dịch trong một proposal để có lợi (tức là front-running).
 
-1. Bootstrap the validator network: This sets up a network with 3 validators. The script `./scripts/configure.sh is used to configure the network and the validators.
+1. Khởi động mạng lưới validator: Bước này thiết lập mạng lưới với 3 validator. Script `./scripts/configure.sh` được dùng để cấu hình mạng lưới và các validator.
 
 ```shell
 cd scripts
 configure.sh
 ```
 
-If this doesn't work please ensure you have run `make build` in the `tutorials/nameservice/base` directory.
+Nếu điều này không hoạt động, hãy đảm bảo bạn đã chạy `make build` trong thư mục `tutorials/nameservice/base`.
 
 <!-- nolint:all -->
-2. Have alice attempt to reserve `bob.cosmos`: This is a normal transaction that alice wants to execute. The script ``./scripts/reserve.sh "bob.cosmos"` is used to send this transaction.
+2. Cho alice thử đặt chỗ `bob.cosmos`: Đây là một giao dịch thông thường mà alice muốn thực hiện. Script `./scripts/reserve.sh "bob.cosmos"` được dùng để gửi giao dịch này.
 
 ```shell
 reserve.sh "bob.cosmos"
 ```
 <!-- //nolint:all -->
-3. Query to verify the name has been reserved: This is to check the result of the transaction. The script `./scripts/whois.sh "bob.cosmos"` is used to query the state of the blockchain.
+3. Truy vấn để xác minh tên đã được đặt chỗ: Bước này để kiểm tra kết quả giao dịch. Script `./scripts/whois.sh "bob.cosmos"` được dùng để truy vấn trạng thái blockchain.
 
 ```shell
 whois.sh "bob.cosmos"
 ```
 
-It should return:
+Kết quả sẽ trả về:
 
 ```{
   "name":  {
@@ -43,7 +43,7 @@ It should return:
 }
 ```
 
-To detect front-running attempts by the beacon, scrutinise the logs during the `ProcessProposal` stage. Open the logs for each validator, including the beacon, `val1`, and `val2`, to observe the following behavior. Open the log file of the validator node. The location of this file can vary depending on your setup, but it's typically located in a directory like `$HOME/cosmos/nodes/#{validator}/logs`. The directory in this case will be under the validator so, `beacon` `val1` or `val2`. Run the following to tail the logs of the validator or beacon:
+Để phát hiện các nỗ lực front-running của beacon, hãy kiểm tra kỹ log trong giai đoạn `ProcessProposal`. Mở log của mỗi validator, bao gồm beacon, `val1` và `val2`, để quan sát hành vi sau. Mở file log của validator node. Vị trí của file này có thể thay đổi tùy theo cài đặt của bạn, nhưng thường nằm trong thư mục như `$HOME/cosmos/nodes/#{validator}/logs`. Thư mục trong trường hợp này sẽ nằm dưới validator, vậy là `beacon`, `val1` hoặc `val2`. Chạy lệnh sau để theo dõi log của validator hoặc beacon:
 
 ```shell
 tail -f $HOME/cosmos/nodes/#{validator}/logs
@@ -56,13 +56,13 @@ tail -f $HOME/cosmos/nodes/#{validator}/logs
 ```
 
 <!-- //nolint:all -->
-4. List the Beacon's keys: This is to verify the addresses of the validators. The script `./scripts/list-beacon-keys.sh` is used to list the keys.
+4. Liệt kê các khóa của Beacon: Bước này để xác minh địa chỉ của các validator. Script `./scripts/list-beacon-keys.sh` được dùng để liệt kê các khóa.
 
 ```shell
 list-beacon-keys.sh
 ```
 
-We should receive something similar to the following:
+Chúng ta sẽ nhận được kết quả tương tự như sau:
 
 ```shell
 [
@@ -93,14 +93,14 @@ We should receive something similar to the following:
 ]
 ```
 
-This allows us to match up the addresses and see that the bid was not front run by the beacon due as the resolve address is Alice's address and not the beacons address.
+Điều này cho phép chúng ta khớp các địa chỉ và thấy rằng bid không bị front-run bởi beacon, vì địa chỉ resolve là địa chỉ của Alice chứ không phải địa chỉ của beacon.
 
-By running this demo, we can verify that the `VoteExtensionHandler` and `PrepareProposalHandler` are working as expected and that they are able to prevent front-running.
+Bằng cách chạy demo này, chúng ta có thể xác minh rằng `VoteExtensionHandler` và `PrepareProposalHandler` đang hoạt động như mong đợi và có khả năng ngăn chặn front-running.
 
-## Conclusion
+## Kết Luận
 
-In this tutorial, we've tackled front-running and MEV, focusing on nameservice auctions' vulnerability to these issues. We've explored vote extensions, a key feature of ABCI 2.0, and integrated them into a Cosmos SDK application.
+Trong tutorial này, chúng ta đã giải quyết front-running và MEV, tập trung vào điểm dễ bị tổn thương của đấu giá nameservice với những vấn đề này. Chúng ta đã khám phá vote extension — một tính năng quan trọng của ABCI 2.0 — và tích hợp chúng vào một ứng dụng Cosmos SDK.
 
-Through practical exercises, you've implemented vote extensions, and tested their effectiveness in creating a fair auction system. You've gained practical insights by configuring a validator network and analysing blockchain logs.
+Qua các bài tập thực tế, bạn đã triển khai vote extension và kiểm tra hiệu quả của chúng trong việc tạo ra một hệ thống đấu giá công bằng. Bạn đã có được những hiểu biết thực tế bằng cách cấu hình mạng lưới validator và phân tích log blockchain.
 
-Keep experimenting with these concepts, engage with the community, and stay updated on new advancements. The knowledge you've acquired here is crucial for developing secure and fair blockchain applications.
+Hãy tiếp tục thử nghiệm với các khái niệm này, tham gia cộng đồng và cập nhật các tiến bộ mới. Kiến thức bạn đã có được ở đây rất quan trọng để phát triển các ứng dụng blockchain bảo mật và công bằng.

@@ -1,36 +1,36 @@
-# Getting Started
+# Bắt Đầu
 
-## Table of Contents
+## Mục Lục
 
-* [What is an Oracle?](./01-what-is-an-oracle.md)
-* [Implementing Vote Extensions](./02-implementing-vote-extensions.md)
-* [Testing the Oracle Module](./03-testing-oracle.md)
+* [Oracle Là Gì?](./01-what-is-an-oracle.md)
+* [Triển Khai Vote Extensions](./02-implementing-vote-extensions.md)
+* [Kiểm Thử Module Oracle](./03-testing-oracle.md)
 
-## Prerequisites
+## Điều Kiện Tiên Quyết
 
-Before you start with this tutorial, make sure you have:
+Trước khi bắt đầu tutorial này, hãy đảm bảo bạn có:
 
-* A working chain project. This tutorial won't cover the steps of creating a new chain/module.
-* Familiarity with the Cosmos SDK. If you're not, we suggest you start with [Cosmos SDK Tutorials](https://tutorials.cosmos.network), as ABCI++ is considered an advanced topic.
-* Read and understood [What is an Oracle?](01-what-is-an-oracle.md). This provides necessary background information for understanding the Oracle module.
-* Basic understanding of Go programming language.
+* Một dự án chain đang hoạt động. Tutorial này sẽ không đề cập đến các bước tạo chain/module mới.
+* Quen thuộc với Cosmos SDK. Nếu chưa, chúng tôi đề nghị bạn bắt đầu với [Cosmos SDK Tutorials](https://tutorials.cosmos.network), vì ABCI++ được coi là chủ đề nâng cao.
+* Đã đọc và hiểu [Oracle Là Gì?](01-what-is-an-oracle.md). Bài này cung cấp thông tin nền cần thiết để hiểu module Oracle.
+* Hiểu biết cơ bản về ngôn ngữ lập trình Go.
 
-## What are Vote extensions?
+## Vote Extension Là Gì?
 
-Vote extensions is arbitrary information which can be inserted into a block. This feature is part of ABCI 2.0, which is available for use in the SDK 0.50 release and part of the 0.38 CometBFT release.
+Vote extension là thông tin tùy ý có thể được chèn vào một block. Tính năng này là một phần của ABCI 2.0, có sẵn trong SDK phiên bản 0.50 và là một phần của CometBFT phiên bản 0.38.
 
-More information about vote extensions can be seen [here](https://docs.cosmos.network/main/build/abci/vote-extensions).
+Thông tin thêm về vote extension có thể xem [tại đây](https://docs.cosmos.network/main/build/abci/vote-extensions).
 
-## Overview of the project
+## Tổng Quan Dự Án
 
-We’ll go through the creation of a simple price oracle module focusing on the vote extensions implementation, ignoring the details inside the price oracle itself.
+Chúng ta sẽ đi qua việc tạo một module price oracle đơn giản tập trung vào việc triển khai vote extension, bỏ qua các chi tiết bên trong bản thân price oracle.
 
-We’ll go through the implementation of:
+Chúng ta sẽ đi qua việc triển khai:
 
-* `ExtendVote` to get information from external price APIs.
-* `VerifyVoteExtension` to check that the format of the provided votes is correct.
-* `PrepareProposal` to process the vote extensions from the previous block and include them into the proposal as a transaction.
-* `ProcessProposal` to check that the first transaction in the proposal is actually a “special tx” that contains the price information.
-* `PreBlocker` to make price information available during FinalizeBlock.
+* `ExtendVote` để lấy thông tin từ các API giá bên ngoài.
+* `VerifyVoteExtension` để kiểm tra rằng định dạng của các vote được cung cấp là đúng.
+* `PrepareProposal` để xử lý các vote extension từ block trước và đưa chúng vào proposal như một giao dịch.
+* `ProcessProposal` để kiểm tra rằng giao dịch đầu tiên trong proposal thực sự là một "giao dịch đặc biệt" chứa thông tin giá.
+* `PreBlocker` để làm cho thông tin giá có sẵn trong FinalizeBlock.
 
-If you would like to see the complete working oracle module please see [here](https://github.com/cosmos/sdk-tutorials/blob/master/tutorials/oracle/base/x/oracle)
+Nếu bạn muốn xem module oracle hoàn chỉnh đang hoạt động, vui lòng xem [tại đây](https://github.com/cosmos/sdk-tutorials/blob/master/tutorials/oracle/base/x/oracle)

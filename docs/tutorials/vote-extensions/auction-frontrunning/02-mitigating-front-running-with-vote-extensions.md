@@ -1,26 +1,26 @@
-# Mitigating Front-running with Vote Extensions
+# Giảm Thiểu Front-running Với Vote Extensions
 
-## Table of Contents
+## Mục Lục
 
-* [Prerequisites](#prerequisites)
-* [Implementing Structs for Vote Extensions](#implementing-structs-for-vote-extensions)
-* [Implementing Handlers and Configuring Handlers](#implementing-handlers-and-configuring-handlers)
+* [Điều kiện tiên quyết](#điều-kiện-tiên-quyết)
+* [Triển khai Struct cho Vote Extensions](#triển-khai-struct-cho-vote-extensions)
+* [Triển khai và Cấu hình Handlers](#triển-khai-và-cấu-hình-handlers)
 
-## Prerequisites
+## Điều Kiện Tiên Quyết
 
-Before implementing vote extensions to mitigate front-running, ensure you have a module ready to implement the vote extensions with. If you need to create or reference a similar module, see `x/auction` for guidance.
+Trước khi triển khai vote extension để giảm thiểu front-running, hãy đảm bảo bạn đã có một module sẵn sàng để triển khai vote extension. Nếu bạn cần tạo hoặc tham khảo một module tương tự, xem `x/auction` để được hướng dẫn.
 
-In this section, we will discuss the steps to mitigate front-running using vote extensions. We will introduce new types within the `abci/types.go` file. These types will be used to handle the process of preparing proposals, processing proposals, and handling vote extensions.
+Trong phần này, chúng ta sẽ thảo luận các bước để giảm thiểu front-running bằng cách sử dụng vote extension. Chúng ta sẽ giới thiệu các kiểu mới trong file `abci/types.go`. Các kiểu này sẽ được dùng để xử lý quá trình chuẩn bị proposal, xử lý proposal và xử lý vote extension.
 
-### Implementing Structs for Vote Extensions
+### Triển Khai Struct Cho Vote Extensions
 
-First, copy the following structs into the `abci/types.go` and each of these structs serves a specific purpose in the process of mitigating front-running using vote extensions:
+Đầu tiên, sao chép các struct sau vào `abci/types.go`. Mỗi struct phục vụ một mục đích cụ thể trong quá trình giảm thiểu front-running bằng vote extension:
 
 ```go
 package abci
 
 import (
- //import the necessary files
+ //import các file cần thiết
 )
 
 type PrepareProposalHandler struct {
@@ -34,7 +34,7 @@ type PrepareProposalHandler struct {
 }
 ```
 
-The `PrepareProposalHandler` struct is used to handle the preparation of a proposal in the consensus process. It contains several fields: logger for logging information and errors, txConfig for transaction configuration, cdc (Codec) for encoding and decoding transactions, mempool for referencing the set of unconfirmed transactions, txProvider for building the proposal with transactions, keyname for the name of the key used for signing transactions, and runProvider, a boolean flag indicating whether the provider should be run to build the proposal.
+Struct `PrepareProposalHandler` được dùng để xử lý việc chuẩn bị một proposal trong quá trình đồng thuận. Nó chứa nhiều trường: `logger` để ghi log thông tin và lỗi, `txConfig` để cấu hình giao dịch, `cdc` (Codec) để mã hóa và giải mã giao dịch, `mempool` để tham chiếu đến tập hợp các giao dịch chưa được xác nhận, `txProvider` để xây dựng proposal với các giao dịch, `keyname` là tên của khóa dùng để ký giao dịch, và `runProvider` — một flag boolean cho biết liệu provider có nên được chạy để xây dựng proposal hay không.
 
 ```go
 type ProcessProposalHandler struct {
@@ -44,7 +44,7 @@ type ProcessProposalHandler struct {
 }
 ```
 
-After the proposal has been prepared and vote extensions have been included, the `ProcessProposalHandler` is used to process the proposal. This includes validating the proposal and the included vote extensions. The `ProcessProposalHandler` allows you to access the transaction configuration and codec, which are necessary for processing the vote extensions.
+Sau khi proposal đã được chuẩn bị và vote extension đã được đưa vào, `ProcessProposalHandler` được dùng để xử lý proposal. Điều này bao gồm xác thực proposal và các vote extension được đưa vào. `ProcessProposalHandler` cho phép bạn truy cập cấu hình giao dịch và codec, cần thiết để xử lý vote extension.
 
 ```go
 type VoteExtHandler struct {
@@ -55,7 +55,7 @@ type VoteExtHandler struct {
 }
 ```
 
-This struct is used to handle vote extensions. It contains a logger for logging events, the current block number, a mempool for storing transactions, and a codec for encoding and decoding. Vote extensions are a key part of the process to mitigate front-running, as they allow for additional information to be included with each vote.
+Struct này được dùng để xử lý vote extension. Nó chứa logger để ghi log sự kiện, số block hiện tại, mempool để lưu trữ giao dịch, và codec để mã hóa và giải mã. Vote extension là phần quan trọng trong quá trình giảm thiểu front-running, vì chúng cho phép thông tin bổ sung được đưa vào cùng với mỗi phiếu bầu.
 
 ```go
 type InjectedVoteExt struct {
@@ -68,7 +68,7 @@ type InjectedVotes struct {
 }
 ```
 
-These structs are used to handle injected vote extensions. They include the signer of the vote extension and the bids associated with the vote extension. Each byte array in Bids is a serialised form of a bid transaction. Injected vote extensions are used to add additional information to a vote after it has been created, which can be useful for adding context or additional data to a vote. The serialised bid transactions provide a way to include complex transaction data in a compact, efficient format.
+Các struct này được dùng để xử lý injected vote extension. Chúng bao gồm người ký vote extension và các bid liên quan đến vote extension. Mỗi mảng byte trong `Bids` là dạng tuần tự hóa của một giao dịch bid. Injected vote extension được dùng để thêm thông tin bổ sung vào một phiếu bầu sau khi nó đã được tạo. Các giao dịch bid được tuần tự hóa cung cấp cách để đưa dữ liệu giao dịch phức tạp vào định dạng nhỏ gọn, hiệu quả.
 
 ```go
 type AppVoteExtension struct {
@@ -77,7 +77,7 @@ type AppVoteExtension struct {
 }
 ```
 
-This struct is used for application vote extensions. It includes the height of the block and the bids associated with the vote extension. Application vote extensions are used to add additional information to a vote at the application level, which can be useful for adding context or additional data to a vote that is specific to the application.
+Struct này được dùng cho application vote extension. Nó bao gồm chiều cao của block và các bid liên quan đến vote extension. Application vote extension được dùng để thêm thông tin bổ sung vào một phiếu bầu ở cấp độ ứng dụng, hữu ích để thêm ngữ cảnh hoặc dữ liệu bổ sung cụ thể cho ứng dụng.
 
 ```go
 type SpecialTransaction struct {
@@ -86,15 +86,15 @@ type SpecialTransaction struct {
 }
 ```
 
-This struct is used for special transactions. It includes the height of the block and the bids associated with the transaction. Special transactions are used for transactions that need to be handled differently from regular transactions, such as transactions that are part of the process to mitigate front-running.
+Struct này được dùng cho các giao dịch đặc biệt. Nó bao gồm chiều cao của block và các bid liên quan đến giao dịch. Giao dịch đặc biệt được dùng cho các giao dịch cần được xử lý khác với giao dịch thông thường, chẳng hạn như các giao dịch là một phần của quá trình giảm thiểu front-running.
 
-### Implementing Handlers and Configuring Handlers
+### Triển Khai và Cấu Hình Handlers
 
-To establish the `VoteExtensionHandler`, follow these steps:
+Để thiết lập `VoteExtensionHandler`, thực hiện các bước sau:
 
-1. Navigate to the `abci/proposal.go` file. This is where we will implement the `VoteExtensionHandler``.
+1. Điều hướng đến file `abci/proposal.go`. Đây là nơi chúng ta sẽ triển khai `VoteExtensionHandler`.
 
-2. Implement the `NewVoteExtensionHandler` function. This function is a constructor for the `VoteExtHandler` struct. It takes a logger, a mempool, and a codec as parameters and returns a new instance of `VoteExtHandler`.
+2. Triển khai hàm `NewVoteExtensionHandler`. Hàm này là constructor cho struct `VoteExtHandler`. Nó nhận một logger, một mempool và một codec làm tham số và trả về một instance mới của `VoteExtHandler`.
 
 ```go
 func NewVoteExtensionHandler(lg log.Logger, mp *mempool.ThresholdMempool, cdc codec.Codec) *VoteExtHandler {  
@@ -106,7 +106,7 @@ func NewVoteExtensionHandler(lg log.Logger, mp *mempool.ThresholdMempool, cdc co
 }
 ```
 
-3. Implement the `ExtendVoteHandler()` method. This method should handle the logic of extending votes, including inspecting the mempool and submitting a list of all pending bids. This will allow you to access the list of unconfirmed transactions in the abci.`RequestPrepareProposal` during the ensuing block.
+3. Triển khai phương thức `ExtendVoteHandler()`. Phương thức này nên xử lý logic mở rộng phiếu bầu, bao gồm kiểm tra mempool và gửi danh sách tất cả các bid đang chờ xử lý. Điều này sẽ cho phép bạn truy cập danh sách các giao dịch chưa được xác nhận trong `abci.RequestPrepareProposal` trong block tiếp theo.
 
 ```go
 func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
@@ -115,17 +115,17 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 
  voteExtBids := [][]byte{}
 
- // Get mempool txs
+ // Lấy các tx từ mempool
  itr := h.mempool.SelectPending(context.Background(), nil)
  for itr != nil {
   tmptx := itr.Tx()
   sdkMsgs := tmptx.GetMsgs()
 
-  // Iterate through msgs, check for any bids
+  // Duyệt qua các msg, kiểm tra bid nào
   for _, msg := range sdkMsgs {
    switch msg := msg.(type) {
    case *nstypes.MsgBid:
-   // Marshal sdk bids to []byte
+   // Marshal sdk bids thành []byte
     bz, err := h.cdc.Marshal(msg)
     if err != nil {
      h.logger.Error(fmt.Sprintf("Error marshalling VE Bid : %v", err))
@@ -136,10 +136,10 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
    }
   }
 
-  // Move tx to ready pool
+  // Chuyển tx sang ready pool
   err := h.mempool.Update(context.Background(), tmptx)
   
-  // Remove tx from app side mempool
+  // Xóa tx khỏi app side mempool
   if err != nil {
    h.logger.Info(fmt.Sprintf("Unable to update mempool tx: %v", err))
   }
@@ -147,13 +147,13 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
   itr = itr.Next()
  }
 
- // Create vote extension
+ // Tạo vote extension
  voteExt := AppVoteExtension{
  Height: req.Height,
  Bids: voteExtBids,
  }
 
- // Encode Vote Extension
+ // Mã hóa Vote Extension
  bz, err := json.Marshal(voteExt)
   if err != nil {
   return nil, fmt.Errorf("Error marshalling VE: %w", err)
@@ -163,7 +163,7 @@ func (h *VoteExtHandler) ExtendVoteHandler() sdk.ExtendVoteHandler {
 }
 ```
 
-4. Configure the handler in `app/app.go` as shown below
+4. Cấu hình handler trong `app/app.go` như sau
 
 ```go
 bApp := baseapp.NewBaseApp(AppName, logger, db, txConfig.TxDecoder(), baseAppOptions...)
@@ -171,9 +171,9 @@ voteExtHandler := abci2.NewVoteExtensionHandler(logger, mempool, appCodec)
 bApp.SetExtendVoteHandler(voteExtHandler.ExtendVoteHandler())
 ```
 
-To give a bit of context on what is happening above, we first create a new instance of `VoteExtensionHandler` with the necessary dependencies (logger, mempool, and codec). Then, we set this handler as the `ExtendVoteHandler` for our application. This means that whenever a vote needs to be extended, our custom `ExtendVoteHandler()` method will be called.
+Để cung cấp thêm ngữ cảnh về những gì đang xảy ra ở trên: đầu tiên chúng ta tạo một instance mới của `VoteExtensionHandler` với các dependency cần thiết (logger, mempool và codec). Sau đó, chúng ta đặt handler này làm `ExtendVoteHandler` cho ứng dụng. Điều này có nghĩa là bất cứ khi nào một phiếu bầu cần được mở rộng, phương thức `ExtendVoteHandler()` tùy chỉnh của chúng ta sẽ được gọi.
 
-To test if vote extensions have been propagated, add the following to the `PrepareProposalHandler`:
+Để kiểm tra xem vote extension đã được truyền bá hay chưa, thêm phần sau vào `PrepareProposalHandler`:
 
 ```go
 if req.Height > 2 {  
@@ -182,7 +182,7 @@ if req.Height > 2 {
 }
 ```
 
-This is how the whole function should look:
+Đây là hình dạng toàn bộ hàm sẽ trông như thế nào:
 
 ```go
 func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHandler {
@@ -192,7 +192,7 @@ func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 
   var txs []sdk.Tx
 
-  // Get Vote Extensions
+  // Lấy Vote Extensions
   if req.Height > 2 {
    voteExt := req.GetLocalLastCommit()
    h.logger.Info(fmt.Sprintf("🛠️ :: Get vote extensions: %v", voteExt))
@@ -230,16 +230,16 @@ func (h *PrepareProposalHandler) PrepareProposalHandler() sdk.PrepareProposalHan
 }
 ```
 
-As mentioned above, we check if vote extensions have been propagated, you can do this by checking the logs for any relevant messages such as `🛠️ :: Get vote extensions:`. If the logs do not provide enough information, you can also reinitialise your local testing environment by running the `./scripts/single_node/setup.sh` script again.
+Như đã đề cập ở trên, chúng ta kiểm tra xem vote extension đã được truyền bá hay chưa bằng cách kiểm tra log xem có các message liên quan như `🛠️ :: Get vote extensions:` không. Nếu log không cung cấp đủ thông tin, bạn cũng có thể khởi tạo lại môi trường test cục bộ bằng cách chạy lại script `./scripts/single_node/setup.sh`.
 
-5. Implement the `ProcessProposalHandler()`. This function is responsible for processing the proposal. It should handle the logic of processing vote extensions, including inspecting the proposal and validating the bids.
+5. Triển khai `ProcessProposalHandler()`. Hàm này chịu trách nhiệm xử lý proposal. Nó nên xử lý logic xử lý vote extension, bao gồm kiểm tra proposal và xác thực các bid.
 
 ```go
 func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHandler {
  return func(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {
   h.Logger.Info(fmt.Sprintf("⚙️ :: Process Proposal"))
 
-  // The first transaction will always be the Special Transaction
+  // Giao dịch đầu tiên luôn là Giao Dịch Đặc Biệt
   numTxs := len(req.Txs)
 
   h.Logger.Info(fmt.Sprintf("⚙️:: Number of transactions :: %v", numTxs))
@@ -259,7 +259,7 @@ func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHan
      h.Logger.Info(fmt.Sprintf("⚙️:: Special Transaction Bid No %v :: %v", i, bid))
      bids = append(bids, bid)
     }
-    // Validate Bids in Tx
+    // Xác thực Bids trong Tx
     txs := req.Txs[1:]
     ok, err := ValidateBids(h.TxConfig, bids, txs, h.Logger)
     if err != nil {
@@ -279,26 +279,26 @@ func (h *ProcessProposalHandler) ProcessProposalHandler() sdk.ProcessProposalHan
 }
 ```
 
-6. Implement the `ProcessVoteExtensions()` function. This function should handle the logic of processing vote extensions, including validating the bids.
+6. Triển khai hàm `ProcessVoteExtensions()`. Hàm này nên xử lý logic xử lý vote extension, bao gồm xác thực các bid.
 
 ```go
 func processVoteExtensions(req *abci.RequestPrepareProposal, log log.Logger) (SpecialTransaction, error) {
  log.Info(fmt.Sprintf("🛠️ :: Process Vote Extensions"))
 
- // Create empty response
+ // Tạo phản hồi rỗng
  st := SpecialTransaction{
   0,
   [][]byte{},
  }
 
- // Get Vote Ext for H-1 from Req
+ // Lấy Vote Ext cho H-1 từ Req
  voteExt := req.GetLocalLastCommit()
  votes := voteExt.Votes
 
- // Iterate through votes
+ // Duyệt qua các vote
  var ve AppVoteExtension
  for _, vote := range votes {
-  // Unmarshal to AppExt
+  // Unmarshal thành AppExt
   err := json.Unmarshal(vote.VoteExtension, &ve)
   if err != nil {
    log.Error(fmt.Sprintf("❌ :: Error unmarshalling Vote Extension"))
@@ -306,7 +306,7 @@ func processVoteExtensions(req *abci.RequestPrepareProposal, log log.Logger) (Sp
 
   st.Height = int(ve.Height)
 
-  // If Bids in VE, append to Special Transaction
+  // Nếu có Bids trong VE, thêm vào Special Transaction
   if len(ve.Bids) > 0 {
    log.Info("🛠️ :: Bids in VE")
    for _, b := range ve.Bids {
@@ -319,13 +319,13 @@ func processVoteExtensions(req *abci.RequestPrepareProposal, log log.Logger) (Sp
 }
 ```
 
-7. Configure the `ProcessProposalHandler()` in app/app.go:
+7. Cấu hình `ProcessProposalHandler()` trong app/app.go:
 
 ```go
 processPropHandler := abci2.ProcessProposalHandler{app.txConfig, appCodec, logger}
 bApp.SetProcessProposal(processPropHandler.ProcessProposalHandler())
 ```
 
-This sets the `ProcessProposalHandler()` for our application. This means that whenever a proposal needs to be processed, our custom `ProcessProposalHandler()` method will be called.
+Điều này đặt `ProcessProposalHandler()` cho ứng dụng của chúng ta. Điều này có nghĩa là bất cứ khi nào một proposal cần được xử lý, phương thức `ProcessProposalHandler()` tùy chỉnh của chúng ta sẽ được gọi.
 
-To test if the proposal processing and vote extensions are working correctly, you can check the logs for any relevant messages. If the logs do not provide enough information, you can also reinitialize your local testing environment by running `./scripts/single_node/setup.sh` script.
+Để kiểm tra xem việc xử lý proposal và vote extension có hoạt động đúng không, bạn có thể kiểm tra log để tìm các message liên quan. Nếu log không cung cấp đủ thông tin, bạn cũng có thể khởi tạo lại môi trường test cục bộ bằng cách chạy script `./scripts/single_node/setup.sh`.

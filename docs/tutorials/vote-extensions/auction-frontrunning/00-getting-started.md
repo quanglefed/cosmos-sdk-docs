@@ -1,40 +1,40 @@
-# Getting Started
+# Bắt Đầu
 
-## Table of Contents
+## Mục Lục
 
-- [Getting Started](#overview-of-the-project)
-- [Understanding Front-Running](./01-understanding-frontrunning.md)
-- [Mitigating Front-running with Vote Extensions](./02-mitigating-front-running-with-vote-extesions.md)
-- [Demo of Mitigating Front-Running](./03-demo-of-mitigating-front-running.md)
+- [Bắt Đầu](#tổng-quan-dự-án)
+- [Hiểu về Front-Running](./01-understanding-frontrunning.md)
+- [Giảm thiểu Front-running với Vote Extensions](./02-mitigating-front-running-with-vote-extesions.md)
+- [Demo Giảm thiểu Front-Running](./03-demo-of-mitigating-front-running.md)
 
-## Getting Started
+## Bắt Đầu
 
-### Overview of the Project
+### Tổng Quan Dự Án
 
-This tutorial outlines the development of a module designed to mitigate front-running in nameservice auctions. The following functions are central to this module:
+Tutorial này trình bày việc phát triển một module được thiết kế để giảm thiểu front-running trong các phiên đấu giá nameservice. Các hàm sau đây là trọng tâm của module này:
 
-* `ExtendVote`: Gathers bids from the mempool and includes them in the vote extension to ensure a fair and transparent auction process.
-* `PrepareProposal`: Processes the vote extensions from the previous block, creating a special transaction that encapsulates bids to be included in the current proposal.
-* `ProcessProposal`: Validates that the first transaction in the proposal is the special transaction containing the vote extensions and ensures the integrity of the bids.
+* `ExtendVote`: Thu thập các bid từ mempool và đưa chúng vào vote extension để đảm bảo quy trình đấu giá công bằng và minh bạch.
+* `PrepareProposal`: Xử lý các vote extension từ block trước, tạo ra một giao dịch đặc biệt đóng gói các bid để đưa vào proposal hiện tại.
+* `ProcessProposal`: Xác thực rằng giao dịch đầu tiên trong proposal là giao dịch đặc biệt chứa các vote extension và đảm bảo tính toàn vẹn của các bid.
 
-In this advanced tutorial, we will be working with an example application that facilitates the auctioning of nameservices. To see what frontrunning and nameservices are [here](./01-understanding-frontrunning.md) This application provides a practical use case to explore the prevention of auction front-running, also known as "bid sniping", where a validator takes advantage of seeing a bid in the mempool to place their own higher bid before the original bid is processed.
+Trong tutorial nâng cao này, chúng ta sẽ làm việc với một ứng dụng mẫu hỗ trợ đấu giá nameservice. Để hiểu frontrunning và nameservice là gì, xem [tại đây](./01-understanding-frontrunning.md). Ứng dụng này cung cấp một trường hợp sử dụng thực tế để khám phá việc ngăn chặn front-running đấu giá, còn được gọi là "bid sniping" — khi một validator lợi dụng việc thấy một bid trong mempool để đặt bid cao hơn của mình trước khi bid gốc được xử lý.
 
-The tutorial will guide you through using the Cosmos SDK to mitigate front-running using vote extensions. The module will be built on top of the base blockchain provided in the `tutorials/base` directory and will use the `auction` module as a foundation. By the end of this tutorial, you will have a better understanding of how to prevent front-running in blockchain auctions, specifically in the context of nameservice auctioning.
+Tutorial sẽ hướng dẫn bạn sử dụng Cosmos SDK để giảm thiểu front-running bằng cách dùng vote extension. Module sẽ được xây dựng trên nền tảng blockchain cơ bản trong thư mục `tutorials/base` và sẽ sử dụng module `auction` làm nền. Sau khi hoàn thành tutorial này, bạn sẽ hiểu rõ hơn về cách ngăn chặn front-running trong các phiên đấu giá blockchain, cụ thể trong bối cảnh đấu giá nameservice.
 
-## What are Vote extensions?
+## Vote Extension Là Gì?
 
-Vote extensions is arbitrary information which can be inserted into a block. This feature is part of ABCI 2.0, which is available for use in the SDK 0.50 release and part of the 0.38 CometBFT release.
+Vote extension là thông tin tùy ý có thể được chèn vào một block. Tính năng này là một phần của ABCI 2.0, có sẵn trong SDK phiên bản 0.50 và là một phần của CometBFT phiên bản 0.38.
 
-More information about vote extensions can be seen [here](https://docs.cosmos.network/main/build/abci/vote-extensions).
+Thông tin thêm về vote extension có thể xem [tại đây](https://docs.cosmos.network/main/build/abci/vote-extensions).
 
-## Requirements and Setup
+## Yêu Cầu và Thiết Lập
 
-Before diving into the advanced tutorial on auction front-running simulation, ensure you meet the following requirements:
+Trước khi bắt đầu tutorial nâng cao về mô phỏng front-running đấu giá, hãy đảm bảo bạn đáp ứng các yêu cầu sau:
 
-* [Golang >1.21.5](https://golang.org/doc/install) installed
-* Familiarity with the concepts of front-running and MEV, as detailed in [Understanding Front-Running](./01-understanding-frontrunning.md)
-* Understanding of Vote Extensions as described [here](https://docs.cosmos.network/main/build/abci/vote-extensions)
+* Đã cài đặt [Golang >1.21.5](https://golang.org/doc/install)
+* Quen thuộc với các khái niệm về front-running và MEV, như được trình bày chi tiết trong [Hiểu về Front-Running](./01-understanding-frontrunning.md)
+* Hiểu về Vote Extension như được mô tả [tại đây](https://docs.cosmos.network/main/build/abci/vote-extensions)
 
-You will also need a foundational blockchain to build upon coupled with your own module. The `tutorials/base` directory has the necessary blockchain code to start your custom project with the Cosmos SDK. For the module, you can use the `auction` module provided in the `tutorials/auction/x/auction` directory as a reference but please be aware that all of the code needed to implement vote extensions is already implemented in this module.
+Bạn cũng sẽ cần một blockchain nền tảng để xây dựng cùng với module của riêng bạn. Thư mục `tutorials/base` có code blockchain cần thiết để bắt đầu dự án tùy chỉnh với Cosmos SDK. Với module, bạn có thể sử dụng module `auction` trong thư mục `tutorials/auction/x/auction` làm tài liệu tham khảo, nhưng lưu ý rằng tất cả code cần thiết để triển khai vote extension đã được triển khai trong module này.
 
-This will set up a strong base for your blockchain, enabling the integration of advanced features such as auction front-running simulation.
+Điều này sẽ thiết lập nền tảng vững chắc cho blockchain của bạn, cho phép tích hợp các tính năng nâng cao như mô phỏng front-running đấu giá.

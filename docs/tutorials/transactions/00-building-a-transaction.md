@@ -1,8 +1,8 @@
-# Building a Transaction
+# Xây Dựng Một Giao Dịch
 
-These are the steps to build, sign and broadcast a transaction using v2 semantics.
+Đây là các bước để xây dựng, ký và broadcast giao dịch sử dụng ngữ nghĩa v2.
 
-1. Correctly set up imports
+1. Thiết lập import đúng cách
 
 ```go
 import (
@@ -31,7 +31,7 @@ import (
 
 ```
 
-2. Create a gRPC connection
+2. Tạo kết nối gRPC
 
 ```go
 clientConn, err := grpc.NewClient("127.0.0.1:9090", grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -40,21 +40,21 @@ if err != nil {
 }
 ```
 
-3. Setup codec and interface registry
+3. Thiết lập codec và interface registry
 
 ```go
-	// Setup interface registry and register necessary interfaces
+	// Thiết lập interface registry và đăng ký các interface cần thiết
 	interfaceRegistry := codectypes.NewInterfaceRegistry()
 	banktypes.RegisterInterfaces(interfaceRegistry)
 	authtypes.RegisterInterfaces(interfaceRegistry)
 	cryptocodec.RegisterInterfaces(interfaceRegistry)
 
-	// Create a ProtoCodec for encoding/decoding
+	// Tạo ProtoCodec để mã hóa/giải mã
 	protoCodec := codec.NewProtoCodec(interfaceRegistry)
 
 ```
 
-4. Initialize keyring
+4. Khởi tạo keyring
 
 ```go
 
@@ -70,11 +70,11 @@ if err != nil {
 
 ```
 
-5. Setup transaction parameters
+5. Thiết lập tham số giao dịch
 
 ```go
 
-	// Setup transaction parameters
+	// Thiết lập tham số giao dịch
 	txParams := tx.TxParameters{
 		ChainID:  "simapp-v2-chain",
 		SignMode: apisigning.SignMode_SIGN_MODE_DIRECT,
@@ -84,33 +84,33 @@ if err != nil {
 		},
 	}
 
-	// Configure gas settings
+	// Cấu hình thiết lập gas
 	gasConfig, err := tx.NewGasConfig(100, 100, "0stake")
 	if err != nil {
 		log.Fatal("error creating gas config: ", err)
 	}
 	txParams.GasConfig = gasConfig
 
-	// Create auth query client
+	// Tạo auth query client
 	authClient := authtypes.NewQueryClient(clientConn)
 
-	// Retrieve account information for the sender
+	// Lấy thông tin tài khoản của người gửi
 	fromAccount, err := getAccount("cosmos1t0fmn0lyp2v99ga55mm37mpnqrlnc4xcs2hhhy", authClient, protoCodec)
 	if err != nil {
 		log.Fatal("error getting from account: ", err)
 	}
 
-	// Update txParams with the correct account number and sequence
+	// Cập nhật txParams với account number và sequence đúng
 	txParams.AccountConfig.AccountNumber = fromAccount.GetAccountNumber()
 	txParams.AccountConfig.Sequence = fromAccount.GetSequence()
 
-	// Retrieve account information for the recipient
+	// Lấy thông tin tài khoản của người nhận
 	toAccount, err := getAccount("cosmos1e2wanzh89mlwct7cs7eumxf7mrh5m3ykpsh66m", authClient, protoCodec)
 	if err != nil {
 		log.Fatal("error getting to account: ", err)
 	}
 
-	// Configure transaction settings
+	// Cấu hình thiết lập giao dịch
 	txConf, _ := tx.NewTxConfig(tx.ConfigOptions{
 		AddressCodec:          addrcodec.NewBech32Codec("cosmos"),
 		Cdc:                   protoCodec,
@@ -119,16 +119,16 @@ if err != nil {
 	})
 ```
 
-6. Build the transaction
+6. Xây dựng giao dịch
 
 ```go
-// Create a transaction factory
+// Tạo transaction factory
 	f, err := tx.NewFactory(kr, codec.NewProtoCodec(codectypes.NewInterfaceRegistry()), nil, txConf, addrcodec.NewBech32Codec("cosmos"), clientConn, txParams)
 	if err != nil {
 		log.Fatal("error creating factory", err)
 	}
 
-	// Define the transaction message
+	// Định nghĩa message giao dịch
 	msgs := []transaction.Msg{
 		&banktypes.MsgSend{
 			FromAddress: fromAccount.GetAddress().String(),
@@ -139,7 +139,7 @@ if err != nil {
 		},
 	}
 
-	// Build and sign the transaction
+	// Xây dựng và ký giao dịch
 	tx, err := f.BuildsSignedTx(context.Background(), msgs...)
 	if err != nil {
 		log.Fatal("error building signed tx", err)
@@ -148,16 +148,16 @@ if err != nil {
 
 ```
 
-7. Broadcast the transaction
+7. Broadcast giao dịch
 
 ```go
-// Create a broadcaster for the transaction
+// Tạo broadcaster cho giao dịch
 	c, err := comet.NewCometBFTBroadcaster("http://127.0.0.1:26657", comet.BroadcastSync, protoCodec)
 	if err != nil {
 		log.Fatal("error creating comet broadcaster", err)
 	}
 
-	// Broadcast the transaction
+	// Broadcast giao dịch
 	res, err := c.Broadcast(context.Background(), tx.Bytes())
 	if err != nil {
 		log.Fatal("error broadcasting tx", err)
@@ -165,12 +165,12 @@ if err != nil {
 
 ```
 
-8. Helpers
+8. Các hàm hỗ trợ
     
 ```go
-// getAccount retrieves account information using the provided address
+// getAccount lấy thông tin tài khoản bằng địa chỉ được cung cấp
 func getAccount(address string, authClient authtypes.QueryClient, codec codec.Codec) (sdk.AccountI, error) {
-	// Query account info
+	// Truy vấn thông tin tài khoản
 	accountQuery, err := authClient.Account(context.Background(), &authtypes.QueryAccountRequest{
 		Address: string(address),
 	})
@@ -178,7 +178,7 @@ func getAccount(address string, authClient authtypes.QueryClient, codec codec.Co
 		return nil, fmt.Errorf("error getting account: %w", err)
 	}
 
-	// Unpack the account information
+	// Giải nén thông tin tài khoản
 	var account sdk.AccountI
 	err = codec.InterfaceRegistry().UnpackAny(accountQuery.Account, &account)
 	if err != nil {

@@ -1,13 +1,13 @@
-# What is an Oracle?
+# Oracle Là Gì?
 
-An oracle in blockchain technology is a system that provides external data to a blockchain network. It acts as a source of information that is not natively accessible within the blockchain's closed environment. This can range from financial market prices to real-world event, making it crucial for decentralised applications.
+Oracle trong công nghệ blockchain là một hệ thống cung cấp dữ liệu bên ngoài cho một mạng lưới blockchain. Nó hoạt động như một nguồn thông tin không thể truy cập tự nhiên trong môi trường đóng của blockchain. Phạm vi có thể từ giá thị trường tài chính đến các sự kiện thực tế, làm cho nó trở nên quan trọng đối với các ứng dụng phi tập trung.
 
-## Oracle in the Cosmos SDK
+## Oracle Trong Cosmos SDK
 
-In the Cosmos SDK, an oracle module can be implemented to provide external data to the blockchain. This module can use features like vote extensions to submit additional data during the consensus process, which can then be used by the blockchain to update its state with information from the outside world.
+Trong Cosmos SDK, một module oracle có thể được triển khai để cung cấp dữ liệu bên ngoài cho blockchain. Module này có thể sử dụng các tính năng như vote extension để gửi dữ liệu bổ sung trong quá trình đồng thuận, sau đó có thể được blockchain sử dụng để cập nhật trạng thái của nó với thông tin từ thế giới bên ngoài.
 
-For instance, a price oracle module in the Cosmos SDK could supply timely and accurate asset price information, which is vital for various financial operations within the blockchain ecosystem.
+Ví dụ, một module price oracle trong Cosmos SDK có thể cung cấp thông tin giá tài sản kịp thời và chính xác, rất quan trọng cho các hoạt động tài chính khác nhau trong hệ sinh thái blockchain.
 
-## Conclusion
+## Kết Luận
 
-Oracles are essential for blockchains to interact with external data, enabling them to respond to real-world information and events. Their implementation is key to the reliability and robustness of blockchain networks.
+Oracle là thiết yếu để blockchain tương tác với dữ liệu bên ngoài, cho phép chúng phản hồi với thông tin và sự kiện thực tế. Việc triển khai chúng là chìa khóa cho độ tin cậy và tính vững chắc của các mạng lưới blockchain.
