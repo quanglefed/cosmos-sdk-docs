@@ -2,53 +2,51 @@
 sidebar_position: 1
 ---
 
-# RunTx recovery middleware
+# Middleware Phục Hồi RunTx
 
-`BaseApp.runTx()` function handles Go panics that might occur during transactions execution, for example, keeper has faced an invalid state and panicked.
-Depending on the panic type different handler is used, for instance the default one prints an error log message.
-Recovery middleware is used to add custom panic recovery for Cosmos SDK application developers.
+Hàm `BaseApp.runTx()` xử lý các Go panic có thể xảy ra trong quá trình thực thi giao dịch — ví dụ, khi keeper gặp trạng thái không hợp lệ và gây ra panic. Tùy thuộc vào loại panic, các handler khác nhau sẽ được sử dụng; chẳng hạn, handler mặc định in ra thông báo lỗi vào log. Recovery middleware được dùng để thêm xử lý phục hồi panic tùy chỉnh cho các nhà phát triển ứng dụng Cosmos SDK.
 
-More context can found in the corresponding [ADR-022](../../build/architecture/adr-022-custom-panic-handling.md) and the implementation in [recovery.go](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/baseapp/recovery.go).
+Thêm ngữ cảnh có thể tìm thấy trong [ADR-022](../../build/architecture/adr-022-custom-panic-handling.md) và phần triển khai trong [recovery.go](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/baseapp/recovery.go).
 
-## Interface
+## Giao diện (Interface)
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/baseapp/recovery.go#L14-L17
 ```
 
-`recoveryObj` is a return value for `recover()` function from the `building` Go package.
+`recoveryObj` là giá trị trả về của hàm `recover()` từ package `builtin` của Go.
 
-**Contract:**
+**Hợp đồng (Contract):**
 
-* RecoveryHandler returns `nil` if `recoveryObj` wasn't handled and should be passed to the next recovery middleware;
-* RecoveryHandler returns a non-nil `error` if `recoveryObj` was handled;
+* RecoveryHandler trả về `nil` nếu `recoveryObj` chưa được xử lý và cần được chuyển đến middleware phục hồi tiếp theo.
+* RecoveryHandler trả về một `error` khác nil nếu `recoveryObj` đã được xử lý.
 
-## Custom RecoveryHandler register
+## Đăng ký RecoveryHandler tùy chỉnh
 
 `BaseApp.AddRunTxRecoveryHandler(handlers ...RecoveryHandler)`
 
-BaseApp method adds recovery middleware to the default recovery chain.
+Phương thức BaseApp này thêm recovery middleware vào chuỗi phục hồi mặc định.
 
-## Example
+## Ví dụ
 
-Lets assume we want to emit the "Consensus failure" chain state if some particular error occurred.
+Giả sử chúng ta muốn phát ra trạng thái chuỗi "Consensus failure" nếu một lỗi cụ thể xảy ra.
 
-We have a module keeper that panics:
+Chúng ta có một module keeper gây ra panic:
 
 ```go
 func (k FooKeeper) Do(obj interface{}) {
     if obj == nil {
-        // that shouldn't happen, we need to crash the app
+        // điều đó không nên xảy ra, cần crash ứng dụng
         err := errorsmod.Wrap(fooTypes.InternalError, "obj is nil")
         panic(err)
     }
 }
 ```
 
-By default that panic would be recovered and an error message will be printed to log. To override that behavior we should register a custom RecoveryHandler:
+Theo mặc định, panic đó sẽ được phục hồi và thông báo lỗi sẽ được in vào log. Để ghi đè hành vi đó, chúng ta nên đăng ký một RecoveryHandler tùy chỉnh:
 
 ```go
-// Cosmos SDK application constructor
+// Hàm khởi tạo ứng dụng Cosmos SDK
 customHandler := func(recoveryObj interface{}) error {
     err, ok := recoveryObj.(error)
     if !ok {
@@ -56,7 +54,7 @@ customHandler := func(recoveryObj interface{}) error {
     }
 
     if fooTypes.InternalError.Is(err) {
-        panic(fmt.Errorf("FooKeeper did panic with error: %w", err))
+        panic(fmt.Errorf("FooKeeper đã panic với lỗi: %w", err))
     }
 
     return nil

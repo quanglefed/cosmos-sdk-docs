@@ -4,93 +4,93 @@ sidebar_position: 1
 
 # Node Client (Daemon)
 
-:::note Synopsis
-The main endpoint of a Cosmos SDK application is the daemon client, otherwise known as the full-node client. The full-node runs the state-machine, starting from a genesis file. It connects to peers running the same client in order to receive and relay transactions, block proposals and signatures. The full-node is constituted of the application, defined with the Cosmos SDK, and of a consensus engine connected to the application via the ABCI.
+:::note Tóm tắt
+Điểm cuối chính của một ứng dụng Cosmos SDK là daemon client, còn được gọi là full-node client. Full-node chạy state-machine, bắt đầu từ một genesis file. Nó kết nối với các peer chạy cùng client để nhận và chuyển tiếp các giao dịch, block proposal và chữ ký. Full-node được cấu thành từ ứng dụng (được định nghĩa bằng Cosmos SDK) và một consensus engine kết nối với ứng dụng thông qua ABCI.
 :::
 
-:::note Pre-requisite Readings
+:::note Tài liệu cần đọc trước
 
-* [Anatomy of an SDK application](../beginner/00-app-anatomy.md)
+* [Cấu trúc của một ứng dụng SDK](../beginner/00-app-anatomy.md)
 
 :::
 
-## `main` function
+## Hàm `main`
 
-The full-node client of any Cosmos SDK application is built by running a `main` function. The client is generally named by appending the `-d` suffix to the application name (e.g. `appd` for an application named `app`), and the `main` function is defined in a `./appd/cmd/main.go` file. Running this function creates an executable `appd` that comes with a set of commands. For an app named `app`, the main command is [`appd start`](#start-command), which starts the full-node.
+Full-node client của bất kỳ ứng dụng Cosmos SDK nào được xây dựng bằng cách chạy hàm `main`. Client thường được đặt tên bằng cách thêm hậu tố `-d` vào tên ứng dụng (ví dụ: `appd` cho ứng dụng tên là `app`), và hàm `main` được định nghĩa trong file `./appd/cmd/main.go`. Chạy hàm này tạo ra một executable `appd` đi kèm với một tập hợp các lệnh. Đối với ứng dụng tên là `app`, lệnh chính là [`appd start`](#lệnh-start), để khởi động full-node.
 
-In general, developers will implement the `main.go` function with the following structure:
+Nhìn chung, các nhà phát triển sẽ triển khai hàm `main.go` theo cấu trúc sau:
 
-* First, an [`encodingCodec`](./05-encoding.md) is instantiated for the application.
-* Then, the `config` is retrieved and config parameters are set. This mainly involves setting the Bech32 prefixes for [addresses](../beginner/03-accounts.md#addresses).
+* Đầu tiên, một [`encodingCodec`](./05-encoding.md) được khởi tạo cho ứng dụng.
+* Sau đó, `config` được lấy ra và các tham số cấu hình được đặt. Điều này chủ yếu liên quan đến việc đặt các tiền tố Bech32 cho [địa chỉ](../beginner/03-accounts.md#addresses).
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/types/config.go#L14-L29
 ```
 
-* Using [cobra](https://github.com/spf13/cobra), the root command of the full-node client is created. After that, all the custom commands of the application are added using the `AddCommand()` method of `rootCmd`.
-* Add default server commands to `rootCmd` using the `server.AddCommands()` method. These commands are separated from the ones added above since they are standard and defined at Cosmos SDK level. They should be shared by all Cosmos SDK-based applications. They include the most important command: the [`start` command](#start-command).
-* Prepare and execute the `executor`.
-  
+* Sử dụng [cobra](https://github.com/spf13/cobra), lệnh gốc (root command) của full-node client được tạo. Sau đó, tất cả các lệnh tùy chỉnh của ứng dụng được thêm vào bằng phương thức `AddCommand()` của `rootCmd`.
+* Thêm các lệnh server mặc định vào `rootCmd` bằng phương thức `server.AddCommands()`. Các lệnh này tách biệt với các lệnh được thêm ở trên vì chúng là tiêu chuẩn và được định nghĩa ở cấp Cosmos SDK. Chúng nên được chia sẻ bởi tất cả các ứng dụng dựa trên Cosmos SDK. Chúng bao gồm lệnh quan trọng nhất: [lệnh `start`](#lệnh-start).
+* Chuẩn bị và thực thi `executor`.
+
 ```go reference
 https://github.com/cometbft/cometbft/blob/v0.37.0/libs/cli/setup.go#L74-L78
 ```
 
-See an example of `main` function from the `simapp` application, the Cosmos SDK's application for demo purposes:
+Xem ví dụ về hàm `main` từ ứng dụng `simapp`, ứng dụng demo của Cosmos SDK:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/simd/main.go
 ```
 
-## `start` command
+## Lệnh `start`
 
-The `start` command is defined in the `/server` folder of the Cosmos SDK. It is added to the root command of the full-node client in the [`main` function](#main-function) and called by the end-user to start their node:
+Lệnh `start` được định nghĩa trong thư mục `/server` của Cosmos SDK. Nó được thêm vào lệnh gốc của full-node client trong [hàm `main`](#hàm-main) và được người dùng cuối gọi để khởi động node của họ:
 
 ```bash
-# For an example app named "app", the following command starts the full-node.
+# Đối với ứng dụng ví dụ tên "app", lệnh sau khởi động full-node.
 appd start
 
-# Using the Cosmos SDK's own simapp, the following commands start the simapp node.
+# Sử dụng simapp của Cosmos SDK, các lệnh sau khởi động simapp node.
 simd start
 ```
 
-As a reminder, the full-node is composed of three conceptual layers: the networking layer, the consensus layer and the application layer. The first two are generally bundled together in an entity called the consensus engine (CometBFT by default), while the third is the state-machine defined with the help of the Cosmos SDK. Currently, the Cosmos SDK uses CometBFT as the default consensus engine, meaning the start command is implemented to boot up a CometBFT node.
+Nhắc lại, full-node bao gồm ba lớp khái niệm: lớp mạng, lớp đồng thuận và lớp ứng dụng. Hai lớp đầu thường được gói lại trong một thực thể gọi là consensus engine (CometBFT theo mặc định), trong khi lớp thứ ba là state-machine được định nghĩa với sự hỗ trợ của Cosmos SDK. Hiện tại, Cosmos SDK sử dụng CometBFT làm consensus engine mặc định, nghĩa là lệnh start được triển khai để khởi động một CometBFT node.
 
-The flow of the `start` command is pretty straightforward. First, it retrieves the `config` from the `context` in order to open the `db` (a [`leveldb`](https://github.com/syndtr/goleveldb) instance by default). This `db` contains the latest known state of the application (empty if the application is started from the first time.
+Luồng của lệnh `start` khá đơn giản. Đầu tiên, nó lấy `config` từ `context` để mở `db` (một instance [`leveldb`](https://github.com/syndtr/goleveldb) theo mặc định). `db` này chứa trạng thái mới nhất đã biết của ứng dụng (rỗng nếu ứng dụng được khởi động lần đầu).
 
-With the `db`, the `start` command creates a new instance of the application using an `appCreator` function:
+Với `db`, lệnh `start` tạo một instance mới của ứng dụng bằng hàm `appCreator`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/server/start.go#L1007
 ```
 
-Note that an `appCreator` is a function that fulfills the `AppCreator` signature:
+Lưu ý rằng `appCreator` là một hàm thỏa mãn chữ ký `AppCreator`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/server/types/app.go#L69
 ```
 
-In practice, the [constructor of the application](../beginner/00-app-anatomy.md#constructor-function) is passed as the `appCreator`.
+Trong thực tế, [constructor của ứng dụng](../beginner/00-app-anatomy.md#constructor-function) được truyền vào như `appCreator`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/simd/cmd/root_v2.go#L294-L308
 ```
 
-Then, the instance of `app` is used to instantiate a new CometBFT node:
+Sau đó, instance của `app` được dùng để khởi tạo một CometBFT node mới:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/server/start.go#L361-L400
 ```
 
-The CometBFT node can be created with `app` because the latter satisfies the [`abci.Application` interface](https://github.com/cometbft/cometbft/blob/v0.37.0/abci/types/application.go#L9-L35) (given that `app` extends [`baseapp`](./00-baseapp.md)). As part of the `node.New` method, CometBFT makes sure that the height of the application (i.e. number of blocks since genesis) is equal to the height of the CometBFT node. The difference between these two heights should always be negative or null. If it is strictly negative, `node.New` will replay blocks until the height of the application reaches the height of the CometBFT node. Finally, if the height of the application is `0`, the CometBFT node will call [`InitChain`](./00-baseapp.md#initchain) on the application to initialize the state from the genesis file.
+CometBFT node có thể được tạo với `app` vì ứng dụng đó thỏa mãn [`abci.Application` interface](https://github.com/cometbft/cometbft/blob/v0.37.0/abci/types/application.go#L9-L35) (khi `app` mở rộng [`baseapp`](./00-baseapp.md)). Trong phương thức `node.New`, CometBFT đảm bảo rằng chiều cao của ứng dụng (tức là số block từ genesis) bằng chiều cao của CometBFT node. Sự chênh lệch giữa hai chiều cao này phải luôn âm hoặc bằng không. Nếu nó âm tuyệt đối, `node.New` sẽ replay lại các block cho đến khi chiều cao của ứng dụng đạt chiều cao của CometBFT node. Cuối cùng, nếu chiều cao của ứng dụng là `0`, CometBFT node sẽ gọi [`InitChain`](./00-baseapp.md#initchain) trên ứng dụng để khởi tạo trạng thái từ genesis file.
 
-Once the CometBFT node is instantiated and in sync with the application, the node can be started:
+Khi CometBFT node đã được khởi tạo và đồng bộ với ứng dụng, node có thể được khởi động:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/server/start.go#L373-L374
 ```
 
-Upon starting, the node will bootstrap its RPC and P2P server and start dialing peers. During handshake with its peers, if the node realizes they are ahead, it will query all the blocks sequentially in order to catch up. Then, it will wait for new block proposals and block signatures from validators in order to make progress.
+Khi khởi động, node sẽ bootstrap RPC và P2P server của nó và bắt đầu kết nối với các peer. Trong quá trình bắt tay với các peer, nếu node nhận ra rằng các peer đang đi trước, nó sẽ query tất cả các block theo thứ tự để bắt kịp. Sau đó, nó sẽ chờ các block proposal mới và chữ ký block từ các validator để tiến lên.
 
-## Other commands
+## Các lệnh khác
 
-To discover how to concretely run a node and interact with it, please refer to our [Running a Node, API and CLI](../../user/run-node/01-run-node.md) guide.
+Để khám phá cách khởi động một node và tương tác với nó một cách cụ thể, hãy tham khảo hướng dẫn [Chạy Node, API và CLI](../../user/run-node/01-run-node.md).

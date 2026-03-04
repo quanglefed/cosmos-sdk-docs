@@ -2,82 +2,82 @@
 sidebar_position: 1
 ---
 
-# In-Place Store Migrations
+# Di Chuyển Store In-Place
 
 :::warning
-Read and understand all the in-place store migration documentation before you run a migration on a live chain.
+Hãy đọc và hiểu toàn bộ tài liệu di chuyển store in-place trước khi chạy migration trên chuỗi đang hoạt động.
 :::
 
-:::note Synopsis
-Upgrade your app modules smoothly with custom in-place store migration logic.
+:::note Tóm tắt
+Nâng cấp các module ứng dụng một cách trơn tru với logic di chuyển store in-place tùy chỉnh.
 :::
 
-The Cosmos SDK uses two methods to perform upgrades:
+Cosmos SDK sử dụng hai phương pháp để thực hiện nâng cấp:
 
-* Exporting the entire application state to a JSON file using the `export` CLI command, making changes, and then starting a new binary with the changed JSON file as the genesis file.
+* Xuất toàn bộ trạng thái ứng dụng sang file JSON bằng lệnh CLI `export`, thực hiện thay đổi, rồi khởi động binary mới với file JSON đã thay đổi làm genesis file.
 
-* Perform upgrades in place, which significantly decrease the upgrade time for chains with a larger state. Use the [Module Upgrade Guide](../../build/building-modules/13-upgrade.md) to set up your application modules to take advantage of in-place upgrades.
+* Thực hiện nâng cấp in-place, giúp giảm đáng kể thời gian nâng cấp cho các chuỗi có trạng thái lớn. Sử dụng [Hướng dẫn Nâng cấp Module](../../build/building-modules/13-upgrade.md) để thiết lập các module ứng dụng tận dụng nâng cấp in-place.
 
-This document provides steps to use the In-Place Store Migrations upgrade method.
+Tài liệu này cung cấp các bước để sử dụng phương pháp nâng cấp Di Chuyển Store In-Place.
 
-## Tracking Module Versions
+## Theo dõi phiên bản module
 
-Each module gets assigned a consensus version by the module developer. The consensus version serves as the breaking change version of the module. The Cosmos SDK keeps track of all module consensus versions in the x/upgrade `VersionMap` store. During an upgrade, the difference between the old `VersionMap` stored in state and the new `VersionMap` is calculated by the Cosmos SDK. For each identified difference, the module-specific migrations are run and the respective consensus version of each upgraded module is incremented.
+Mỗi module được gán một consensus version bởi nhà phát triển module. Consensus version đóng vai trò là phiên bản thay đổi phá vỡ tương thích của module. Cosmos SDK theo dõi tất cả consensus version của module trong store `VersionMap` của x/upgrade. Trong quá trình nâng cấp, sự khác biệt giữa `VersionMap` cũ được lưu trong trạng thái và `VersionMap` mới được tính toán bởi Cosmos SDK. Với mỗi sự khác biệt được xác định, các migration dành riêng cho module sẽ được chạy và consensus version tương ứng của mỗi module được nâng cấp sẽ tăng lên.
 
 ### Consensus Version
 
-The consensus version is defined on each app module by the module developer and serves as the breaking change version of the module. The consensus version informs the Cosmos SDK on which modules need to be upgraded. For example, if the bank module was version 2 and an upgrade introduces bank module 3, the Cosmos SDK upgrades the bank module and runs the "version 2 to 3" migration script.
+Consensus version được định nghĩa trên mỗi app module bởi nhà phát triển module và đóng vai trò là phiên bản thay đổi phá vỡ tương thích của module. Consensus version thông báo cho Cosmos SDK biết module nào cần được nâng cấp. Ví dụ, nếu module bank là phiên bản 2 và một lần nâng cấp đưa ra module bank phiên bản 3, Cosmos SDK sẽ nâng cấp module bank và chạy script migration "từ phiên bản 2 lên 3".
 
 ### Version Map
 
-The version map is a mapping of module names to consensus versions. The map is persisted to x/upgrade's state for use during in-place migrations. When migrations finish, the updated version map is persisted in the state.
+Version map là ánh xạ từ tên module đến consensus version. Map này được lưu vào trạng thái của x/upgrade để sử dụng trong quá trình di chuyển in-place. Khi migration hoàn tất, version map đã cập nhật được lưu trong trạng thái.
 
 ## Upgrade Handlers
 
-Upgrades use an `UpgradeHandler` to facilitate migrations. The `UpgradeHandler` functions implemented by the app developer must conform to the following function signature. These functions retrieve the `VersionMap` from x/upgrade's state and return the new `VersionMap` to be stored in x/upgrade after the upgrade. The diff between the two `VersionMap`s determines which modules need upgrading.
+Các lần nâng cấp sử dụng `UpgradeHandler` để tạo điều kiện cho migration. Các hàm `UpgradeHandler` được nhà phát triển ứng dụng triển khai phải tuân theo chữ ký hàm sau đây. Các hàm này lấy `VersionMap` từ trạng thái của x/upgrade và trả về `VersionMap` mới để lưu vào x/upgrade sau khi nâng cấp. Sự chênh lệch giữa hai `VersionMap` xác định module nào cần nâng cấp.
 
 ```go
 type UpgradeHandler func(ctx sdk.Context, plan Plan, fromVM VersionMap) (VersionMap, error)
 ```
 
-Inside these functions, you must perform any upgrade logic to include in the provided `plan`. All upgrade handler functions must end with the following line of code:
+Bên trong các hàm này, bạn phải thực hiện bất kỳ logic nâng cấp nào để đưa vào `plan` được cung cấp. Tất cả các hàm upgrade handler phải kết thúc bằng dòng code sau:
 
 ```go
   return app.mm.RunMigrations(ctx, cfg, fromVM)
 ```
 
-## Running Migrations
+## Chạy Migrations
 
-Migrations are run inside of an `UpgradeHandler` using `app.mm.RunMigrations(ctx, cfg, vm)`. The `UpgradeHandler` functions describe the functionality to occur during an upgrade. The `RunMigration` function loops through the `VersionMap` argument and runs the migration scripts for all versions that are less than the versions of the new binary app module. After the migrations are finished, a new `VersionMap` is returned to persist the upgraded module versions to state.
+Migrations được chạy bên trong một `UpgradeHandler` bằng cách dùng `app.mm.RunMigrations(ctx, cfg, vm)`. Các hàm `UpgradeHandler` mô tả chức năng sẽ xảy ra trong quá trình nâng cấp. Hàm `RunMigration` lặp qua tham số `VersionMap` và chạy các script migration cho tất cả các phiên bản nhỏ hơn phiên bản của module binary ứng dụng mới. Sau khi migration hoàn tất, một `VersionMap` mới được trả về để lưu các phiên bản module đã nâng cấp vào trạng thái.
 
 ```go
 cfg := module.NewConfigurator(...)
 app.UpgradeKeeper.SetUpgradeHandler("my-plan", func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 
     // ...
-    // additional upgrade logic
+    // logic nâng cấp bổ sung
     // ...
 
-    // returns a VersionMap with the updated module ConsensusVersions
+    // trả về VersionMap với ConsensusVersion của các module đã được cập nhật
     return app.mm.RunMigrations(ctx, fromVM)
 })
 ```
 
-To learn more about configuring migration scripts for your modules, see the [Module Upgrade Guide](../../build/building-modules/13-upgrade.md).
+Để tìm hiểu thêm về cách cấu hình script migration cho các module của bạn, xem [Hướng dẫn Nâng cấp Module](../../build/building-modules/13-upgrade.md).
 
-### Order Of Migrations
+### Thứ tự Migrations
 
-By default, all migrations are run in module name alphabetical ascending order, except `x/auth` which is run last. The reason is state dependencies between x/auth and other modules (you can read more in [issue #10606](https://github.com/cosmos/cosmos-sdk/issues/10606)).
+Theo mặc định, tất cả migrations được chạy theo thứ tự bảng chữ cái tăng dần của tên module, ngoại trừ `x/auth` chạy cuối cùng. Lý do là sự phụ thuộc trạng thái giữa x/auth và các module khác (bạn có thể đọc thêm trong [issue #10606](https://github.com/cosmos/cosmos-sdk/issues/10606)).
 
-If you want to change the order of migration, then you should call `app.mm.SetOrderMigrations(module1, module2, ...)` in your app.go file. The function will panic if you forget to include a module in the argument list.
+Nếu bạn muốn thay đổi thứ tự migration, hãy gọi `app.mm.SetOrderMigrations(module1, module2, ...)` trong file app.go. Hàm này sẽ panic nếu bạn quên đưa một module vào danh sách tham số.
 
-## Adding New Modules During Upgrades
+## Thêm module mới trong quá trình nâng cấp
 
-You can introduce entirely new modules to the application during an upgrade. New modules are recognized because they have not yet been registered in `x/upgrade`'s `VersionMap` store. In this case, `RunMigrations` calls the `InitGenesis` function from the corresponding module to set up its initial state.
+Bạn có thể đưa các module hoàn toàn mới vào ứng dụng trong quá trình nâng cấp. Các module mới được nhận diện vì chúng chưa được đăng ký trong store `VersionMap` của x/upgrade. Trong trường hợp đó, `RunMigrations` gọi hàm `InitGenesis` từ module tương ứng để thiết lập trạng thái ban đầu của nó.
 
-### Add StoreUpgrades for New Modules
+### Thêm StoreUpgrades cho module mới
 
-All chains preparing to run in-place store migrations will need to manually add store upgrades for new modules and then configure the store loader to apply those upgrades. This ensures that the new module's stores are added to the multistore before the migrations begin.
+Tất cả các chuỗi chuẩn bị chạy di chuyển store in-place sẽ cần thêm store upgrades thủ công cho các module mới và sau đó cấu hình store loader để áp dụng các nâng cấp đó. Điều này đảm bảo rằng store của module mới được thêm vào multistore trước khi migrations bắt đầu.
 
 ```go
 upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
@@ -87,20 +87,20 @@ if err != nil {
 
 if upgradeInfo.Name == "my-plan" && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
 	storeUpgrades := storetypes.StoreUpgrades{
-		// add store upgrades for new modules
-		// Example:
+		// thêm store upgrades cho các module mới
+		// Ví dụ:
 		//    Added: []string{"foo", "bar"},
 		// ...
 	}
 
-	// configure store loader that checks if version == upgradeHeight and applies store upgrades
+	// cấu hình store loader kiểm tra nếu version == upgradeHeight và áp dụng store upgrades
 	app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
 }
 ```
 
-## Genesis State
+## Trạng thái Genesis
 
-When starting a new chain, the consensus version of each module MUST be saved to state during the application's genesis. To save the consensus version, add the following line to the `InitChainer` method in `app.go`:
+Khi khởi động một chuỗi mới, consensus version của mỗi module PHẢI được lưu vào trạng thái trong quá trình genesis của ứng dụng. Để lưu consensus version, thêm dòng sau vào phương thức `InitChainer` trong `app.go`:
 
 ```diff
 func (app *MyApp) InitChainer(ctx sdk.Context, req abci.InitChainRequest) abci.InitChainResponse {
@@ -110,30 +110,30 @@ func (app *MyApp) InitChainer(ctx sdk.Context, req abci.InitChainRequest) abci.I
 }
 ```
 
-This information is used by the Cosmos SDK to detect when modules with newer versions are introduced to the app.
+Thông tin này được Cosmos SDK sử dụng để phát hiện khi các module có phiên bản mới hơn được đưa vào ứng dụng.
 
-For a new module `foo`, `InitGenesis` is called by `RunMigration` only when `foo` is registered in the module manager but it's not set in the `fromVM`. Therefore, if you want to skip `InitGenesis` when a new module is added to the app, then you should set its module version in `fromVM` to the module consensus version:
+Đối với module `foo` mới, `InitGenesis` được gọi bởi `RunMigration` chỉ khi `foo` được đăng ký trong module manager nhưng không được thiết lập trong `fromVM`. Do đó, nếu bạn muốn bỏ qua `InitGenesis` khi một module mới được thêm vào ứng dụng, hãy đặt phiên bản module của nó trong `fromVM` bằng consensus version của module:
 
 ```go
 app.UpgradeKeeper.SetUpgradeHandler("my-plan", func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
     // ...
 
-    // Set foo's version to the latest ConsensusVersion in the VersionMap.
-    // This will skip running InitGenesis on Foo
+    // Đặt phiên bản của foo thành ConsensusVersion mới nhất trong VersionMap.
+    // Điều này sẽ bỏ qua việc chạy InitGenesis trên Foo
     fromVM[foo.ModuleName] = foo.AppModule{}.ConsensusVersion()
 
     return app.mm.RunMigrations(ctx, fromVM)
 })
 ```
 
-### Overwriting Genesis Functions
+### Ghi đè hàm Genesis
 
-The Cosmos SDK offers modules that the application developer can import in their app. These modules often have an `InitGenesis` function already defined.
+Cosmos SDK cung cấp các module mà nhà phát triển ứng dụng có thể import vào ứng dụng của họ. Các module này thường đã có hàm `InitGenesis` được định nghĩa sẵn.
 
-You can write your own `InitGenesis` function for an imported module. To do this, manually trigger your custom genesis function in the upgrade handler.
+Bạn có thể viết hàm `InitGenesis` tùy chỉnh cho một module được import. Để làm điều này, hãy kích hoạt thủ công hàm genesis tùy chỉnh trong upgrade handler.
 
 :::warning
-You MUST manually set the consensus version in the version map passed to the `UpgradeHandler` function. Without this, the SDK will run the Module's existing `InitGenesis` code even if you triggered your custom function in the `UpgradeHandler`.
+Bạn PHẢI đặt thủ công consensus version trong version map được truyền đến hàm `UpgradeHandler`. Nếu không, SDK sẽ chạy code `InitGenesis` hiện có của module dù bạn đã kích hoạt hàm tùy chỉnh trong `UpgradeHandler`.
 :::
 
 ```go
@@ -141,22 +141,22 @@ import foo "github.com/my/module/foo"
 
 app.UpgradeKeeper.SetUpgradeHandler("my-plan", func(ctx sdk.Context, plan upgradetypes.Plan, fromVM module.VersionMap)  (module.VersionMap, error) {
 
-    // Register the consensus version in the version map
-    // to avoid the SDK from triggering the default
-    // InitGenesis function.
+    // Đăng ký consensus version trong version map
+    // để tránh SDK kích hoạt hàm
+    // InitGenesis mặc định.
     fromVM["foo"] = foo.AppModule{}.ConsensusVersion()
 
-    // Run custom InitGenesis for foo
+    // Chạy InitGenesis tùy chỉnh cho foo
     app.mm["foo"].InitGenesis(ctx, app.appCodec, myCustomGenesisState)
 
     return app.mm.RunMigrations(ctx, cfg, fromVM)
 })
 ```
 
-## Syncing a Full Node to an Upgraded Blockchain
+## Đồng bộ Full Node với Blockchain đã nâng cấp
 
-You can sync a full node to an existing blockchain which has been upgraded using Cosmovisor
+Bạn có thể đồng bộ một full node với một blockchain hiện có đã được nâng cấp bằng cách sử dụng Cosmovisor.
 
-To successfully sync, you must start with the initial binary that the blockchain started with at genesis. If all Software Upgrade Plans contain binary instruction, then you can run Cosmovisor with auto-download option to automatically handle downloading and switching to the binaries associated with each sequential upgrade. Otherwise, you need to manually provide all binaries to Cosmovisor.
+Để đồng bộ thành công, bạn phải bắt đầu với binary ban đầu mà blockchain đã khởi động tại genesis. Nếu tất cả Software Upgrade Plans chứa thông tin binary, bạn có thể chạy Cosmovisor với tùy chọn auto-download để tự động xử lý việc tải xuống và chuyển sang binary liên quan đến mỗi lần nâng cấp tuần tự. Nếu không, bạn cần cung cấp tất cả binary cho Cosmovisor theo cách thủ công.
 
-To learn more about Cosmovisor, see the [Cosmovisor Quick Start](../../../../tools/cosmovisor/README.md).
+Để tìm hiểu thêm về Cosmovisor, xem [Hướng dẫn nhanh Cosmovisor](../../../../tools/cosmovisor/README.md).

@@ -1,86 +1,76 @@
 ---
 sidebar_position: 1
 ---
-# Events
 
-:::note Synopsis
-`Event`s are objects that contain information about the execution of the application. They are mainly used by service providers like block explorers and wallet to track the execution of various messages and index transactions.
+# Events (Sự kiện)
+
+:::note Tóm tắt
+`Event` là các đối tượng chứa thông tin về quá trình thực thi của ứng dụng. Chúng chủ yếu được sử dụng bởi các nhà cung cấp dịch vụ như block explorer và ví để theo dõi quá trình thực thi của các message khác nhau và lập chỉ mục giao dịch.
 :::
 
-:::note Pre-requisite Readings
+:::note Tài liệu cần đọc trước
 
-* [Anatomy of a Cosmos SDK application](../beginner/00-app-anatomy.md)
-* [CometBFT Documentation on Events](https://docs.cometbft.com/v0.37/spec/abci/abci++_basic_concepts#events)
+* [Cấu trúc của một ứng dụng Cosmos SDK](../beginner/00-app-anatomy.md)
+* [Tài liệu CometBFT về Events](https://docs.cometbft.com/v0.37/spec/abci/abci++_basic_concepts#events)
 
 :::
 
 ## Events
 
-Events are implemented in the Cosmos SDK as an alias of the ABCI `Event` type and
-take the form of: `{eventType}.{attributeKey}={attributeValue}`.
+Events được triển khai trong Cosmos SDK như một alias của kiểu ABCI `Event` và có dạng: `{eventType}.{attributeKey}={attributeValue}`.
 
 ```protobuf reference
 https://github.com/cometbft/cometbft/blob/v0.37.0/proto/tendermint/abci/types.proto#L334-L343
 ```
 
-An Event contains:
+Một Event chứa:
 
-* A `type` to categorize the Event at a high-level; for example, the Cosmos SDK uses the `"message"` type to filter Events by `Msg`s.
-* A list of `attributes` are key-value pairs that give more information about the categorized Event. For example, for the `"message"` type, we can filter Events by key-value pairs using `message.action={some_action}`, `message.module={some_module}` or `message.sender={some_sender}`.
-* A `msg_index` to identify which messages relate to the same transaction
+* Một `type` để phân loại Event ở cấp độ cao; ví dụ, Cosmos SDK dùng kiểu `"message"` để lọc Events theo `Msg`.
+* Danh sách `attributes` là các cặp key-value cung cấp thêm thông tin về Event đã phân loại. Ví dụ, với kiểu `"message"`, ta có thể lọc Events theo cặp key-value bằng `message.action={some_action}`, `message.module={some_module}` hoặc `message.sender={some_sender}`.
+* `msg_index` để xác định các message nào liên quan đến cùng một giao dịch.
 
 :::tip
-To parse the attribute values as strings, make sure to add `'` (single quotes) around each attribute value.
+Để phân tích các giá trị attribute dưới dạng chuỗi, hãy đảm bảo thêm dấu `'` (nháy đơn) xung quanh mỗi giá trị attribute.
 :::
 
-_Typed Events_ are Protobuf-defined [messages](../../../architecture/adr-032-typed-events.md) used by the Cosmos SDK
-for emitting and querying Events. They are defined in a `event.proto` file, on a **per-module basis** and are read as `proto.Message`.
-_Legacy Events_ are defined on a **per-module basis** in the module's `/types/events.go` file.
-They are triggered from the module's Protobuf [`Msg` service](../../build/building-modules/03-msg-services.md)
-by using the [`EventManager`](#eventmanager).
+_Typed Events_ là các [message](../../../architecture/adr-032-typed-events.md) được định nghĩa bằng Protobuf, được Cosmos SDK sử dụng để phát ra và query Events. Chúng được định nghĩa trong file `event.proto`, **theo từng module** và được đọc như `proto.Message`.
+_Legacy Events_ được định nghĩa **theo từng module** trong file `/types/events.go` của module. Chúng được kích hoạt từ Protobuf [`Msg` service](../../build/building-modules/03-msg-services.md) của module bằng cách dùng [`EventManager`](#eventmanager).
 
-In addition, each module documents its events under in the `Events` sections of its specs (x/{moduleName}/`README.md`).
+Ngoài ra, mỗi module ghi lại các event của mình trong phần `Events` của spec (x/{moduleName}/`README.md`).
 
-Lastly, Events are returned to the underlying consensus engine in the response of the following ABCI messages:
+Cuối cùng, Events được trả về cho consensus engine bên dưới trong phản hồi của các ABCI message sau:
 
 * [`BeginBlock`](./00-baseapp.md#beginblock)
 * [`EndBlock`](./00-baseapp.md#endblock)
 * [`CheckTx`](./00-baseapp.md#checktx)
 * [`Transaction Execution`](./00-baseapp.md#transactionexecution)
 
-### Examples
+### Ví dụ
 
-The following examples show how to query Events using the Cosmos SDK.
+Các ví dụ sau cho thấy cách query Events bằng Cosmos SDK.
 
-| Event                                            | Description                                                                                                                                              |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tx.height=23`                                   | Query all transactions at height 23                                                                                                                      |
-| `message.action='/cosmos.bank.v1beta1.Msg/Send'` | Query all transactions containing a x/bank `Send` [Service `Msg`](../../build/building-modules/03-msg-services.md). Note the `'`s around the value.                  |
-| `message.module='bank'`                          | Query all transactions containing messages from the x/bank module. Note the `'`s around the value.                                                       |
-| `create_validator.validator='cosmosval1...'`     | x/staking-specific Event, see [x/staking SPEC](../../../../x/staking/README.md).                                                         |
+| Event                                            | Mô tả                                                                                                                                                |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tx.height=23`                                   | Query tất cả giao dịch ở chiều cao 23                                                                                                                |
+| `message.action='/cosmos.bank.v1beta1.Msg/Send'` | Query tất cả giao dịch chứa x/bank `Send` [Service `Msg`](../../build/building-modules/03-msg-services.md). Lưu ý dấu `'` xung quanh giá trị.      |
+| `message.module='bank'`                          | Query tất cả giao dịch chứa message từ module x/bank. Lưu ý dấu `'` xung quanh giá trị.                                                             |
+| `create_validator.validator='cosmosval1...'`     | Event dành riêng cho x/staking, xem [x/staking SPEC](../../../../x/staking/README.md).                                                              |
 
 ## EventManager
 
-In Cosmos SDK applications, Events are managed by an abstraction called the `EventManager`.
-Internally, the `EventManager` tracks a list of Events for the entire execution flow of `FinalizeBlock` 
-(i.e. transaction execution, `BeginBlock`, `EndBlock`).
+Trong các ứng dụng Cosmos SDK, Events được quản lý bởi một lớp trừu tượng gọi là `EventManager`. Về mặt nội tại, `EventManager` theo dõi danh sách Events cho toàn bộ luồng thực thi của `FinalizeBlock` (tức là thực thi giao dịch, `BeginBlock`, `EndBlock`).
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/types/events.go#L18-L25
 ```
 
-The `EventManager` comes with a set of useful methods to manage Events. The method
-that is used most by module and application developers is `EmitTypedEvent` or `EmitEvent` that tracks
-an Event in the `EventManager`.
+`EventManager` đi kèm với một tập hợp các phương thức hữu ích để quản lý Events. Phương thức được dùng nhiều nhất bởi các nhà phát triển module và ứng dụng là `EmitTypedEvent` hoặc `EmitEvent`, theo dõi một Event trong `EventManager`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/types/events.go#L51-L60
 ```
 
-Module developers should handle Event emission via the `EventManager#EmitTypedEvent` or `EventManager#EmitEvent` in each message
-`Handler` and in each `BeginBlock`/`EndBlock` handler. The `EventManager` is accessed via
-the [`Context`](./02-context.md), where Event should be already registered, and emitted like this:
-
+Các nhà phát triển module nên xử lý việc phát ra Event thông qua `EventManager#EmitTypedEvent` hoặc `EventManager#EmitEvent` trong mỗi `Handler` của message và trong mỗi handler `BeginBlock`/`EndBlock`. `EventManager` được truy cập thông qua [`Context`](./02-context.md), nơi Event nên đã được đăng ký, và được phát ra như sau:
 
 **Typed events:**
 
@@ -96,14 +86,11 @@ ctx.EventManager().EmitEvent(
 )
 ```
 
-Where the `EventManager` is accessed via the [`Context`](./02-context.md).
+Xem tài liệu concept [`Msg` services](../../build/building-modules/03-msg-services.md) để có cái nhìn chi tiết hơn về cách triển khai Events và dùng `EventManager` trong các module.
 
-See the [`Msg` services](../../build/building-modules/03-msg-services.md) concept doc for a more detailed
-view on how to typically implement Events and use the `EventManager` in modules.
+## Đăng ký Events
 
-## Subscribing to Events
-
-You can use CometBFT's [Websocket](https://docs.cometbft.com/v0.37/core/subscription) to subscribe to Events by calling the `subscribe` RPC method:
+Bạn có thể dùng [Websocket](https://docs.cometbft.com/v0.37/core/subscription) của CometBFT để đăng ký Events bằng cách gọi phương thức RPC `subscribe`:
 
 ```json
 {
@@ -116,18 +103,17 @@ You can use CometBFT's [Websocket](https://docs.cometbft.com/v0.37/core/subscrip
 }
 ```
 
-The main `eventCategory` you can subscribe to are:
+Các `eventCategory` chính bạn có thể đăng ký là:
 
-* `NewBlock`: Contains Events triggered during `BeginBlock` and `EndBlock`.
-* `Tx`: Contains Events triggered during `DeliverTx` (i.e. transaction processing).
-* `ValidatorSetUpdates`: Contains validator set updates for the block.
+* `NewBlock`: Chứa Events được kích hoạt trong `BeginBlock` và `EndBlock`.
+* `Tx`: Chứa Events được kích hoạt trong `DeliverTx` (tức là xử lý giao dịch).
+* `ValidatorSetUpdates`: Chứa các bản cập nhật tập hợp validator cho block.
 
-These Events are triggered from the `state` package after a block is committed. You can get the
-full list of Event categories [on the CometBFT Go documentation](https://pkg.go.dev/github.com/cometbft/cometbft/types#pkg-constants).
+Các Events này được kích hoạt từ package `state` sau khi một block được commit. Bạn có thể lấy danh sách đầy đủ các danh mục Event [trong tài liệu CometBFT Go](https://pkg.go.dev/github.com/cometbft/cometbft/types#pkg-constants).
 
-The `type` and `attribute` value of the `query` allow you to filter the specific Event you are looking for. For example, a `Mint` transaction triggers an Event of type `EventMint` and has an `Id` and an `Owner` as `attributes` (as defined in the [`events.proto` file of the `NFT` module](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/proto/cosmos/nft/v1beta1/event.proto#L21-L31)).
+Giá trị `type` và `attribute` của `query` cho phép bạn lọc Event cụ thể bạn đang tìm kiếm. Ví dụ, giao dịch `Mint` kích hoạt một Event kiểu `EventMint` và có `Id` và `Owner` làm `attributes` (như định nghĩa trong [file `events.proto` của module `NFT`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/proto/cosmos/nft/v1beta1/event.proto#L21-L31)).
 
-Subscribing to this Event would be done like so:
+Đăng ký Event này sẽ được thực hiện như sau:
 
 ```json
 {
@@ -140,20 +126,18 @@ Subscribing to this Event would be done like so:
 }
 ```
 
-where `ownerAddress` is an address following the [`AccAddress`](../beginner/03-accounts.md#addresses) format.
+trong đó `ownerAddress` là địa chỉ theo định dạng [`AccAddress`](../beginner/03-accounts.md#addresses).
 
-The same way can be used to subscribe to [legacy events](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/x/bank/types/events.go).
+Tương tự có thể áp dụng để đăng ký [legacy events](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/x/bank/types/events.go).
 
-## Default Events
+## Default Events (Sự kiện mặc định)
 
-There are a few events that are automatically emitted for all messages, directly from `baseapp`.
+Có một số event được tự động phát ra cho tất cả message, trực tiếp từ `baseapp`.
 
-* `message.action`: The name of the message type.
-* `message.sender`: The address of the message signer.
-* `message.module`: The name of the module that emitted the message.
+* `message.action`: Tên của kiểu message.
+* `message.sender`: Địa chỉ của bên ký message.
+* `message.module`: Tên của module đã phát ra message.
 
 :::tip
-The module name is assumed by `baseapp` to be the second element of the message route: `"cosmos.bank.v1beta1.MsgSend" -> "bank"`.
-In case a module does not follow the standard message path, (e.g. IBC), it is advised to keep emitting the module name event.
-`Baseapp` only emits that event if the module have not already done so.
+Tên module được `baseapp` giả định là phần tử thứ hai của message route: `"cosmos.bank.v1beta1.MsgSend" -> "bank"`. Trong trường hợp module không tuân theo đường dẫn message tiêu chuẩn (ví dụ: IBC), nên tiếp tục phát ra event tên module. `Baseapp` chỉ phát ra event đó nếu module chưa tự làm vậy.
 :::

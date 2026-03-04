@@ -2,6 +2,6 @@
 sidebar_position: 1
 ---
 
-# Protobuf Documentation
+# Tài Liệu Protobuf
 
-See [Cosmos SDK Buf Proto-docs](https://buf.build/cosmos/cosmos-sdk/docs/main)
+Xem [Cosmos SDK Buf Proto-docs](https://buf.build/cosmos/cosmos-sdk/docs/main)

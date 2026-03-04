@@ -4,23 +4,23 @@ sidebar_position: 1
 
 # AutoCLI
 
-:::note Synopsis
-This document details how to build CLI and REST interfaces for a module. Examples from various Cosmos SDK modules are included.
+:::note Tóm tắt
+Tài liệu này mô tả chi tiết cách xây dựng giao diện CLI và REST cho một module. Các ví dụ từ nhiều module Cosmos SDK khác nhau được đưa vào.
 :::
 
-:::note Pre-requisite Readings
+:::note Tài liệu cần đọc trước
 
 * [CLI](https://docs.cosmos.network/main/core/cli)
 
 :::
 
-The `autocli` (also known as `client/v2`) package is a [Go library](https://pkg.go.dev/cosmossdk.io/client/v2/autocli) for generating CLI (command line interface) interfaces for Cosmos SDK-based applications. It provides a simple way to add CLI commands to your application by generating them automatically based on your gRPC service definitions. Autocli generates CLI commands and flags directly from your protobuf messages, including options, input parameters, and output parameters. This means that you can easily add a CLI interface to your application without having to manually create and manage commands.
+Package `autocli` (còn được gọi là `client/v2`) là một [thư viện Go](https://pkg.go.dev/cosmossdk.io/client/v2/autocli) để tạo giao diện CLI (command line interface) cho các ứng dụng dựa trên Cosmos SDK. Nó cung cấp một cách đơn giản để thêm lệnh CLI vào ứng dụng của bạn bằng cách tự động tạo chúng dựa trên các định nghĩa gRPC service. Autocli tạo các lệnh CLI và flags trực tiếp từ các message protobuf, bao gồm options, tham số đầu vào và tham số đầu ra. Điều này có nghĩa là bạn có thể dễ dàng thêm giao diện CLI vào ứng dụng mà không cần tạo và quản lý lệnh thủ công.
 
-## Overview
+## Tổng quan
 
-`autocli` generates CLI commands and flags for each method defined in your gRPC service. By default, it generates commands for each gRPC services. The commands are named based on the name of the service method.
+`autocli` tạo ra lệnh CLI và flags cho mỗi phương thức được định nghĩa trong gRPC service của bạn. Theo mặc định, nó tạo lệnh cho mỗi gRPC service. Các lệnh được đặt tên dựa trên tên của phương thức service.
 
-For example, given the following protobuf definition for a service:
+Ví dụ, với định nghĩa protobuf sau cho một service:
 
 ```protobuf
 service MyService {
@@ -28,37 +28,37 @@ service MyService {
 }
 ```
 
-For instance, `autocli` would generate a command named `my-method` for the `MyMethod` method. The command will have flags for each field in the `MyRequest` message.
+`autocli` sẽ tạo một lệnh tên `my-method` cho phương thức `MyMethod`. Lệnh sẽ có flags cho mỗi trường trong message `MyRequest`.
 
-It is possible to customize the generation of transactions and queries by defining options for each service.
+Có thể tùy chỉnh việc tạo giao dịch và truy vấn bằng cách định nghĩa options cho mỗi service.
 
-## Application Wiring
+## Kết nối ứng dụng (Application Wiring)
 
-Here are the steps to use AutoCLI:
+Các bước sử dụng AutoCLI:
 
-1. Ensure your app's modules implements the `appmodule.AppModule` interface.
-2. (optional) Configure how behave `autocli` command generation, by implementing the `func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions` method on the module.
-3. Use the `autocli.AppOptions` struct to specify the modules you defined. If you are using `depinject`, it can automatically create an instance of `autocli.AppOptions` based on your app's configuration.
-4. Use the `EnhanceRootCommand()` method provided by `autocli` to add the CLI commands for the specified modules to your root command.
+1. Đảm bảo rằng các module của ứng dụng triển khai interface `appmodule.AppModule`.
+2. (Tùy chọn) Cấu hình cách `autocli` tạo lệnh bằng cách triển khai phương thức `func (am AppModule) AutoCLIOptions() *autocliv1.ModuleOptions` trên module.
+3. Sử dụng struct `autocli.AppOptions` để chỉ định các module bạn đã định nghĩa. Nếu đang dùng `depinject`, nó có thể tự động tạo một instance của `autocli.AppOptions` dựa trên cấu hình ứng dụng.
+4. Sử dụng phương thức `EnhanceRootCommand()` do `autocli` cung cấp để thêm các lệnh CLI cho các module được chỉ định vào lệnh gốc.
 
 :::tip
-AutoCLI is additive only, meaning _enhancing_ the root command will only add subcommands that are not already registered. This means that you can use AutoCLI alongside other custom commands within your app.
+AutoCLI chỉ bổ sung thêm (additive only), nghĩa là việc _enhance_ lệnh gốc chỉ thêm các subcommand chưa được đăng ký. Điều này có nghĩa là bạn có thể dùng AutoCLI cùng với các lệnh tùy chỉnh khác trong ứng dụng.
 :::
 
-Here's an example of how to use `autocli` in your app:
+Đây là ví dụ về cách dùng `autocli` trong ứng dụng của bạn:
 
 ``` go
-// Define your app's modules
+// Định nghĩa các module của ứng dụng
 testModules := map[string]appmodule.AppModule{
     "testModule": &TestModule{},
 }
 
-// Define the autocli AppOptions
+// Định nghĩa autocli AppOptions
 autoCliOpts := autocli.AppOptions{
     Modules: testModules,
 }
 
-// Create the root command
+// Tạo lệnh gốc
 rootCmd := &cobra.Command{
     Use: "app",
 }
@@ -67,7 +67,7 @@ if err := appOptions.EnhanceRootCommand(rootCmd); err != nil {
     return err
 }
 
-// Run the root command
+// Chạy lệnh gốc
 if err := rootCmd.Execute(); err != nil {
     return err
 }
@@ -75,10 +75,10 @@ if err := rootCmd.Execute(); err != nil {
 
 ### Keyring
 
-`autocli` uses a keyring for key name resolving names and signing transactions.
+`autocli` sử dụng keyring để giải quyết tên khóa và ký giao dịch.
 
 :::tip
-AutoCLI provides a better UX than normal CLI as it allows to resolve key names directly from the keyring in all transactions and commands.
+AutoCLI cung cấp UX tốt hơn CLI thông thường vì nó cho phép giải quyết tên khóa trực tiếp từ keyring trong tất cả giao dịch và lệnh.
 
 ```sh
 <appd> q bank balances alice
@@ -87,12 +87,10 @@ AutoCLI provides a better UX than normal CLI as it allows to resolve key names d
 
 :::
 
-The keyring used for resolving names and signing transactions is provided via the `client.Context`.
-The keyring is then converted to the `client/v2/autocli/keyring` interface.
-If no keyring is provided, the `autocli` generated command will not be able to sign transactions, but will still be able to query the chain.
+Keyring được dùng để giải quyết tên và ký giao dịch được cung cấp thông qua `client.Context`. Keyring sau đó được chuyển đổi sang interface `client/v2/autocli/keyring`. Nếu không có keyring nào được cung cấp, lệnh được tạo bởi `autocli` sẽ không thể ký giao dịch, nhưng vẫn có thể truy vấn chuỗi.
 
 :::tip
-The Cosmos SDK keyring implements the `client/v2/autocli/keyring` interface, thanks to the following wrapper:
+Keyring của Cosmos SDK triển khai interface `client/v2/autocli/keyring`, nhờ vào wrapper sau:
 
 ```go
 keyring.NewAutoCLIKeyring(kb)
@@ -100,42 +98,39 @@ keyring.NewAutoCLIKeyring(kb)
 
 :::
 
-## Signing
+## Ký giao dịch (Signing)
 
-`autocli` supports signing transactions with the keyring.
-The [`cosmos.msg.v1.signer` protobuf annotation](https://docs.cosmos.network/main/build/building-modules/protobuf-annotations) defines the signer field of the message.
-This field is automatically filled when using the `--from` flag or defining the signer as a positional argument.
+`autocli` hỗ trợ ký giao dịch với keyring. [Annotation protobuf `cosmos.msg.v1.signer`](https://docs.cosmos.network/main/build/building-modules/protobuf-annotations) định nghĩa trường signer của message. Trường này được tự động điền khi sử dụng flag `--from` hoặc định nghĩa signer là positional argument.
 
 :::warning
-AutoCLI currently supports only one signer per transaction.
+AutoCLI hiện tại chỉ hỗ trợ một signer duy nhất cho mỗi giao dịch.
 :::
 
-## Module wiring & Customization
+## Kết nối module & Tùy chỉnh
 
-The `AutoCLIOptions()` method on your module allows to specify custom commands, sub-commands or flags for each service, as it was a `cobra.Command` instance, within the `RpcCommandOptions` struct. Defining such options will customize the behavior of the `autocli` command generation, which by default generates a command for each method in your gRPC service.
+Phương thức `AutoCLIOptions()` trên module của bạn cho phép chỉ định các lệnh tùy chỉnh, sub-command hoặc flags cho mỗi service — tương tự như một instance `cobra.Command` — trong struct `RpcCommandOptions`. Việc định nghĩa các options này sẽ tùy chỉnh hành vi tạo lệnh của `autocli`, vốn mặc định tạo một lệnh cho mỗi phương thức trong gRPC service.
 
 ```go
 *autocliv1.RpcCommandOptions{
-  RpcMethod: "Params", // The name of the gRPC service
-  Use:       "params", // Command usage that is displayed in the help
-  Short:     "Query the parameters of the governance process", // Short description of the command
-  Long:      "Query the parameters of the governance process. Specify specific param types (voting|tallying|deposit) to filter results.", // Long description of the command
+  RpcMethod: "Params", // Tên của gRPC service
+  Use:       "params", // Cú pháp lệnh hiển thị trong phần help
+  Short:     "Truy vấn các tham số của quy trình governance", // Mô tả ngắn của lệnh
+  Long:      "Truy vấn các tham số của quy trình governance. Chỉ định loại tham số cụ thể (voting|tallying|deposit) để lọc kết quả.", // Mô tả dài của lệnh
   PositionalArgs: []*autocliv1.PositionalArgDescriptor{
-    {ProtoField: "params_type", Optional: true}, // Transform a flag into a positional argument
+    {ProtoField: "params_type", Optional: true}, // Chuyển một flag thành positional argument
   },
 }
 ```
 
 :::tip
-AutoCLI can create a gov proposal of any tx by simply setting the `GovProposal` field to `true` in the `autocli.RpcCommandOptions` struct.
-Users can however use the `--no-proposal` flag to disable the proposal creation (which is useful if the authority isn't the gov module on a chain).
+AutoCLI có thể tạo gov proposal của bất kỳ tx nào chỉ bằng cách đặt trường `GovProposal` thành `true` trong struct `autocli.RpcCommandOptions`. Người dùng có thể dùng flag `--no-proposal` để tắt tạo proposal (hữu ích khi authority không phải là module gov trên chuỗi đó).
 :::
 
-### Specifying Subcommands
+### Chỉ định Subcommands
 
-By default, `autocli` generates a command for each method in your gRPC service. However, you can specify subcommands to group related commands together. To specify subcommands, use the `autocliv1.ServiceCommandDescriptor` struct.
+Theo mặc định, `autocli` tạo một lệnh cho mỗi phương thức trong gRPC service của bạn. Tuy nhiên, bạn có thể chỉ định subcommands để nhóm các lệnh liên quan lại với nhau bằng cách sử dụng struct `autocliv1.ServiceCommandDescriptor`.
 
-This example shows how to use the `autocliv1.ServiceCommandDescriptor` struct to group related commands together and specify subcommands in your gRPC service by defining an instance of `autocliv1.ModuleOptions` in your `autocli.go`.
+Ví dụ dưới đây cho thấy cách sử dụng struct `autocliv1.ServiceCommandDescriptor` để nhóm các lệnh liên quan và chỉ định subcommands trong gRPC service bằng cách định nghĩa một instance của `autocliv1.ModuleOptions` trong file `autocli.go`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-beta.0/x/gov/autocli.go#L94-L97
@@ -143,29 +138,27 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-beta.0/x/gov/autocli.go#L94-L9
 
 ### Positional Arguments
 
-By default `autocli` generates a flag for each field in your protobuf message. However, you can choose to use positional arguments instead of flags for certain fields.
+Theo mặc định `autocli` tạo một flag cho mỗi trường trong message protobuf. Tuy nhiên, bạn có thể chọn sử dụng positional arguments thay vì flags cho một số trường nhất định.
 
-To add positional arguments to a command, use the `autocliv1.PositionalArgDescriptor` struct, as seen in the example below. Specify the `ProtoField` parameter, which is the name of the protobuf field that should be used as the positional argument. In addition, if the parameter is a variable-length argument, you can specify the `Varargs` parameter as `true`. This can only be applied to the last positional parameter, and the `ProtoField` must be a repeated field.
+Để thêm positional arguments vào một lệnh, sử dụng struct `autocliv1.PositionalArgDescriptor` và chỉ định tham số `ProtoField` là tên của trường protobuf cần dùng làm positional argument. Ngoài ra, nếu tham số là biến độ dài, bạn có thể đặt `Varargs` thành `true`. Điều này chỉ có thể áp dụng cho tham số positional cuối cùng và `ProtoField` phải là trường repeated.
 
-Here's an example of how to define a positional argument for the `Account` method of the `auth` service:
+Đây là ví dụ về cách định nghĩa positional argument cho phương thức `Account` của service `auth`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-beta.0/x/auth/autocli.go#L25-L30
 ```
 
-Then the command can be used as follows, instead of having to specify the `--address` flag:
+Sau đó lệnh có thể được dùng như sau, thay vì phải chỉ định flag `--address`:
 
 ```bash
 <appd> query auth account cosmos1abcd...xyz
 ```
 
-#### Flattened Fields in Positional Arguments
+#### Trường phẳng hóa trong Positional Arguments
 
-AutoCLI also supports flattening nested message fields as positional arguments. This means you can access nested fields
-using dot notation in the `ProtoField` parameter. This is particularly useful when you want to directly set nested
-message fields as positional arguments.
+AutoCLI cũng hỗ trợ phẳng hóa các trường message lồng nhau làm positional arguments. Điều này cho phép truy cập các trường lồng nhau bằng ký hiệu dấu chấm trong tham số `ProtoField`. Điều này đặc biệt hữu ích khi bạn muốn trực tiếp đặt các trường message lồng nhau làm positional arguments.
 
-For example, if you have a nested message structure like this:
+Ví dụ, với cấu trúc message lồng nhau sau:
 
 ```protobuf
 message Permissions {
@@ -179,7 +172,7 @@ message MsgAuthorizeCircuitBreaker {
 }
 ```
 
-You can flatten the fields in your AutoCLI configuration:
+Bạn có thể phẳng hóa các trường trong cấu hình AutoCLI:
 
 ```go
 {
@@ -193,19 +186,19 @@ You can flatten the fields in your AutoCLI configuration:
 }
 ```
 
-This allows users to provide values for nested fields directly as positional arguments:
+Điều này cho phép người dùng cung cấp giá trị cho các trường lồng nhau trực tiếp dưới dạng positional arguments:
 
 ```bash
 <appd> tx circuit authorize cosmos1... super-admin "/cosmos.bank.v1beta1.MsgSend,/cosmos.bank.v1beta1.MsgMultiSend"
 ```
 
-Instead of having to provide a complex JSON structure for nested fields, flattening makes the CLI more user-friendly by allowing direct access to nested fields.
+Thay vì phải cung cấp cấu trúc JSON phức tạp cho các trường lồng nhau, việc phẳng hóa giúp CLI thân thiện hơn với người dùng bằng cách cho phép truy cập trực tiếp vào các trường lồng nhau.
 
-#### Customising Flag Names
+#### Tùy chỉnh tên Flag
 
-By default, `autocli` generates flag names based on the names of the fields in your protobuf message. However, you can customise the flag names by providing a `FlagOptions`. This parameter allows you to specify custom names for flags based on the names of the message fields.
+Theo mặc định, `autocli` tạo tên flag dựa trên tên các trường trong message protobuf. Tuy nhiên, bạn có thể tùy chỉnh tên flag bằng cách cung cấp `FlagOptions`. Tham số này cho phép chỉ định tên tùy chỉnh cho các flag dựa trên tên của các trường message.
 
-For example, if you have a message with the fields `test` and `test1`, you can use the following naming options to customise the flags:
+Ví dụ, với message có các trường `test` và `test1`, bạn có thể dùng các tùy chọn đặt tên sau để tùy chỉnh flags:
 
 ``` go
 autocliv1.RpcCommandOptions{ 
@@ -216,43 +209,43 @@ autocliv1.RpcCommandOptions{
 }
 ```
 
-`FlagsOptions` is defined like sub commands in the `AutoCLIOptions()` method on your module.
+`FlagsOptions` được định nghĩa giống như sub-command trong phương thức `AutoCLIOptions()` trên module của bạn.
 
-### Combining AutoCLI with Other Commands Within A Module
+### Kết hợp AutoCLI với các lệnh khác trong module
 
-AutoCLI can be used alongside other commands within a module. For example, the `gov` module uses AutoCLI to generate commands for the `query` subcommand, but also defines custom commands for the `proposer` subcommands.
+AutoCLI có thể được dùng cùng với các lệnh khác trong một module. Ví dụ, module `gov` dùng AutoCLI để tạo lệnh cho subcommand `query`, nhưng cũng định nghĩa các lệnh tùy chỉnh cho subcommand `proposer`.
 
-In order to enable this behavior, set in `AutoCLIOptions()` the `EnhanceCustomCommand` field to `true`, for the command type (queries and/or transactions) you want to enhance.
+Để bật hành vi này, đặt trường `EnhanceCustomCommand` thành `true` trong `AutoCLIOptions()` cho loại lệnh (queries và/hoặc transactions) bạn muốn mở rộng.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/fa4d87ef7e6d87aaccc94c337ffd2fe90fcb7a9d/x/gov/autocli.go#L98
 ```
 
-If not set to true, `AutoCLI` will not generate commands for the module if there are already commands registered for the module (when `GetTxCmd()` or `GetTxCmd()` are defined).
+Nếu không đặt thành true, `AutoCLI` sẽ không tạo lệnh cho module nếu đã có lệnh được đăng ký cho module đó (khi `GetTxCmd()` hoặc `GetQueryCmd()` đã được định nghĩa).
 
-### Skip a command
+### Bỏ qua một lệnh
 
-AutoCLI automatically skips unsupported commands when [`cosmos_proto.method_added_in` protobuf annotation](https://docs.cosmos.network/main/build/building-modules/protobuf-annotations) is present.
+AutoCLI tự động bỏ qua các lệnh không được hỗ trợ khi [annotation protobuf `cosmos_proto.method_added_in`](https://docs.cosmos.network/main/build/building-modules/protobuf-annotations) có mặt.
 
-Additionally, a command can be manually skipped using the `autocliv1.RpcCommandOptions`:
+Ngoài ra, một lệnh có thể bị bỏ qua thủ công bằng cách dùng `autocliv1.RpcCommandOptions`:
 
 ```go
 *autocliv1.RpcCommandOptions{
-  RpcMethod: "Params", // The name of the gRPC service
+  RpcMethod: "Params", // Tên của gRPC service
   Skip: true,
 }
 ```
 
-### Use AutoCLI for non module commands
+### Dùng AutoCLI cho lệnh không phải module
 
-It is possible to use `AutoCLI` for non module commands. The trick is still to implement the `appmodule.Module` interface and append it to the `appOptions.ModuleOptions` map.
+Có thể dùng `AutoCLI` cho các lệnh không phải module. Thủ thuật là vẫn triển khai interface `appmodule.Module` và thêm nó vào map `appOptions.ModuleOptions`.
 
-For example, here is how the SDK does it for `cometbft` gRPC commands:
+Ví dụ, đây là cách SDK thực hiện cho các lệnh gRPC của `cometbft`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/client/v2.0.0-beta.1/client/grpc/cmtservice/autocli.go#L52-L71
 ```
 
-## Summary
+## Tóm tắt
 
-`autocli` lets you generate CLI for your Cosmos SDK-based applications without any cobra boilerplate. It allows you to easily generate CLI commands and flags from your protobuf messages, and provides many options for customising the behavior of your CLI application.
+`autocli` cho phép bạn tạo CLI cho các ứng dụng dựa trên Cosmos SDK mà không cần boilerplate cobra. Nó cho phép bạn dễ dàng tạo lệnh CLI và flags từ các message protobuf, và cung cấp nhiều tùy chọn để tùy chỉnh hành vi của ứng dụng CLI.

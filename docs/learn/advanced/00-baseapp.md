@@ -4,107 +4,76 @@ sidebar_position: 1
 
 # BaseApp
 
-:::note Synopsis
-This document describes `BaseApp`, the abstraction that implements the core functionalities of a Cosmos SDK application.
+:::note Tóm tắt
+Tài liệu này mô tả `BaseApp`, lớp trừu tượng triển khai các chức năng cốt lõi của một ứng dụng Cosmos SDK.
 :::
 
-:::note Pre-requisite Readings
+:::note Tài liệu cần đọc trước
 
-* [Anatomy of a Cosmos SDK application](../beginner/00-app-anatomy.md)
-* [Lifecycle of a Cosmos SDK transaction](../beginner/01-tx-lifecycle.md)
+* [Cấu trúc của một ứng dụng Cosmos SDK](../beginner/00-app-anatomy.md)
+* [Vòng đời của một giao dịch Cosmos SDK](../beginner/01-tx-lifecycle.md)
 
 :::
 
-## Introduction
+## Giới thiệu
 
-`BaseApp` is a base type that implements the core of a Cosmos SDK application, namely:
+`BaseApp` là kiểu cơ sở triển khai phần cốt lõi của một ứng dụng Cosmos SDK, cụ thể là:
 
-* The [Application Blockchain Interface](#main-abci-messages), for the state-machine to communicate with the underlying consensus engine (e.g. CometBFT).
-* [Service Routers](#service-routers), to route messages and queries to the appropriate module.
-* Different [states](#state-updates), as the state-machine can have different volatile states updated based on the ABCI message received.
+* [Giao diện Blockchain Ứng dụng (ABCI)](#main-abci-messages), để state-machine giao tiếp với consensus engine bên dưới (ví dụ: CometBFT).
+* [Service Router](#service-routers), để định tuyến các message và query đến module phù hợp.
+* Các [trạng thái](#state-updates) khác nhau, vì state-machine có thể có các trạng thái biến động (volatile states) khác nhau được cập nhật dựa trên ABCI message nhận được.
 
-The goal of `BaseApp` is to provide the fundamental layer of a Cosmos SDK application
-that developers can easily extend to build their own custom application. Usually,
-developers will create a custom type for their application, like so:
+Mục tiêu của `BaseApp` là cung cấp lớp nền tảng cho một ứng dụng Cosmos SDK mà các nhà phát triển có thể dễ dàng mở rộng để xây dựng ứng dụng tùy chỉnh của riêng mình. Thông thường, các nhà phát triển sẽ tạo một kiểu tùy chỉnh cho ứng dụng của họ, như sau:
 
 ```go
 type App struct {
-  // reference to a BaseApp
+  // tham chiếu đến BaseApp
   *baseapp.BaseApp
 
-  // list of application store keys
+  // danh sách các store key của ứng dụng
 
-  // list of application keepers
+  // danh sách các keeper của ứng dụng
 
   // module manager
 }
 ```
 
-Extending the application with `BaseApp` gives the former access to all of `BaseApp`'s methods.
-This allows developers to compose their custom application with the modules they want, while not
-having to concern themselves with the hard work of implementing the ABCI, the service routers and state
-management logic.
+Việc mở rộng ứng dụng với `BaseApp` cho phép ứng dụng đó truy cập tất cả các phương thức của `BaseApp`. Điều này cho phép các nhà phát triển kết hợp ứng dụng tùy chỉnh của họ với các module mong muốn, mà không cần phải lo lắng về công việc phức tạp khi tự triển khai ABCI, service router và logic quản lý trạng thái.
 
-## Type Definition
+## Định nghĩa kiểu
 
-The `BaseApp` type holds many important parameters for any Cosmos SDK based application.
+Kiểu `BaseApp` chứa nhiều tham số quan trọng cho bất kỳ ứng dụng nào dựa trên Cosmos SDK.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/baseapp.go#L64-L201
 ```
 
-Let us go through the most important components.
+Hãy cùng xem qua các thành phần quan trọng nhất.
 
-> **Note**: Not all parameters are described, only the most important ones. Refer to the
-> type definition for the full list.
+> **Lưu ý**: Không phải tất cả các tham số đều được mô tả, chỉ những tham số quan trọng nhất. Tham khảo định nghĩa kiểu để xem danh sách đầy đủ.
 
-First, the important parameters that are initialized during the bootstrapping of the application:
+Đầu tiên là các tham số quan trọng được khởi tạo trong quá trình khởi động ứng dụng:
 
-* [`CommitMultiStore`](./04-store.md#commitmultistore): This is the main store of the application,
-  which holds the canonical state that is committed at the [end of each block](#commit). This store
-  is **not** cached, meaning it is not used to update the application's volatile (un-committed) states.
-  The `CommitMultiStore` is a multi-store, meaning a store of stores. Each module of the application
-  uses one or multiple `KVStores` in the multi-store to persist their subset of the state.
-* Database: The `db` is used by the `CommitMultiStore` to handle data persistence.
-* [`Msg` Service Router](#msg-service-router): The `msgServiceRouter` facilitates the routing of `sdk.Msg` requests to the appropriate
-  module `Msg` service for processing. Here a `sdk.Msg` refers to the transaction component that needs to be
-  processed by a service in order to update the application state, and not to ABCI message which implements
-  the interface between the application and the underlying consensus engine.
-* [gRPC Query Router](#grpc-query-router): The `grpcQueryRouter` facilitates the routing of gRPC queries to the
-  appropriate module for it to be processed. These queries are not ABCI messages themselves, but they
-  are relayed to the relevant module's gRPC `Query` service.
-* [`TxDecoder`](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/types#TxDecoder): It is used to decode
-  raw transaction bytes relayed by the underlying CometBFT engine.
-* [`AnteHandler`](#antehandler): This handler is used to handle signature verification, fee payment,
-  and other pre-message execution checks when a transaction is received. It's executed during
-  [`CheckTx/RecheckTx`](#checktx) and [`FinalizeBlock`](#finalizeblock).
-* [`InitChainer`](../beginner/00-app-anatomy.md#initchainer), [`PreBlocker`](../beginner/00-app-anatomy.md#preblocker), [`BeginBlocker` and `EndBlocker`](../beginner/00-app-anatomy.md#beginblocker-and-endblocker): These are
-  the functions executed when the application receives the `InitChain` and `FinalizeBlock`
-  ABCI messages from the underlying CometBFT engine.
+* [`CommitMultiStore`](./04-store.md#commitmultistore): Đây là store chính của ứng dụng, lưu giữ trạng thái chuẩn (canonical state) được commit vào [cuối mỗi block](#commit). Store này **không** được cache, nghĩa là nó không được dùng để cập nhật các trạng thái biến động (chưa được commit) của ứng dụng. `CommitMultiStore` là một multi-store, tức là một store của các store. Mỗi module trong ứng dụng sử dụng một hoặc nhiều `KVStore` trong multi-store để lưu trữ phần trạng thái của nó.
+* Database: `db` được dùng bởi `CommitMultiStore` để xử lý việc lưu trữ dữ liệu lâu dài.
+* [`Msg` Service Router](#msg-service-router): `msgServiceRouter` tạo điều kiện định tuyến các yêu cầu `sdk.Msg` đến `Msg` service của module phù hợp để xử lý. Ở đây, `sdk.Msg` đề cập đến thành phần giao dịch cần được xử lý bởi một service để cập nhật trạng thái ứng dụng, không phải ABCI message — là thứ triển khai giao diện giữa ứng dụng và consensus engine bên dưới.
+* [gRPC Query Router](#grpc-query-router): `grpcQueryRouter` tạo điều kiện định tuyến các gRPC query đến module phù hợp để xử lý. Các query này không phải là ABCI message, nhưng được chuyển tiếp đến gRPC `Query` service của module liên quan.
+* [`TxDecoder`](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/types#TxDecoder): Được dùng để giải mã các byte giao dịch thô do CometBFT engine bên dưới chuyển tiếp.
+* [`AnteHandler`](#antehandler): Handler này được dùng để xử lý xác minh chữ ký, thanh toán phí, và các kiểm tra trước khi thực thi message khi nhận được giao dịch. Nó được thực thi trong quá trình [`CheckTx/RecheckTx`](#checktx) và [`FinalizeBlock`](#finalizeblock).
+* [`InitChainer`](../beginner/00-app-anatomy.md#initchainer), [`PreBlocker`](../beginner/00-app-anatomy.md#preblocker), [`BeginBlocker` và `EndBlocker`](../beginner/00-app-anatomy.md#beginblocker-and-endblocker): Đây là các hàm được thực thi khi ứng dụng nhận được ABCI message `InitChain` và `FinalizeBlock` từ CometBFT engine bên dưới.
 
-Then, parameters used to define [volatile states](#state-updates) (i.e. cached states):
+Tiếp theo là các tham số dùng để định nghĩa [các trạng thái biến động](#state-updates) (tức là cached states):
 
-* `checkState`: This state is updated during [`CheckTx`](#checktx), and reset on [`Commit`](#commit).
-* `finalizeBlockState`: This state is updated during [`FinalizeBlock`](#finalizeblock), and set to `nil` on
-  [`Commit`](#commit) and gets re-initialized on `FinalizeBlock`.
-* `processProposalState`: This state is updated during [`ProcessProposal`](#process-proposal).
-* `prepareProposalState`: This state is updated during [`PrepareProposal`](#prepare-proposal).
+* `checkState`: Trạng thái này được cập nhật trong [`CheckTx`](#checktx) và được reset khi [`Commit`](#commit).
+* `finalizeBlockState`: Trạng thái này được cập nhật trong [`FinalizeBlock`](#finalizeblock), được set về `nil` khi [`Commit`](#commit) và được khởi tạo lại trong `FinalizeBlock`.
+* `processProposalState`: Trạng thái này được cập nhật trong [`ProcessProposal`](#process-proposal).
+* `prepareProposalState`: Trạng thái này được cập nhật trong [`PrepareProposal`](#prepare-proposal).
 
-Finally, a few more important parameters:
+Cuối cùng là một số tham số quan trọng khác:
 
-* `voteInfos`: This parameter carries the list of validators whose precommit is missing, either
-  because they did not vote or because the proposer did not include their vote. This information is
-  carried by the [Context](./02-context.md) and can be used by the application for various things like
-  punishing absent validators.
-* `minGasPrices`: This parameter defines the minimum gas prices accepted by the node. This is a
-  **local** parameter, meaning each full-node can set a different `minGasPrices`. It is used in the
-  `AnteHandler` during [`CheckTx`](#checktx), mainly as a spam protection mechanism. The transaction
-  enters the [mempool](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_basic_concepts.md#mempool-methods)
-  only if the gas prices of the transaction are greater than one of the minimum gas price in
-  `minGasPrices` (e.g. if `minGasPrices == 1uatom,1photon`, the `gas-price` of the transaction must be
-  greater than `1uatom` OR `1photon`).
-* `appVersion`: Version of the application. It is set in the
-  [application's constructor function](../beginner/00-app-anatomy.md#constructor-function).
+* `voteInfos`: Tham số này mang danh sách các validator có precommit bị thiếu, do họ không bỏ phiếu hoặc do proposer không đưa phiếu của họ vào. Thông tin này được truyền qua [Context](./02-context.md) và có thể được ứng dụng sử dụng cho nhiều mục đích như phạt validator vắng mặt.
+* `minGasPrices`: Tham số này xác định mức giá gas tối thiểu mà node chấp nhận. Đây là tham số **cục bộ**, nghĩa là mỗi full-node có thể đặt `minGasPrices` khác nhau. Nó được dùng trong `AnteHandler` trong quá trình [`CheckTx`](#checktx), chủ yếu như một cơ chế chống spam. Giao dịch chỉ được vào [mempool](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_basic_concepts.md#mempool-methods) nếu gas price của giao dịch lớn hơn một trong các mức giá gas tối thiểu trong `minGasPrices` (ví dụ: nếu `minGasPrices == 1uatom,1photon`, thì `gas-price` của giao dịch phải lớn hơn `1uatom` HOẶC `1photon`).
+* `appVersion`: Phiên bản của ứng dụng. Nó được đặt trong [hàm constructor của ứng dụng](../beginner/00-app-anatomy.md#constructor-function).
 
 ## Constructor
 
@@ -117,129 +86,88 @@ func NewBaseApp(
 }
 ```
 
-The `BaseApp` constructor function is pretty straightforward. The only thing worth noting is the
-possibility to provide additional [`options`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/options.go)
-to the `BaseApp`, which will execute them in order. The `options` are generally `setter` functions
-for important parameters, like `SetPruning()` to set pruning options or `SetMinGasPrices()` to set
-the node's `min-gas-prices`.
+Hàm constructor của `BaseApp` khá đơn giản. Điều đáng chú ý duy nhất là khả năng cung cấp thêm [`options`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/options.go) cho `BaseApp`, chúng sẽ được thực thi theo thứ tự. Các `options` thường là các hàm `setter` cho các tham số quan trọng, chẳng hạn như `SetPruning()` để đặt tùy chọn pruning hoặc `SetMinGasPrices()` để đặt `min-gas-prices` cho node.
 
-Naturally, developers can add additional `options` based on their application's needs.
+Tất nhiên, các nhà phát triển có thể thêm `options` tùy chỉnh dựa trên nhu cầu của ứng dụng.
 
-## State Updates
+## Cập nhật trạng thái
 
-The `BaseApp` maintains four primary volatile states and a root or main state. The main state
-is the canonical state of the application and the volatile states, `checkState`, `prepareProposalState`, `processProposalState` and `finalizeBlockState`
-are used to handle state transitions in-between the main state made during [`Commit`](#commit).
+`BaseApp` duy trì bốn trạng thái biến động chính và một trạng thái gốc (root) hay trạng thái chính (main state). Trạng thái chính là trạng thái chuẩn của ứng dụng, còn các trạng thái biến động — `checkState`, `prepareProposalState`, `processProposalState` và `finalizeBlockState` — được dùng để xử lý các chuyển đổi trạng thái trung gian giữa các lần [`Commit`](#commit) trên trạng thái chính.
 
-Internally, there is only a single `CommitMultiStore` which we refer to as the main or root state.
-From this root state, we derive four volatile states by using a mechanism called _store branching_ (performed by `CacheWrap` function).
-The types can be illustrated as follows:
+Về mặt nội tại, chỉ có một `CommitMultiStore` duy nhất mà chúng ta gọi là trạng thái gốc (root) hoặc trạng thái chính. Từ trạng thái gốc này, chúng ta tạo ra bốn trạng thái biến động bằng cơ chế gọi là _store branching_ (thực hiện bởi hàm `CacheWrap`). Các kiểu có thể được minh họa như sau:
 
-![Types](./baseapp_state.png)
+![Các kiểu](./baseapp_state.png)
 
-### InitChain State Updates
+### Cập nhật trạng thái InitChain
 
-During `InitChain`, the four volatile states, `checkState`, `prepareProposalState`, `processProposalState` 
-and `finalizeBlockState` are set by branching the root `CommitMultiStore`. Any subsequent reads and writes happen 
-on branched versions of the `CommitMultiStore`.
-To avoid unnecessary roundtrip to the main state, all reads to the branched store are cached.
+Trong `InitChain`, bốn trạng thái biến động — `checkState`, `prepareProposalState`, `processProposalState` và `finalizeBlockState` — được tạo bằng cách branch từ `CommitMultiStore` gốc. Mọi thao tác đọc và ghi tiếp theo đều xảy ra trên các phiên bản đã được branch của `CommitMultiStore`. Để tránh các round-trip không cần thiết đến trạng thái chính, tất cả các thao tác đọc trên branched store đều được cache.
 
 ![InitChain](./baseapp_state-initchain.png)
 
-### CheckTx State Updates
+### Cập nhật trạng thái CheckTx
 
-During `CheckTx`, the `checkState`, which is based off of the last committed state from the root
-store, is used for any reads and writes. Here we only execute the `AnteHandler` and verify a service router
-exists for every message in the transaction. Note, when we execute the `AnteHandler`, we branch
-the already branched `checkState`.
-This has the side effect that if the `AnteHandler` fails, the state transitions won't be reflected in the `checkState`
--- i.e. `checkState` is only updated on success.
+Trong `CheckTx`, `checkState` — được xây dựng dựa trên trạng thái đã commit gần nhất từ root store — được dùng cho mọi thao tác đọc và ghi. Ở đây chúng ta chỉ thực thi `AnteHandler` và xác minh rằng service router tồn tại cho mỗi message trong giao dịch. Lưu ý: khi thực thi `AnteHandler`, chúng ta branch thêm từ `checkState` đã được branch sẵn. Điều này có tác dụng phụ là nếu `AnteHandler` thất bại, các chuyển đổi trạng thái sẽ không được phản ánh vào `checkState` — tức là `checkState` chỉ được cập nhật khi thành công.
 
 ![CheckTx](./baseapp_state-checktx.png)
 
-### PrepareProposal State Updates
+### Cập nhật trạng thái PrepareProposal
 
-During `PrepareProposal`, the `prepareProposalState` is set by branching the root `CommitMultiStore`. 
-The `prepareProposalState` is used for any reads and writes that occur during the `PrepareProposal` phase.
-The function uses the `Select()` method of the mempool to iterate over the transactions. `runTx` is then called,
-which encodes and validates each transaction and from there the `AnteHandler` is executed. 
-If successful, valid transactions are returned inclusive of the events, tags, and data generated 
-during the execution of the proposal. 
-The described behavior is that of the default handler, applications have the flexibility to define their own 
-[custom mempool handlers](https://docs.cosmos.network/main/build/building-apps/app-mempool).
+Trong `PrepareProposal`, `prepareProposalState` được tạo bằng cách branch từ `CommitMultiStore` gốc. `prepareProposalState` được dùng cho mọi thao tác đọc và ghi xảy ra trong giai đoạn `PrepareProposal`. Hàm này sử dụng phương thức `Select()` của mempool để duyệt qua các giao dịch. `runTx` sau đó được gọi để mã hóa và xác thực từng giao dịch, rồi `AnteHandler` được thực thi. Nếu thành công, các giao dịch hợp lệ được trả về kèm theo các event, tag và dữ liệu được tạo ra trong quá trình thực thi proposal. Hành vi được mô tả là của handler mặc định; các ứng dụng có thể linh hoạt định nghĩa [custom mempool handler](https://docs.cosmos.network/main/build/building-apps/app-mempool) riêng.
 
 ![ProcessProposal](./baseapp_state-prepareproposal.png)
 
-### ProcessProposal State Updates
+### Cập nhật trạng thái ProcessProposal
 
-During `ProcessProposal`, the `processProposalState` is set based off of the last committed state 
-from the root store and is used to process a signed proposal received from a validator.
-In this state, `runTx` is called and the `AnteHandler` is executed and the context used in this state is built with information 
-from the header and the main state, including the minimum gas prices, which are also set. 
-Again we want to highlight that the described behavior is that of the default handler and applications have the flexibility to define their own
-[custom mempool handlers](https://docs.cosmos.network/main/build/building-apps/app-mempool).
+Trong `ProcessProposal`, `processProposalState` được tạo dựa trên trạng thái đã commit gần nhất từ root store và được dùng để xử lý một proposal đã ký nhận được từ một validator. Trong trạng thái này, `runTx` được gọi, `AnteHandler` được thực thi, và context sử dụng trong trạng thái này được xây dựng với thông tin từ header và trạng thái chính, bao gồm cả mức giá gas tối thiểu cũng được đặt vào. Một lần nữa, hành vi được mô tả là của handler mặc định; các ứng dụng có thể linh hoạt định nghĩa [custom mempool handler](https://docs.cosmos.network/main/build/building-apps/app-mempool) riêng.
 
 ![ProcessProposal](./baseapp_state-processproposal.png)
 
-### FinalizeBlock State Updates
+### Cập nhật trạng thái FinalizeBlock
 
-During `FinalizeBlock`, the `finalizeBlockState` is set for use during transaction execution and endblock. The
-`finalizeBlockState` is based off of the last committed state from the root store and is branched.
-Note, the `finalizeBlockState` is set to `nil` on [`Commit`](#commit).
+Trong `FinalizeBlock`, `finalizeBlockState` được thiết lập để sử dụng trong quá trình thực thi giao dịch và endblock. `finalizeBlockState` được xây dựng dựa trên trạng thái đã commit gần nhất từ root store và được branch ra. Lưu ý: `finalizeBlockState` được đặt về `nil` khi [`Commit`](#commit).
 
-The state flow for transaction execution is nearly identical to `CheckTx` except state transitions occur on
-the `finalizeBlockState` and messages in a transaction are executed. Similarly to `CheckTx`, state transitions
-occur on a doubly branched state -- `finalizeBlockState`. Successful message execution results in
-writes being committed to `finalizeBlockState`. Note, if message execution fails, state transitions from
-the AnteHandler are persisted.
+Luồng trạng thái trong quá trình thực thi giao dịch gần giống hệt `CheckTx`, ngoại trừ các chuyển đổi trạng thái xảy ra trên `finalizeBlockState` và các message trong giao dịch được thực thi. Tương tự `CheckTx`, các chuyển đổi trạng thái xảy ra trên một trạng thái được branch hai lần — `finalizeBlockState`. Việc thực thi message thành công dẫn đến các thay đổi được ghi vào `finalizeBlockState`. Lưu ý: nếu thực thi message thất bại, các chuyển đổi trạng thái từ AnteHandler vẫn được giữ lại.
 
-### Commit State Updates
+### Cập nhật trạng thái Commit
 
-During `Commit` all the state transitions that occurred in the `finalizeBlockState` are finally written to
-the root `CommitMultiStore` which in turn is committed to disk and results in a new application
-root hash. These state transitions are now considered final. Finally, the `checkState` is set to the
-newly committed state and `finalizeBlockState` is set to `nil` to be reset on `FinalizeBlock`.
+Trong quá trình `Commit`, tất cả các chuyển đổi trạng thái xảy ra trong `finalizeBlockState` cuối cùng được ghi vào `CommitMultiStore` gốc, từ đó được commit xuống đĩa và tạo ra một app root hash mới. Các chuyển đổi trạng thái này hiện được coi là cuối cùng. Cuối cùng, `checkState` được đặt thành trạng thái mới vừa được commit và `finalizeBlockState` được đặt về `nil` để được reset lại trong `FinalizeBlock`.
 
 ![Commit](./baseapp_state-commit.png)
 
 ## ParamStore
 
-During `InitChain`, the `RequestInitChain` provides `ConsensusParams` which contains parameters
-related to block execution such as maximum gas and size in addition to evidence parameters. If these
-parameters are non-nil, they are set in the BaseApp's `ParamStore`. Behind the scenes, the `ParamStore`
-is managed by an `x/consensus_params` module. This allows the parameters to be tweaked via
- on-chain governance.
+Trong `InitChain`, `RequestInitChain` cung cấp `ConsensusParams` chứa các tham số liên quan đến thực thi block như gas tối đa, kích thước tối đa, cũng như các tham số bằng chứng (evidence). Nếu các tham số này khác nil, chúng được đặt vào `ParamStore` của BaseApp. Phía sau, `ParamStore` được quản lý bởi module `x/consensus_params`. Điều này cho phép các tham số được điều chỉnh thông qua governance on-chain.
 
-## Service Routers
+## Service Router
 
-When messages and queries are received by the application, they must be routed to the appropriate module in order to be processed. Routing is done via `BaseApp`, which holds a `msgServiceRouter` for messages, and a `grpcQueryRouter` for queries.
+Khi ứng dụng nhận được các message và query, chúng phải được định tuyến đến module phù hợp để xử lý. Việc định tuyến được thực hiện thông qua `BaseApp`, có chứa `msgServiceRouter` cho message và `grpcQueryRouter` cho query.
 
 ### `Msg` Service Router
 
-[`sdk.Msg`s](../../build/building-modules/02-messages-and-queries.md#messages) need to be routed after they are extracted from transactions, which are sent from the underlying CometBFT engine via the [`CheckTx`](#checktx) and [`FinalizeBlock`](#finalizeblock) ABCI messages. To do so, `BaseApp` holds a `msgServiceRouter` which maps fully-qualified service methods (`string`, defined in each module's Protobuf  `Msg` service) to the appropriate module's `MsgServer` implementation.
+[`sdk.Msg`s](../../build/building-modules/02-messages-and-queries.md#messages) cần được định tuyến sau khi được trích xuất từ các giao dịch được gửi đến từ CometBFT engine bên dưới qua các ABCI message [`CheckTx`](#checktx) và [`FinalizeBlock`](#finalizeblock). Để làm vậy, `BaseApp` có một `msgServiceRouter` ánh xạ các service method được định danh đầy đủ (fully-qualified) (`string`, được định nghĩa trong Protobuf `Msg` service của mỗi module) đến triển khai `MsgServer` tương ứng của module đó.
 
-The [default `msgServiceRouter` included in `BaseApp`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/msg_service_router.go) is stateless. However, some applications may want to make use of more stateful routing mechanisms such as allowing governance to disable certain routes or point them to new modules for upgrade purposes. For this reason, the `sdk.Context` is also passed into each [route handler inside `msgServiceRouter`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/msg_service_router.go#L35-L36). For a stateless router that doesn't want to make use of this, you can just ignore the `ctx`.
+[`msgServiceRouter` mặc định được tích hợp trong `BaseApp`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/msg_service_router.go) là stateless. Tuy nhiên, một số ứng dụng có thể muốn dùng các cơ chế định tuyến có trạng thái (stateful), chẳng hạn như cho phép governance vô hiệu hóa một số route nhất định hoặc trỏ chúng đến module mới cho mục đích nâng cấp. Vì lý do này, `sdk.Context` cũng được truyền vào mỗi [route handler bên trong `msgServiceRouter`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/msg_service_router.go#L35-L36). Với một stateless router không muốn sử dụng điều này, bạn có thể bỏ qua `ctx`.
 
-The application's `msgServiceRouter` is initialized with all the routes using the application's [module manager](../../build/building-modules/01-module-manager.md#manager) (via the `RegisterServices` method), which itself is initialized with all the application's modules in the application's [constructor](../beginner/00-app-anatomy.md#constructor-function).
+`msgServiceRouter` của ứng dụng được khởi tạo với tất cả các route bằng [module manager](../../build/building-modules/01-module-manager.md#manager) của ứng dụng (thông qua phương thức `RegisterServices`), module manager này được khởi tạo với tất cả các module của ứng dụng trong [constructor](../beginner/00-app-anatomy.md#constructor-function) của ứng dụng.
 
 ### gRPC Query Router
 
-Similar to `sdk.Msg`s, [`queries`](../../build/building-modules/02-messages-and-queries.md#queries) need to be routed to the appropriate module's [`Query` service](../../build/building-modules/04-query-services.md). To do so, `BaseApp` holds a `grpcQueryRouter`, which maps modules' fully-qualified service methods (`string`, defined in their Protobuf `Query` gRPC) to their `QueryServer` implementation. The `grpcQueryRouter` is called during the initial stages of query processing, which can be either by directly sending a gRPC query to the gRPC endpoint, or via the [`Query` ABCI message](#query) on the CometBFT RPC endpoint.
+Tương tự `sdk.Msg`, [`query`](../../build/building-modules/02-messages-and-queries.md#queries) cũng cần được định tuyến đến [`Query` service](../../build/building-modules/04-query-services.md) của module phù hợp. Để làm vậy, `BaseApp` có một `grpcQueryRouter` ánh xạ các service method được định danh đầy đủ (fully-qualified) của module (`string`, được định nghĩa trong Protobuf `Query` gRPC của chúng) đến triển khai `QueryServer` tương ứng. `grpcQueryRouter` được gọi trong các giai đoạn đầu của quá trình xử lý query, có thể là bằng cách gửi gRPC query trực tiếp đến gRPC endpoint, hoặc thông qua [ABCI message `Query`](#query) trên CometBFT RPC endpoint.
 
-Just like the `msgServiceRouter`, the `grpcQueryRouter` is initialized with all the query routes using the application's [module manager](../../build/building-modules/01-module-manager.md) (via the `RegisterServices` method), which itself is initialized with all the application's modules in the application's [constructor](../beginner/00-app-anatomy.md#app-constructor).
+Giống như `msgServiceRouter`, `grpcQueryRouter` được khởi tạo với tất cả các query route bằng [module manager](../../build/building-modules/01-module-manager.md) của ứng dụng (thông qua phương thức `RegisterServices`), module manager này được khởi tạo với tất cả các module của ứng dụng trong [constructor](../beginner/00-app-anatomy.md#app-constructor) của ứng dụng.
 
-## Main ABCI 2.0 Messages
+## Các ABCI 2.0 Message chính
 
-The [Application-Blockchain Interface](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_basic_concepts.md) (ABCI) is a generic interface that connects a state-machine with a consensus engine to form a functional full-node. It can be wrapped in any language, and needs to be implemented by each application-specific blockchain built on top of an ABCI-compatible consensus engine like CometBFT.
+[Application-Blockchain Interface](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_basic_concepts.md) (ABCI) là giao diện chung kết nối một state-machine với consensus engine để tạo thành một full-node hoạt động được. Nó có thể được bọc bằng bất kỳ ngôn ngữ nào và cần được triển khai bởi mỗi blockchain chuyên dụng (application-specific blockchain) xây dựng trên consensus engine tương thích ABCI như CometBFT.
 
-The consensus engine handles two main tasks:
+Consensus engine xử lý hai nhiệm vụ chính:
 
-* The networking logic, which mainly consists in gossiping block parts, transactions and consensus votes.
-* The consensus logic, which results in the deterministic ordering of transactions in the form of blocks.
+* Logic mạng, chủ yếu bao gồm việc gossip (truyền đi) các phần block, giao dịch và phiếu bầu đồng thuận.
+* Logic đồng thuận, dẫn đến việc sắp xếp giao dịch theo thứ tự xác định dưới dạng các block.
 
-It is **not** the role of the consensus engine to define the state or the validity of transactions. Generally, transactions are handled by the consensus engine in the form of `[]bytes`, and relayed to the application via the ABCI to be decoded and processed. At keys moments in the networking and consensus processes (e.g. beginning of a block, commit of a block, reception of an unconfirmed transaction, ...), the consensus engine emits ABCI messages for the state-machine to act on.
+Consensus engine **không** có trách nhiệm định nghĩa trạng thái hay tính hợp lệ của giao dịch. Nhìn chung, các giao dịch được consensus engine xử lý dưới dạng `[]bytes` và được chuyển tiếp đến ứng dụng qua ABCI để được giải mã và xử lý. Tại các thời điểm quan trọng trong quá trình mạng và đồng thuận (ví dụ: đầu block, commit block, nhận được giao dịch chưa được xác nhận...), consensus engine phát ra các ABCI message để state-machine hành động theo.
 
-Developers building on top of the Cosmos SDK need not implement the ABCI themselves, as `BaseApp` comes with a built-in implementation of the interface. Let us go through the main ABCI messages that `BaseApp` implements:
+Các nhà phát triển xây dựng trên Cosmos SDK không cần tự triển khai ABCI, vì `BaseApp` đã có sẵn triển khai tích hợp của giao diện này. Hãy cùng xem qua các ABCI message chính mà `BaseApp` triển khai:
 
 * [`Prepare Proposal`](#prepare-proposal)
 * [`Process Proposal`](#process-proposal)
@@ -248,257 +176,223 @@ Developers building on top of the Cosmos SDK need not implement the ABCI themsel
 * [`ExtendVote`](#extendvote)
 * [`VerifyVoteExtension`](#verifyvoteextension)
 
-
 ### Prepare Proposal
 
-The `PrepareProposal` function is part of the new methods introduced in Application Blockchain Interface (ABCI++) in CometBFT and is an important part of the application's overall governance system. In the Cosmos SDK, it allows the application to have more fine-grained control over the transactions that are processed, and ensures that only valid transactions are committed to the blockchain.
+Hàm `PrepareProposal` là một trong các phương thức mới được giới thiệu trong Application Blockchain Interface (ABCI++) của CometBFT và là một phần quan trọng trong hệ thống quản trị tổng thể của ứng dụng. Trong Cosmos SDK, nó cho phép ứng dụng có sự kiểm soát chi tiết hơn đối với các giao dịch được xử lý và đảm bảo rằng chỉ có các giao dịch hợp lệ mới được commit lên blockchain.
 
-Here is how the `PrepareProposal` function can be implemented:
+Đây là cách hàm `PrepareProposal` có thể được triển khai:
 
-1.  Extract the `sdk.Msg`s from the transaction.
-2.  Perform _stateful_ checks by calling `Validate()` on each of the `sdk.Msg`'s. This is done after _stateless_ checks as _stateful_ checks are more computationally expensive. If `Validate()` fails, `PrepareProposal` returns before running further checks, which saves resources.
-3.  Perform any additional checks that are specific to the application, such as checking account balances, or ensuring that certain conditions are met before a transaction is proposed.hey are processed by the consensus engine, if necessary.
-4.  Return the updated transactions to be processed by the consensus engine
+1. Trích xuất các `sdk.Msg` từ giao dịch.
+2. Thực hiện kiểm tra _có trạng thái (stateful)_ bằng cách gọi `Validate()` trên mỗi `sdk.Msg`. Điều này được thực hiện sau các kiểm tra _không có trạng thái (stateless)_ vì kiểm tra stateful tốn nhiều tài nguyên tính toán hơn. Nếu `Validate()` thất bại, `PrepareProposal` trả về trước khi chạy thêm kiểm tra, giúp tiết kiệm tài nguyên.
+3. Thực hiện bất kỳ kiểm tra bổ sung nào dành riêng cho ứng dụng, chẳng hạn như kiểm tra số dư tài khoản, hoặc đảm bảo rằng một số điều kiện nhất định được đáp ứng trước khi giao dịch được đề xuất.
+4. Trả về các giao dịch đã cập nhật để consensus engine xử lý.
 
-Note that, unlike `CheckTx()`, `PrepareProposal` process `sdk.Msg`s, so it can directly update the state. However, unlike `FinalizeBlock()`, it does not commit the state updates. It's important to exercise caution when using `PrepareProposal` as incorrect coding could affect the overall liveness of the network.
+Lưu ý rằng, không giống như `CheckTx()`, `PrepareProposal` xử lý `sdk.Msg`, do đó nó có thể trực tiếp cập nhật trạng thái. Tuy nhiên, khác với `FinalizeBlock()`, nó không commit các cập nhật trạng thái đó. Cần thận trọng khi sử dụng `PrepareProposal` vì code không đúng có thể ảnh hưởng đến tính liveness (hoạt động liên tục) của mạng.
 
-It's important to note that `PrepareProposal` complements the `ProcessProposal` method which is executed after this method. The combination of these two methods means that it is possible to guarantee that no invalid transactions are ever committed. Furthermore, such a setup can give rise to other interesting use cases such as Oracles, threshold decryption and more.
+Cần lưu ý rằng `PrepareProposal` bổ sung cho phương thức `ProcessProposal` — được thực thi sau phương thức này. Sự kết hợp của hai phương thức này có nghĩa là có thể đảm bảo rằng không có giao dịch không hợp lệ nào từng được commit. Hơn nữa, thiết lập như vậy có thể mở ra các trường hợp sử dụng thú vị khác như Oracle, giải mã ngưỡng (threshold decryption) và nhiều hơn nữa.
 
-`PrepareProposal` returns a response to the underlying consensus engine of type [`abci.CheckTxResponse`](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_methods.md#processproposal). The response contains:
+`PrepareProposal` trả về phản hồi cho consensus engine bên dưới có kiểu [`abci.CheckTxResponse`](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_methods.md#processproposal). Phản hồi chứa:
 
-*   `Code (uint32)`: Response Code. `0` if successful.
-*   `Data ([]byte)`: Result bytes, if any.
-*   `Log (string):` The output of the application's logger. May be non-deterministic.
-*   `Info (string):` Additional information. May be non-deterministic.
-
+* `Code (uint32)`: Mã phản hồi. `0` nếu thành công.
+* `Data ([]byte)`: Byte kết quả, nếu có.
+* `Log (string)`: Đầu ra của logger ứng dụng. Có thể không xác định (non-deterministic).
+* `Info (string)`: Thông tin bổ sung. Có thể không xác định.
 
 ### Process Proposal
 
-The `ProcessProposal` function is called by the BaseApp as part of the ABCI message flow, and is executed during the `FinalizeBlock` phase of the consensus process. The purpose of this function is to give more control to the application for block validation, allowing it to check all transactions in a proposed block before the validator sends the prevote for the block. It allows a validator to perform application-dependent work in a proposed block, enabling features such as immediate block execution, and allows the Application to reject invalid blocks.
+Hàm `ProcessProposal` được BaseApp gọi như một phần của luồng ABCI message và được thực thi trong giai đoạn `FinalizeBlock` của quá trình đồng thuận. Mục đích của hàm này là trao cho ứng dụng nhiều quyền kiểm soát hơn đối với việc xác thực block, cho phép ứng dụng kiểm tra tất cả các giao dịch trong một block được đề xuất trước khi validator gửi prevote cho block đó. Nó cho phép validator thực hiện công việc phụ thuộc vào ứng dụng trong một block được đề xuất, tạo điều kiện cho các tính năng như thực thi block ngay lập tức, và cho phép ứng dụng từ chối các block không hợp lệ.
 
-The `ProcessProposal` function performs several key tasks, including:
+Hàm `ProcessProposal` thực hiện một số nhiệm vụ chính, bao gồm:
 
-1.  Validating the proposed block by checking all transactions in it.
-2.  Checking the proposed block against the current state of the application, to ensure that it is valid and that it can be executed.
-3.  Updating the application's state based on the proposal, if it is valid and passes all checks.
-4.  Returning a response to CometBFT indicating the result of the proposal processing.
+1. Xác thực block được đề xuất bằng cách kiểm tra tất cả các giao dịch trong đó.
+2. Kiểm tra block được đề xuất so với trạng thái hiện tại của ứng dụng, để đảm bảo rằng nó hợp lệ và có thể được thực thi.
+3. Cập nhật trạng thái của ứng dụng dựa trên proposal, nếu nó hợp lệ và vượt qua tất cả các kiểm tra.
+4. Trả về phản hồi cho CometBFT chỉ ra kết quả xử lý proposal.
 
-The `ProcessProposal` is an important part of the application's overall governance system. It is used to manage the network's parameters and other key aspects of its operation. It also ensures that the coherence property is adhered to i.e. all honest validators must accept a proposal by an honest proposer.
+`ProcessProposal` là một phần quan trọng trong hệ thống quản trị tổng thể của ứng dụng. Nó được dùng để quản lý các tham số mạng và các khía cạnh quan trọng khác của hoạt động mạng. Nó cũng đảm bảo thuộc tính coherence được tuân thủ, tức là tất cả các validator trung thực phải chấp nhận proposal từ một proposer trung thực.
 
-It's important to note that `ProcessProposal` complements the `PrepareProposal` method which enables the application to have more fine-grained transaction control by allowing it to reorder, drop, delay, modify, and even add transactions as they see necessary. The combination of these two methods means that it is possible to guarantee that no invalid transactions are ever committed. Furthermore, such a setup can give rise to other interesting use cases such as Oracles, threshold decryption and more.
+Cần lưu ý rằng `ProcessProposal` bổ sung cho phương thức `PrepareProposal` — cho phép ứng dụng có sự kiểm soát giao dịch chi tiết hơn bằng cách cho phép sắp xếp lại, bỏ, trì hoãn, chỉnh sửa và thậm chí thêm giao dịch theo nhu cầu. Sự kết hợp của hai phương thức này có nghĩa là có thể đảm bảo rằng không có giao dịch không hợp lệ nào từng được commit. Hơn nữa, thiết lập như vậy có thể mở ra các trường hợp sử dụng thú vị khác như Oracle, giải mã ngưỡng và nhiều hơn nữa.
 
-CometBFT calls it when it receives a proposal and the CometBFT algorithm has not locked on a value. The Application cannot modify the proposal at this point but can reject it if it is invalid. If that is the case, CometBFT will prevote `nil` on the proposal, which has strong liveness implications for CometBFT. As a general rule, the Application SHOULD accept a prepared proposal passed via `ProcessProposal`, even if a part of the proposal is invalid (e.g., an invalid transaction); the Application can ignore the invalid part of the prepared proposal at block execution time.
+CometBFT gọi nó khi nhận được một proposal và thuật toán CometBFT chưa khóa vào một giá trị nào. Ứng dụng không thể chỉnh sửa proposal tại thời điểm này nhưng có thể từ chối nó nếu không hợp lệ. Nếu xảy ra điều đó, CometBFT sẽ prevote `nil` cho proposal, điều này có hàm ý lớn đến liveness của CometBFT. Theo quy tắc chung, ứng dụng NÊN chấp nhận một proposal đã được chuẩn bị được truyền qua `ProcessProposal`, ngay cả khi một phần của proposal không hợp lệ (ví dụ: một giao dịch không hợp lệ); ứng dụng có thể bỏ qua phần không hợp lệ của proposal đã chuẩn bị tại thời điểm thực thi block.
 
-However, developers must exercise greater caution when using these methods. Incorrectly coding these methods could affect liveness as CometBFT is unable to receive 2/3 valid precommits to finalize a block.
+Tuy nhiên, các nhà phát triển phải thận trọng hơn khi sử dụng các phương thức này. Code không đúng có thể ảnh hưởng đến liveness vì CometBFT không thể nhận được 2/3 precommit hợp lệ để finalize một block.
 
-`ProcessProposal` returns a response to the underlying consensus engine of type [`abci.CheckTxResponse`](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_methods.md#processproposal). The response contains:
+`ProcessProposal` trả về phản hồi cho consensus engine bên dưới có kiểu [`abci.CheckTxResponse`](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_methods.md#processproposal). Phản hồi chứa:
 
-*   `Code (uint32)`: Response Code. `0` if successful.
-*   `Data ([]byte)`: Result bytes, if any.
-*   `Log (string):` The output of the application's logger. May be non-deterministic.
-*   `Info (string):` Additional information. May be non-deterministic.
-
+* `Code (uint32)`: Mã phản hồi. `0` nếu thành công.
+* `Data ([]byte)`: Byte kết quả, nếu có.
+* `Log (string)`: Đầu ra của logger ứng dụng. Có thể không xác định.
+* `Info (string)`: Thông tin bổ sung. Có thể không xác định.
 
 ### CheckTx
 
-`CheckTx` is sent by the underlying consensus engine when a new unconfirmed (i.e. not yet included in a valid block)
-transaction is received by a full-node. The role of `CheckTx` is to guard the full-node's mempool
-(where unconfirmed transactions are stored until they are included in a block) from spam transactions.
-Unconfirmed transactions are relayed to peers only if they pass `CheckTx`.
+`CheckTx` được gửi bởi consensus engine bên dưới khi một giao dịch chưa được xác nhận (tức là chưa được đưa vào một block hợp lệ) được nhận bởi full-node. Vai trò của `CheckTx` là bảo vệ mempool của full-node (nơi lưu trữ các giao dịch chưa được xác nhận cho đến khi chúng được đưa vào block) khỏi các giao dịch spam. Các giao dịch chưa được xác nhận chỉ được chuyển tiếp đến các peer nếu chúng vượt qua `CheckTx`.
 
-`CheckTx()` can perform both _stateful_ and _stateless_ checks, but developers should strive to
-make the checks **lightweight** because gas fees are not charged for the resources (CPU, data load...) used during the `CheckTx`. 
+`CheckTx()` có thể thực hiện cả kiểm tra _có trạng thái_ lẫn _không có trạng thái_, nhưng các nhà phát triển nên cố gắng làm cho các kiểm tra **nhẹ nhàng (lightweight)** vì phí gas không được tính cho tài nguyên (CPU, tải dữ liệu...) sử dụng trong `CheckTx`.
 
-In the Cosmos SDK, after [decoding transactions](./05-encoding.md), `CheckTx()` is implemented
-to do the following checks:
+Trong Cosmos SDK, sau khi [giải mã giao dịch](./05-encoding.md), `CheckTx()` được triển khai để thực hiện các kiểm tra sau:
 
-1. Extract the `sdk.Msg`s from the transaction.
-2. **Optionally** perform _stateless_ checks by calling `ValidateBasic()` on each of the `sdk.Msg`s. This is done
-   first, as _stateless_ checks are less computationally expensive than _stateful_ checks. If
-   `ValidateBasic()` fail, `CheckTx` returns before running _stateful_ checks, which saves resources.
-   This check is still performed for messages that have not yet migrated to the new message validation mechanism defined in [RFC 001](https://docs.cosmos.network/main/rfc/rfc-001-tx-validation) and still have a `ValidateBasic()` method.
-3. Perform non-module related _stateful_ checks on the [account](../beginner/03-accounts.md). This step is mainly about checking
-   that the `sdk.Msg` signatures are valid, that enough fees are provided and that the sending account
-   has enough funds to pay for said fees. Note that no precise [`gas`](../beginner/04-gas-fees.md) counting occurs here,
-   as `sdk.Msg`s are not processed. Usually, the [`AnteHandler`](../beginner/04-gas-fees.md#antehandler) will check that the `gas` provided
-   with the transaction is superior to a minimum reference gas amount based on the raw transaction size,
-   in order to avoid spam with transactions that provide 0 gas.
+1. Trích xuất các `sdk.Msg` từ giao dịch.
+2. **Tùy chọn** thực hiện kiểm tra _không có trạng thái_ bằng cách gọi `ValidateBasic()` trên mỗi `sdk.Msg`. Điều này được thực hiện trước tiên vì kiểm tra stateless tốn ít tài nguyên tính toán hơn kiểm tra stateful. Nếu `ValidateBasic()` thất bại, `CheckTx` trả về trước khi chạy kiểm tra stateful, giúp tiết kiệm tài nguyên. Kiểm tra này vẫn được thực hiện đối với các message chưa được chuyển sang cơ chế xác thực message mới được định nghĩa trong [RFC 001](https://docs.cosmos.network/main/rfc/rfc-001-tx-validation) và vẫn còn phương thức `ValidateBasic()`.
+3. Thực hiện các kiểm tra _có trạng thái_ không liên quan đến module trên [tài khoản](../beginner/03-accounts.md). Bước này chủ yếu là kiểm tra rằng chữ ký `sdk.Msg` hợp lệ, đủ phí được cung cấp và tài khoản gửi có đủ tiền để trả phí đó. Lưu ý rằng không có đếm [`gas`](../beginner/04-gas-fees.md) chính xác nào ở đây vì `sdk.Msg` không được xử lý. Thông thường, [`AnteHandler`](../beginner/04-gas-fees.md#antehandler) sẽ kiểm tra rằng `gas` được cung cấp cùng giao dịch lớn hơn một lượng gas tham chiếu tối thiểu dựa trên kích thước giao dịch thô, nhằm tránh spam với các giao dịch cung cấp 0 gas.
 
-`CheckTx` does **not** process `sdk.Msg`s -  they only need to be processed when the canonical state needs to be updated, which happens during `FinalizeBlock`.
+`CheckTx` **không** xử lý `sdk.Msg` — chúng chỉ cần được xử lý khi trạng thái chuẩn cần được cập nhật, điều này xảy ra trong `FinalizeBlock`.
 
-Steps 2. and 3. are performed by the [`AnteHandler`](../beginner/04-gas-fees.md#antehandler) in the [`RunTx()`](#runtx-antehandler-and-runmsgs)
-function, which `CheckTx()` calls with the `runTxModeCheck` mode. During each step of `CheckTx()`, a
-special [volatile state](#state-updates) called `checkState` is updated. This state is used to keep
-track of the temporary changes triggered by the `CheckTx()` calls of each transaction without modifying
-the [main canonical state](#main-state). For example, when a transaction goes through `CheckTx()`, the
-transaction's fees are deducted from the sender's account in `checkState`. If a second transaction is
-received from the same account before the first is processed, and the account has consumed all its
-funds in `checkState` during the first transaction, the second transaction will fail `CheckTx`() and
-be rejected. In any case, the sender's account will not actually pay the fees until the transaction
-is actually included in a block, because `checkState` never gets committed to the main state. The
-`checkState` is reset to the latest state of the main state each time a blocks gets [committed](#commit).
+Bước 2 và 3 được thực hiện bởi [`AnteHandler`](../beginner/04-gas-fees.md#antehandler) trong hàm [`RunTx()`](#runtx-antehandler-and-runmsgs), mà `CheckTx()` gọi với mode `runTxModeCheck`. Trong mỗi bước của `CheckTx()`, một [trạng thái biến động](#state-updates) đặc biệt gọi là `checkState` được cập nhật. Trạng thái này được dùng để theo dõi các thay đổi tạm thời kích hoạt bởi các lần gọi `CheckTx()` của mỗi giao dịch mà không làm thay đổi [trạng thái chuẩn chính](#main-state). Ví dụ, khi một giao dịch đi qua `CheckTx()`, phí giao dịch được trừ từ tài khoản của người gửi trong `checkState`. Nếu một giao dịch thứ hai được nhận từ cùng tài khoản trước khi giao dịch đầu tiên được xử lý, và tài khoản đã tiêu hết tiền trong `checkState` trong giao dịch đầu tiên, thì giao dịch thứ hai sẽ thất bại `CheckTx()` và bị từ chối. Dù thế nào, tài khoản của người gửi sẽ không thực sự trả phí cho đến khi giao dịch thực sự được đưa vào một block, vì `checkState` không bao giờ được commit vào trạng thái chính. `checkState` được reset về trạng thái mới nhất của trạng thái chính mỗi khi một block được [commit](#commit).
 
-`CheckTx` returns a response to the underlying consensus engine of type [`abci.CheckTxResponse`](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_methods.md#checktx).
-The response contains:
+`CheckTx` trả về phản hồi cho consensus engine bên dưới có kiểu [`abci.CheckTxResponse`](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_methods.md#checktx). Phản hồi chứa:
 
-* `Code (uint32)`: Response Code. `0` if successful.
-* `Data ([]byte)`: Result bytes, if any.
-* `Log (string):` The output of the application's logger. May be non-deterministic.
-* `Info (string):` Additional information. May be non-deterministic.
-* `GasWanted (int64)`: Amount of gas requested for transaction. It is provided by users when they generate the transaction.
-* `GasUsed (int64)`: Amount of gas consumed by transaction. During `CheckTx`, this value is computed by multiplying the standard cost of a transaction byte by the size of the raw transaction. Next is an example:
+* `Code (uint32)`: Mã phản hồi. `0` nếu thành công.
+* `Data ([]byte)`: Byte kết quả, nếu có.
+* `Log (string)`: Đầu ra của logger ứng dụng. Có thể không xác định.
+* `Info (string)`: Thông tin bổ sung. Có thể không xác định.
+* `GasWanted (int64)`: Lượng gas yêu cầu cho giao dịch. Được cung cấp bởi người dùng khi họ tạo giao dịch.
+* `GasUsed (int64)`: Lượng gas tiêu thụ bởi giao dịch. Trong `CheckTx`, giá trị này được tính bằng cách nhân chi phí tiêu chuẩn của một byte giao dịch với kích thước của giao dịch thô. Ví dụ:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/x/auth/ante/basic.go#L104
 ```
 
-* `Events ([]cmn.KVPair)`: Key-Value tags for filtering and indexing transactions (eg. by account). See [`event`s](./08-events.md) for more.
-* `Codespace (string)`: Namespace for the Code.
+* `Events ([]cmn.KVPair)`: Tag Key-Value để lọc và lập chỉ mục giao dịch (ví dụ: theo tài khoản). Xem thêm tại [`event`](./08-events.md).
+* `Codespace (string)`: Namespace cho Code.
 
 #### RecheckTx
 
-After `Commit`, `CheckTx` is run again on all transactions that remain in the node's local mempool
-excluding the transactions that are included in the block. To prevent the mempool from rechecking all transactions
-every time a block is committed, the configuration option `mempool.recheck=false` can be set. As of
-Tendermint v0.32.1, an additional `Type` parameter is made available to the `CheckTx` function that
-indicates whether an incoming transaction is new (`CheckTxType_New`), or a recheck (`CheckTxType_Recheck`).
-This allows certain checks like signature verification can be skipped during `CheckTxType_Recheck`.
+Sau `Commit`, `CheckTx` được chạy lại trên tất cả các giao dịch còn lại trong mempool cục bộ của node, ngoại trừ các giao dịch đã được đưa vào block. Để ngăn mempool kiểm tra lại tất cả giao dịch mỗi khi một block được commit, có thể đặt tùy chọn cấu hình `mempool.recheck=false`. Kể từ Tendermint v0.32.1, một tham số `Type` bổ sung được cung cấp cho hàm `CheckTx` để cho biết giao dịch đến là mới (`CheckTxType_New`) hay là kiểm tra lại (`CheckTxType_Recheck`). Điều này cho phép bỏ qua một số kiểm tra như xác minh chữ ký trong `CheckTxType_Recheck`.
 
 ## RunTx, AnteHandler, RunMsgs, PostHandler
 
 ### RunTx
 
-`RunTx` is called from `CheckTx`/`Finalizeblock` to handle the transaction, with `execModeCheck` or `execModeFinalize` as parameter to differentiate between the two modes of execution. Note that when `RunTx` receives a transaction, it has already been decoded.
+`RunTx` được gọi từ `CheckTx`/`FinalizeBlock` để xử lý giao dịch, với `execModeCheck` hoặc `execModeFinalize` là tham số để phân biệt hai chế độ thực thi. Lưu ý rằng khi `RunTx` nhận được một giao dịch, giao dịch đó đã được giải mã.
 
-The first thing `RunTx` does upon being called is to retrieve the `context`'s `CacheMultiStore` by calling the `getContextForTx()` function with the appropriate mode (either `runTxModeCheck` or `execModeFinalize`). This `CacheMultiStore` is a branch of the main store, with cache functionality (for query requests), instantiated during `FinalizeBlock` for transaction execution and during the `Commit` of the previous block for `CheckTx`. After that, two `defer func()` are called for [`gas`](../beginner/04-gas-fees.md) management. They are executed when `runTx` returns and make sure `gas` is actually consumed, and will throw errors, if any.
+Điều đầu tiên `RunTx` thực hiện khi được gọi là lấy `CacheMultiStore` của `context` bằng cách gọi hàm `getContextForTx()` với mode phù hợp (hoặc `runTxModeCheck` hoặc `execModeFinalize`). `CacheMultiStore` này là một branch của store chính, có chức năng cache (cho các yêu cầu query), được khởi tạo trong `FinalizeBlock` cho việc thực thi giao dịch và trong `Commit` của block trước cho `CheckTx`. Sau đó, hai `defer func()` được gọi để quản lý [`gas`](../beginner/04-gas-fees.md). Chúng được thực thi khi `runTx` trả về và đảm bảo `gas` thực sự được tiêu thụ, đồng thời sẽ ném lỗi nếu có.
 
-After that, `RunTx()` calls `ValidateBasic()`, when available and for backward compatibility, on each `sdk.Msg`in the `Tx`, which runs preliminary _stateless_ validity checks. If any `sdk.Msg` fails to pass `ValidateBasic()`, `RunTx()` returns with an error.
+Sau đó, `RunTx()` gọi `ValidateBasic()`, khi có sẵn và để tương thích ngược, trên mỗi `sdk.Msg` trong `Tx`, thực hiện các kiểm tra hợp lệ _stateless_ sơ bộ. Nếu bất kỳ `sdk.Msg` nào không vượt qua `ValidateBasic()`, `RunTx()` trả về với lỗi.
 
-Then, the [`anteHandler`](#antehandler) of the application is run (if it exists). In preparation of this step, both the `checkState`/`finalizeBlockState`'s `context` and `context`'s `CacheMultiStore` are branched using the `cacheTxContext()` function.
+Tiếp theo, [`anteHandler`](#antehandler) của ứng dụng được chạy (nếu tồn tại). Để chuẩn bị cho bước này, cả `context` của `checkState`/`finalizeBlockState` và `CacheMultiStore` của `context` đều được branch bằng hàm `cacheTxContext()`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/baseapp.go#L706-L722
 ```
 
-This allows `RunTx` not to commit the changes made to the state during the execution of `anteHandler` if it ends up failing. It also prevents the module implementing the `anteHandler` from writing to state, which is an important part of the [object-capabilities](./10-ocap.md) of the Cosmos SDK.
+Điều này cho phép `RunTx` không commit các thay đổi được thực hiện với trạng thái trong quá trình thực thi `anteHandler` nếu nó thất bại. Nó cũng ngăn module triển khai `anteHandler` ghi vào trạng thái, đây là một phần quan trọng của [object-capabilities](./10-ocap.md) trong Cosmos SDK.
 
-Finally, the [`RunMsgs()`](#runmsgs) function is called to process the `sdk.Msg`s in the `Tx`. In preparation of this step, just like with the `anteHandler`, both the `checkState`/`finalizeBlockState`'s `context` and `context`'s `CacheMultiStore` are branched using the `cacheTxContext()` function.
+Cuối cùng, hàm [`RunMsgs()`](#runmsgs) được gọi để xử lý các `sdk.Msg` trong `Tx`. Để chuẩn bị cho bước này, giống như với `anteHandler`, cả `context` của `checkState`/`finalizeBlockState` và `CacheMultiStore` của `context` đều được branch bằng hàm `cacheTxContext()`.
 
 ### AnteHandler
 
-The `AnteHandler` is a special handler that implements the `AnteHandler` interface and is used to authenticate the transaction before the transaction's internal messages are processed.
+`AnteHandler` là handler đặc biệt triển khai interface `AnteHandler` và được dùng để xác thực giao dịch trước khi các message nội bộ của giao dịch được xử lý.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/types/handler.go#L3-L5
 ```
 
-The `AnteHandler` is theoretically optional, but still a very important component of public blockchain networks. It serves 3 primary purposes:
+`AnteHandler` về lý thuyết là tùy chọn, nhưng vẫn là thành phần rất quan trọng của các mạng blockchain công cộng. Nó phục vụ 3 mục đích chính:
 
-* Be a primary line of defense against spam and second line of defense (the first one being the mempool) against transaction replay with fees deduction and [`sequence`](./01-transactions.md#transaction-generation) checking.
-* Perform preliminary _stateful_ validity checks like ensuring signatures are valid or that the sender has enough funds to pay for fees.
-* Play a role in the incentivization of stakeholders via the collection of transaction fees.
+* Là tuyến phòng thủ đầu tiên chống spam và tuyến thứ hai (tuyến đầu tiên là mempool) chống replay giao dịch với việc trừ phí và kiểm tra [`sequence`](./01-transactions.md#transaction-generation).
+* Thực hiện các kiểm tra hợp lệ _stateful_ sơ bộ như đảm bảo chữ ký hợp lệ hoặc người gửi có đủ tiền để trả phí.
+* Đóng vai trò trong việc khuyến khích các stakeholder thông qua việc thu phí giao dịch.
 
-`BaseApp` holds an `anteHandler` as parameter that is initialized in the [application's constructor](../beginner/00-app-anatomy.md#application-constructor). The most widely used `anteHandler` is the [`auth` module](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/x/auth/ante/ante.go).
+`BaseApp` chứa một `anteHandler` như tham số được khởi tạo trong [constructor của ứng dụng](../beginner/00-app-anatomy.md#application-constructor). `anteHandler` được dùng rộng rãi nhất là [`auth` module](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/x/auth/ante/ante.go).
 
-Click [here](../beginner/04-gas-fees.md#antehandler) for more on the `anteHandler`.
+Nhấp vào [đây](../beginner/04-gas-fees.md#antehandler) để biết thêm về `anteHandler`.
 
 ### RunMsgs
 
-`RunMsgs` is called from `RunTx` with `runTxModeCheck` as parameter to check the existence of a route for each message the transaction, and with `execModeFinalize` to actually process the `sdk.Msg`s.
+`RunMsgs` được gọi từ `RunTx` với `runTxModeCheck` là tham số để kiểm tra sự tồn tại của route cho mỗi message trong giao dịch, và với `execModeFinalize` để thực sự xử lý các `sdk.Msg`.
 
-First, it retrieves the `sdk.Msg`'s fully-qualified type name, by checking the `type_url` of the Protobuf `Any` representing the `sdk.Msg`. Then, using the application's [`msgServiceRouter`](#msg-service-router), it checks for the existence of `Msg` service method related to that `type_url`. At this point, if `mode == runTxModeCheck`, `RunMsgs` returns. Otherwise, if `mode == execModeFinalize`, the [`Msg` service](../../build/building-modules/03-msg-services.md) RPC is executed, before `RunMsgs` returns.
+Đầu tiên, nó lấy tên kiểu được định danh đầy đủ (fully-qualified type name) của `sdk.Msg` bằng cách kiểm tra `type_url` của Protobuf `Any` đại diện cho `sdk.Msg`. Sau đó, sử dụng [`msgServiceRouter`](#msg-service-router) của ứng dụng, nó kiểm tra sự tồn tại của phương thức `Msg` service liên quan đến `type_url` đó. Tại thời điểm này, nếu `mode == runTxModeCheck`, `RunMsgs` trả về. Ngược lại, nếu `mode == execModeFinalize`, RPC của [`Msg` service](../../build/building-modules/03-msg-services.md) được thực thi, sau đó `RunMsgs` trả về.
 
 ### PostHandler
 
-`PostHandler` is similar to `AnteHandler`, but it, as the name suggests, executes custom post tx processing logic after [`RunMsgs`](#runmsgs) is called. `PostHandler` receives the `Result` of the `RunMsgs` in order to enable this customizable behavior.
+`PostHandler` tương tự `AnteHandler`, nhưng như tên gọi, nó thực thi logic xử lý giao dịch tùy chỉnh sau khi [`RunMsgs`](#runmsgs) được gọi. `PostHandler` nhận `Result` của `RunMsgs` để cho phép hành vi tùy chỉnh này.
 
-Like `AnteHandler`s, `PostHandler`s are theoretically optional.
+Giống như `AnteHandler`, `PostHandler` về lý thuyết là tùy chọn.
 
-Other use cases like unused gas refund can also be enabled by `PostHandler`s.
+Các trường hợp sử dụng khác như hoàn lại gas chưa dùng cũng có thể được kích hoạt bởi `PostHandler`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/x/auth/posthandler/post.go#L1-L15
 ```
 
-Note, when `PostHandler`s fail, the state from `runMsgs` is also reverted, effectively making the transaction fail.
+Lưu ý: khi `PostHandler` thất bại, trạng thái từ `runMsgs` cũng bị revert, khiến giao dịch thất bại hoàn toàn.
 
-## Other ABCI Messages
+## Các ABCI Message khác
 
 ### InitChain
 
-The [`InitChain` ABCI message](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_basic_concepts.md#method-overview) is sent from the underlying CometBFT engine when the chain is first started. It is mainly used to **initialize** parameters and state like:
+[ABCI message `InitChain`](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_basic_concepts.md#method-overview) được gửi từ CometBFT engine bên dưới khi chuỗi được khởi động lần đầu. Nó chủ yếu được dùng để **khởi tạo** các tham số và trạng thái như:
 
-* [Consensus Parameters](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_app_requirements.md#consensus-parameters) via `setConsensusParams`.
-* [`checkState` and `finalizeBlockState`](#state-updates) via `setState`.
-* The [block gas meter](../beginner/04-gas-fees.md#block-gas-meter), with infinite gas to process genesis transactions.
+* [Consensus Parameters](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_app_requirements.md#consensus-parameters) thông qua `setConsensusParams`.
+* [`checkState` và `finalizeBlockState`](#state-updates) thông qua `setState`.
+* [Block gas meter](../beginner/04-gas-fees.md#block-gas-meter), với gas vô hạn để xử lý các giao dịch genesis.
 
-Finally, the `InitChain(req abci.InitChainRequest)` method of `BaseApp` calls the [`initChainer()`](../beginner/00-app-anatomy.md#initchainer) of the application in order to initialize the main state of the application from the `genesis file` and, if defined, call the [`InitGenesis`](../../build/building-modules/08-genesis.md#initgenesis) function of each of the application's modules.
-
+Cuối cùng, phương thức `InitChain(req abci.InitChainRequest)` của `BaseApp` gọi [`initChainer()`](../beginner/00-app-anatomy.md#initchainer) của ứng dụng để khởi tạo trạng thái chính của ứng dụng từ `genesis file` và, nếu được định nghĩa, gọi hàm [`InitGenesis`](../../build/building-modules/08-genesis.md#initgenesis) của từng module trong ứng dụng.
 
 ### FinalizeBlock
 
-The [`FinalizeBlock` ABCI message](https://github.com/cometbft/cometbft/blob/v0.38.x/spec/abci/abci++_basic_concepts.md#method-overview) is sent from the underlying CometBFT engine when a block proposal created by the correct proposer is received. The previous `BeginBlock, DeliverTx and Endblock` calls are private methods on the BaseApp struct.
-
+[ABCI message `FinalizeBlock`](https://github.com/cometbft/cometbft/blob/v0.38.x/spec/abci/abci++_basic_concepts.md#method-overview) được gửi từ CometBFT engine bên dưới khi một block proposal được tạo bởi proposer đúng đắn được nhận. Các lần gọi `BeginBlock`, `DeliverTx` và `EndBlock` trước đây là các phương thức private trên struct BaseApp.
 
 ```go reference 
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/abci.go#L869
 ```
 
-#### PreBlock 
+#### PreBlock
 
-* Run the application's [`preBlocker()`](../beginner/00-app-anatomy.md#preblocker), which mainly runs the [`PreBlocker()`](../../build/building-modules/17-preblock.md#preblock) method of each of the modules.
+* Chạy [`preBlocker()`](../beginner/00-app-anatomy.md#preblocker) của ứng dụng, chủ yếu chạy phương thức [`PreBlocker()`](../../build/building-modules/17-preblock.md#preblock) của mỗi module.
 
-#### BeginBlock 
+#### BeginBlock
 
-* Initialize [`finalizeBlockState`](#state-updates) with the latest header using the `req abci.FinalizeBlockRequest` passed as parameter via the `setState` function.
+* Khởi tạo [`finalizeBlockState`](#state-updates) với header mới nhất bằng cách sử dụng `req abci.FinalizeBlockRequest` được truyền vào như tham số thông qua hàm `setState`.
 
   ```go reference
   https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/baseapp.go#L746-L770
   ```
-  
-  This function also resets the [main gas meter](../beginner/04-gas-fees.md#main-gas-meter).
 
-* Initialize the [block gas meter](../beginner/04-gas-fees.md#block-gas-meter) with the `maxGas` limit. The `gas` consumed within the block cannot go above `maxGas`. This parameter is defined in the application's consensus parameters.
-* Run the application's [`beginBlocker()`](../beginner/00-app-anatomy.md#beginblocker-and-endblocker), which mainly runs the [`BeginBlocker()`](../../build/building-modules/06-beginblock-endblock.md#beginblock) method of each of the modules.
-* Set the [`VoteInfos`](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_methods.md#voteinfo) of the application, i.e. the list of validators whose _precommit_ for the previous block was included by the proposer of the current block. This information is carried into the [`Context`](./02-context.md) so that it can be used during transaction execution and EndBlock.
+  Hàm này cũng reset [main gas meter](../beginner/04-gas-fees.md#main-gas-meter).
 
-#### Transaction Execution
+* Khởi tạo [block gas meter](../beginner/04-gas-fees.md#block-gas-meter) với giới hạn `maxGas`. `gas` tiêu thụ trong block không thể vượt quá `maxGas`. Tham số này được định nghĩa trong consensus parameters của ứng dụng.
+* Chạy [`beginBlocker()`](../beginner/00-app-anatomy.md#beginblocker-and-endblocker) của ứng dụng, chủ yếu chạy phương thức [`BeginBlocker()`](../../build/building-modules/06-beginblock-endblock.md#beginblock) của mỗi module.
+* Đặt [`VoteInfos`](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_methods.md#voteinfo) của ứng dụng, tức là danh sách các validator có _precommit_ cho block trước đã được proposer của block hiện tại đưa vào. Thông tin này được truyền vào [`Context`](./02-context.md) để có thể sử dụng trong quá trình thực thi giao dịch và EndBlock.
 
-When the underlying consensus engine receives a block proposal, each transaction in the block needs to be processed by the application. To that end, the underlying consensus engine sends the transactions in FinalizeBlock message to the application for each transaction in a sequential order.
+#### Thực thi giao dịch
 
-Before the first transaction of a given block is processed, a [volatile state](#state-updates) called `finalizeBlockState` is initialized during FinalizeBlock. This state is updated each time a transaction is processed via `FinalizeBlock`, and committed to the [main state](#main-state) when the block is [committed](#commit), after what it is set to `nil`.
+Khi consensus engine bên dưới nhận được một block proposal, mỗi giao dịch trong block cần được ứng dụng xử lý. Vì vậy, consensus engine bên dưới gửi các giao dịch trong message FinalizeBlock đến ứng dụng cho mỗi giao dịch theo thứ tự tuần tự.
+
+Trước khi giao dịch đầu tiên của một block nhất định được xử lý, một [trạng thái biến động](#state-updates) gọi là `finalizeBlockState` được khởi tạo trong FinalizeBlock. Trạng thái này được cập nhật mỗi khi một giao dịch được xử lý qua `FinalizeBlock`, và được commit vào [trạng thái chính](#main-state) khi block được [commit](#commit), sau đó nó được đặt về `nil`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/baseapp.go#L772-L807
 ```
 
-Transaction execution within `FinalizeBlock` performs the **exact same steps as `CheckTx`**, with a little caveat at step 3 and the addition of a fifth step:
+Việc thực thi giao dịch trong `FinalizeBlock` thực hiện **các bước hoàn toàn giống với `CheckTx`**, với một lưu ý nhỏ ở bước 3 và thêm một bước thứ năm:
 
-1. The `AnteHandler` does **not** check that the transaction's `gas-prices` is sufficient. That is because the `min-gas-prices` value `gas-prices` is checked against is local to the node, and therefore what is enough for one full-node might not be for another. This means that the proposer can potentially include transactions for free, although they are not incentivized to do so, as they earn a bonus on the total fee of the block they propose.
-2. For each `sdk.Msg` in the transaction, route to the appropriate module's Protobuf [`Msg` service](../../build/building-modules/03-msg-services.md). Additional _stateful_ checks are performed, and the branched multistore held in `finalizeBlockState`'s `context` is updated by the module's `keeper`. If the `Msg` service returns successfully, the branched multistore held in `context` is written to `finalizeBlockState` `CacheMultiStore`.
+1. `AnteHandler` **không** kiểm tra xem `gas-prices` của giao dịch có đủ không. Đó là vì giá trị `min-gas-prices` mà `gas-prices` được kiểm tra là cục bộ đối với node, và do đó điều đủ cho một full-node có thể không đủ với một full-node khác. Điều này có nghĩa là proposer có thể bao gồm các giao dịch miễn phí, mặc dù họ không có động lực để làm vậy vì họ kiếm được tiền thưởng trên tổng phí của block mà họ đề xuất.
+2. Đối với mỗi `sdk.Msg` trong giao dịch, định tuyến đến Protobuf [`Msg` service](../../build/building-modules/03-msg-services.md) của module phù hợp. Các kiểm tra _stateful_ bổ sung được thực hiện, và branched multistore trong `context` của `finalizeBlockState` được cập nhật bởi `keeper` của module. Nếu `Msg` service trả về thành công, branched multistore trong `context` được ghi vào `CacheMultiStore` của `finalizeBlockState`.
 
-During the additional fifth step outlined in (2), each read/write to the store increases the value of `GasConsumed`. You can find the default cost of each operation:
+Trong bước thứ năm bổ sung được mô tả ở (2), mỗi thao tác đọc/ghi vào store tăng giá trị của `GasConsumed`. Bạn có thể tìm thấy chi phí mặc định của mỗi thao tác:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/store/types/gas.go#L230-L241
 ```
 
-At any point, if `GasConsumed > GasWanted`, the function returns with `Code != 0` and the execution fails.
+Bất cứ lúc nào, nếu `GasConsumed > GasWanted`, hàm trả về với `Code != 0` và việc thực thi thất bại.
 
-Each transactions returns a response to the underlying consensus engine of type [`abci.ExecTxResult`](https://github.com/cometbft/cometbft/blob/v0.38.0-rc1/spec/abci/abci%2B%2B_methods.md#exectxresult). The response contains:
+Mỗi giao dịch trả về phản hồi cho consensus engine bên dưới có kiểu [`abci.ExecTxResult`](https://github.com/cometbft/cometbft/blob/v0.38.0-rc1/spec/abci/abci%2B%2B_methods.md#exectxresult). Phản hồi chứa:
 
-* `Code (uint32)`: Response Code. `0` if successful.
-* `Data ([]byte)`: Result bytes, if any.
-* `Log (string):` The output of the application's logger. May be non-deterministic.
-* `Info (string):` Additional information. May be non-deterministic.
-* `GasWanted (int64)`: Amount of gas requested for transaction. It is provided by users when they generate the transaction.
-* `GasUsed (int64)`: Amount of gas consumed by transaction. During transaction execution, this value is computed by multiplying the standard cost of a transaction byte by the size of the raw transaction, and by adding gas each time a read/write to the store occurs.
-* `Events ([]cmn.KVPair)`: Key-Value tags for filtering and indexing transactions (eg. by account). See [`event`s](./08-events.md) for more.
-* `Codespace (string)`: Namespace for the Code.
+* `Code (uint32)`: Mã phản hồi. `0` nếu thành công.
+* `Data ([]byte)`: Byte kết quả, nếu có.
+* `Log (string)`: Đầu ra của logger ứng dụng. Có thể không xác định.
+* `Info (string)`: Thông tin bổ sung. Có thể không xác định.
+* `GasWanted (int64)`: Lượng gas yêu cầu cho giao dịch. Được cung cấp bởi người dùng khi họ tạo giao dịch.
+* `GasUsed (int64)`: Lượng gas tiêu thụ bởi giao dịch. Trong quá trình thực thi giao dịch, giá trị này được tính bằng cách nhân chi phí tiêu chuẩn của một byte giao dịch với kích thước của giao dịch thô, cộng với lượng gas mỗi khi có thao tác đọc/ghi vào store.
+* `Events ([]cmn.KVPair)`: Tag Key-Value để lọc và lập chỉ mục giao dịch (ví dụ: theo tài khoản). Xem thêm tại [`event`](./08-events.md).
+* `Codespace (string)`: Namespace cho Code.
 
-#### EndBlock 
+#### EndBlock
 
-EndBlock is run after transaction execution completes. It allows developers to have logic be executed at the end of each block. In the Cosmos SDK, the bulk EndBlock() method is to run the application's EndBlocker(), which mainly runs the EndBlocker() method of each of the application's modules.
+EndBlock được chạy sau khi quá trình thực thi giao dịch hoàn tất. Nó cho phép các nhà phát triển có logic được thực thi vào cuối mỗi block. Trong Cosmos SDK, phương thức EndBlock() chính là để chạy EndBlocker() của ứng dụng, chủ yếu chạy phương thức EndBlocker() của mỗi module trong ứng dụng.
 
 ```go reference 
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/baseapp.go#L811-L833
@@ -506,41 +400,41 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/baseapp.go#L811-L833
 
 ### Commit
 
-The [`Commit` ABCI message](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_basic_concepts.md#method-overview) is sent from the underlying CometBFT engine after the full-node has received _precommits_ from 2/3+ of validators (weighted by voting power). On the `BaseApp` end, the `Commit(res abci.CommitResponse)` function is implemented to commit all the valid state transitions that occurred during `FinalizeBlock` and to reset state for the next block.
+[ABCI message `Commit`](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_basic_concepts.md#method-overview) được gửi từ CometBFT engine bên dưới sau khi full-node nhận được _precommit_ từ 2/3+ validator (theo trọng số biểu quyết). Về phía `BaseApp`, hàm `Commit(res abci.CommitResponse)` được triển khai để commit tất cả các chuyển đổi trạng thái hợp lệ xảy ra trong `FinalizeBlock` và reset trạng thái cho block tiếp theo.
 
-To commit state-transitions, the `Commit` function calls the `Write()` function on `finalizeBlockState.ms`, where `finalizeBlockState.ms` is a branched multistore of the main store `app.cms`. Then, the `Commit` function sets `checkState` to the latest header (obtained from `finalizeBlockState.ctx.BlockHeader`) and `finalizeBlockState` to `nil`.
+Để commit các chuyển đổi trạng thái, hàm `Commit` gọi hàm `Write()` trên `finalizeBlockState.ms`, trong đó `finalizeBlockState.ms` là một branched multistore của store chính `app.cms`. Sau đó, hàm `Commit` đặt `checkState` thành header mới nhất (lấy từ `finalizeBlockState.ctx.BlockHeader`) và `finalizeBlockState` thành `nil`.
 
-Finally, `Commit` returns the hash of the commitment of `app.cms` back to the underlying consensus engine. This hash is used as a reference in the header of the next block.
+Cuối cùng, `Commit` trả về hash của commitment của `app.cms` lại cho consensus engine bên dưới. Hash này được dùng làm tham chiếu trong header của block tiếp theo.
 
 ### Info
 
-The [`Info` ABCI message](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_basic_concepts.md#info-methods) is a simple query from the underlying consensus engine, notably used to sync the latter with the application during a handshake that happens on startup. When called, the `Info(res abci.InfoResponse)` function from `BaseApp` will return the application's name, version and the hash of the last commit of `app.cms`.
+[ABCI message `Info`](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_basic_concepts.md#info-methods) là một query đơn giản từ consensus engine bên dưới, đáng chú ý là được dùng để đồng bộ consensus engine với ứng dụng trong quá trình bắt tay (handshake) xảy ra khi khởi động. Khi được gọi, hàm `Info(res abci.InfoResponse)` từ `BaseApp` sẽ trả về tên, phiên bản của ứng dụng và hash của commit gần nhất của `app.cms`.
 
 ### Query
 
-The [`Query` ABCI message](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_basic_concepts.md#info-methods) is used to serve queries received from the underlying consensus engine, including queries received via RPC like CometBFT RPC. It used to be the main entrypoint to build interfaces with the application, but with the introduction of [gRPC queries](../../build/building-modules/04-query-services.md) in Cosmos SDK v0.40, its usage is more limited. The application must respect a few rules when implementing the `Query` method, which are outlined [here](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_app_requirements.md#query).
+[ABCI message `Query`](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_basic_concepts.md#info-methods) được dùng để phục vụ các query nhận từ consensus engine bên dưới, bao gồm các query nhận qua RPC như CometBFT RPC. Trước đây nó là điểm vào (entrypoint) chính để xây dựng giao diện với ứng dụng, nhưng với sự ra đời của [gRPC query](../../build/building-modules/04-query-services.md) trong Cosmos SDK v0.40, cách sử dụng của nó bị hạn chế hơn. Ứng dụng phải tuân thủ một số quy tắc khi triển khai phương thức `Query`, được trình bày [ở đây](https://github.com/cometbft/cometbft/blob/v0.37.x/spec/abci/abci++_app_requirements.md#query).
 
-Each CometBFT `query` comes with a `path`, which is a `string` which denotes what to query. If the `path` matches a gRPC fully-qualified service method, then `BaseApp` will defer the query to the `grpcQueryRouter` and let it handle it like explained [above](#grpc-query-router). Otherwise, the `path` represents a query that is not (yet) handled by the gRPC router. `BaseApp` splits the `path` string with the `/` delimiter. By convention, the first element of the split string (`split[0]`) contains the category of `query` (`app`, `p2p`, `store` or `custom` ). The `BaseApp` implementation of the `Query(req abci.QueryRequest)` method is a simple dispatcher serving these 4 main categories of queries:
+Mỗi `query` của CometBFT đi kèm với một `path`, là một `string` biểu thị cần query gì. Nếu `path` khớp với một service method gRPC được định danh đầy đủ, thì `BaseApp` sẽ chuyển query đến `grpcQueryRouter` và để nó xử lý như giải thích [ở trên](#grpc-query-router). Nếu không, `path` đại diện cho một query chưa (được) xử lý bởi gRPC router. `BaseApp` tách chuỗi `path` bằng ký tự phân tách `/`. Theo quy ước, phần tử đầu tiên của chuỗi được tách (`split[0]`) chứa danh mục của `query` (`app`, `p2p`, `store` hoặc `custom`). Triển khai `Query(req abci.QueryRequest)` của `BaseApp` là một dispatcher đơn giản phục vụ 4 danh mục query chính này:
 
-* Application-related queries like querying the application's version, which are served via the `handleQueryApp` method.
-* Direct queries to the multistore, which are served by the `handlerQueryStore` method. These direct queries are different from custom queries which go through `app.queryRouter`, and are mainly used by third-party service provider like block explorers.
-* P2P queries, which are served via the `handleQueryP2P` method. These queries return either `app.addrPeerFilter` or `app.ipPeerFilter` that contain the list of peers filtered by address or IP respectively. These lists are first initialized via `options` in `BaseApp`'s [constructor](#constructor).
+* Các query liên quan đến ứng dụng như query phiên bản ứng dụng, được phục vụ thông qua phương thức `handleQueryApp`.
+* Các query trực tiếp đến multistore, được phục vụ bởi phương thức `handlerQueryStore`. Các query trực tiếp này khác với custom query đi qua `app.queryRouter`, và chủ yếu được sử dụng bởi các nhà cung cấp dịch vụ bên thứ ba như block explorer.
+* Các P2P query, được phục vụ thông qua phương thức `handleQueryP2P`. Các query này trả về `app.addrPeerFilter` hoặc `app.ipPeerFilter` chứa danh sách các peer được lọc theo địa chỉ hoặc IP tương ứng. Các danh sách này được khởi tạo đầu tiên thông qua `options` trong [constructor](#constructor) của `BaseApp`.
 
 ### ExtendVote
 
-`ExtendVote` allows an application to extend a pre-commit vote with arbitrary data. This process does NOT have to be deterministic and the data returned can be unique to the validator process.
+`ExtendVote` cho phép ứng dụng mở rộng một phiếu pre-commit với dữ liệu tùy ý. Quá trình này KHÔNG cần phải xác định (deterministic) và dữ liệu trả về có thể là duy nhất cho từng tiến trình validator.
 
-In the Cosmos-SDK this is implemented as a NoOp:
+Trong Cosmos SDK, điều này được triển khai là NoOp:
 
-``` go reference 
+```go reference 
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/abci_utils.go#L444-L450
 ```
 
 ### VerifyVoteExtension
 
-`VerifyVoteExtension` allows an application to verify that the data returned by `ExtendVote` is valid. This process MUST be deterministic. Moreover, the value of ResponseVerifyVoteExtension.status MUST exclusively depend on the parameters passed in the call to RequestVerifyVoteExtension, and the last committed Application state.
+`VerifyVoteExtension` cho phép ứng dụng xác minh rằng dữ liệu được trả về bởi `ExtendVote` là hợp lệ. Quá trình này PHẢI là xác định (deterministic). Hơn nữa, giá trị của `ResponseVerifyVoteExtension.status` PHẢI phụ thuộc hoàn toàn vào các tham số được truyền vào trong lần gọi `RequestVerifyVoteExtension`, và trạng thái ứng dụng đã được commit gần nhất.
 
-In the Cosmos-SDK this is implemented as a NoOp:
+Trong Cosmos SDK, điều này được triển khai là NoOp:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/baseapp/abci_utils.go#L452-L458

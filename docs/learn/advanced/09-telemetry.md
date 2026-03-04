@@ -2,24 +2,21 @@
 sidebar_position: 1
 ---
 
-# Telemetry
+# Telemetry (Đo từ xa)
 
-:::note Synopsis
-Gather relevant insights about your application and modules with custom metrics and telemetry.
+:::note Tóm tắt
+Thu thập các thông tin chi tiết có giá trị về ứng dụng và module của bạn với các metric và telemetry tùy chỉnh.
 :::
 
-The Cosmos SDK enables operators and developers to gain insight into the performance and behavior of
-their application through the use of the `telemetry` package. To enable telemetry, set `telemetry.enabled = true` in the app.toml config file.
+Cosmos SDK cho phép các operator và nhà phát triển có cái nhìn sâu sắc về hiệu suất và hành vi của ứng dụng thông qua việc sử dụng package `telemetry`. Để bật telemetry, đặt `telemetry.enabled = true` trong file cấu hình app.toml.
 
-The Cosmos SDK currently supports enabling in-memory and prometheus as telemetry sinks. In-memory sink is always attached (when the telemetry is enabled) with 10 second interval and 1 minute retention. This means that metrics will be aggregated over 10 seconds, and metrics will be kept alive for 1 minute.
+Cosmos SDK hiện hỗ trợ bật in-memory và prometheus làm telemetry sink. In-memory sink luôn được gắn (khi telemetry được bật) với khoảng thời gian 10 giây và thời gian lưu giữ 1 phút. Điều này có nghĩa là các metric sẽ được tổng hợp trong 10 giây, và metric sẽ được giữ lại trong 1 phút.
 
-To query active metrics (see retention note above) you have to enable API server (`api.enabled = true` in the app.toml). Single API endpoint is exposed: `http://localhost:1317/metrics?format={text|prometheus}`, the default being `text`.
+Để query các metric đang hoạt động (xem ghi chú về lưu giữ ở trên), bạn phải bật API server (`api.enabled = true` trong app.toml). Một endpoint API duy nhất được cung cấp: `http://localhost:1317/metrics?format={text|prometheus}`, mặc định là `text`.
 
-## Emitting metrics
+## Phát ra metric
 
-If telemetry is enabled via configuration, a single global metrics collector is registered via the
-[go-metrics](https://github.com/hashicorp/go-metrics) library. This allows emitting and collecting
-metrics through simple [API](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/telemetry/wrapper.go). Example:
+Nếu telemetry được bật thông qua cấu hình, một bộ thu metric toàn cục duy nhất được đăng ký thông qua thư viện [go-metrics](https://github.com/hashicorp/go-metrics). Điều này cho phép phát ra và thu thập metric thông qua [API](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/telemetry/wrapper.go) đơn giản. Ví dụ:
 
 ```go
 func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
@@ -29,24 +26,17 @@ func EndBlocker(ctx sdk.Context, k keeper.Keeper) {
 }
 ```
 
-Developers may use the `telemetry` package directly, which provides wrappers around metric APIs
-that include adding useful labels, or they must use the `go-metrics` library directly. It is preferable
-to add as much context and adequate dimensionality to metrics as possible, so the `telemetry` package
-is advised. Regardless of the package or method used, the Cosmos SDK supports the following metrics
-types:
+Các nhà phát triển có thể dùng trực tiếp package `telemetry`, cung cấp các wrapper xung quanh API metric có thêm các label hữu ích, hoặc phải dùng trực tiếp thư viện `go-metrics`. Nên thêm càng nhiều ngữ cảnh và chiều (dimensionality) phù hợp vào metric càng tốt, vì vậy package `telemetry` được khuyến nghị. Bất kể package hoặc phương thức nào được sử dụng, Cosmos SDK hỗ trợ các kiểu metric sau:
 
-* gauges
-* summaries
-* counters
+* gauges (đồng hồ đo)
+* summaries (tóm tắt)
+* counters (bộ đếm)
 
 ## Labels
 
-Certain components of modules will have their name automatically added as a label (e.g. `BeginBlock`).
-Operators may also supply the application with a global set of labels that will be applied to all
-metrics emitted using the `telemetry` package (e.g. chain-id). Global labels are supplied as a list
-of [name, value] tuples.
+Một số thành phần của module sẽ có tên của chúng tự động được thêm làm label (ví dụ: `BeginBlock`). Các operator cũng có thể cung cấp cho ứng dụng một tập hợp label toàn cục sẽ được áp dụng cho tất cả metric được phát ra bằng package `telemetry` (ví dụ: chain-id). Label toàn cục được cung cấp dưới dạng danh sách các tuple [name, value].
 
-Example:
+Ví dụ:
 
 ```toml
 global-labels = [
@@ -54,75 +44,71 @@ global-labels = [
 ]
 ```
 
-## Cardinality
+## Cardinality (Lực lượng)
 
-Cardinality is key, specifically label and key cardinality. Cardinality is how many unique values of
-something there are. So there is naturally a tradeoff between granularity and how much stress is put
-on the telemetry sink in terms of indexing, scrape, and query performance.
+Cardinality là yếu tố then chốt, đặc biệt là cardinality của label và key. Cardinality là số lượng giá trị duy nhất của một thứ gì đó. Do đó, tự nhiên có sự đánh đổi giữa độ chi tiết và áp lực đặt lên telemetry sink về hiệu suất lập chỉ mục, scrape và query.
 
-Developers should take care to support metrics with enough dimensionality and granularity to be
-useful, but not increase the cardinality beyond the sink's limits. A general rule of thumb is to not
-exceed a cardinality of 10.
+Các nhà phát triển nên chú ý hỗ trợ metric với đủ chiều và độ chi tiết để hữu ích, nhưng không tăng cardinality vượt quá giới hạn của sink. Quy tắc chung là không vượt quá cardinality là 10.
 
-Consider the following examples with enough granularity and adequate cardinality:
+Hãy xem xét các ví dụ sau có đủ độ chi tiết và cardinality phù hợp:
 
-* begin/end blocker time
-* tx gas used
-* block gas used
-* amount of tokens minted
-* amount of accounts created
+* thời gian begin/end blocker
+* gas giao dịch đã sử dụng
+* gas block đã sử dụng
+* lượng token đã mint
+* số lượng tài khoản đã tạo
 
-The following examples expose too much cardinality and may not even prove to be useful:
+Các ví dụ sau tiết lộ quá nhiều cardinality và thậm chí có thể không hữu ích:
 
-* transfers between accounts with amount
-* voting/deposit amount from unique addresses
+* chuyển khoản giữa các tài khoản với số lượng
+* lượng bỏ phiếu/ký gửi từ các địa chỉ duy nhất
 
-## Supported Metrics
+## Các Metric được Hỗ trợ
 
-| Metric                          | Description                                                                               | Unit            | Type    |
-|:--------------------------------|:------------------------------------------------------------------------------------------|:----------------|:--------|
-| `tx_count`                      | Total number of txs processed via `DeliverTx`                                             | tx              | counter |
-| `tx_successful`                 | Total number of successful txs processed via `DeliverTx`                                  | tx              | counter |
-| `tx_failed`                     | Total number of failed txs processed via `DeliverTx`                                      | tx              | counter |
-| `tx_gas_used`                   | The total amount of gas used by a tx                                                      | gas             | gauge   |
-| `tx_gas_wanted`                 | The total amount of gas requested by a tx                                                 | gas             | gauge   |
-| `tx_msg_send`                   | The total amount of tokens sent in a `MsgSend` (per denom)                                | token           | gauge   |
-| `tx_msg_withdraw_reward`        | The total amount of tokens withdrawn in a `MsgWithdrawDelegatorReward` (per denom)        | token           | gauge   |
-| `tx_msg_withdraw_commission`    | The total amount of tokens withdrawn in a `MsgWithdrawValidatorCommission` (per denom)    | token           | gauge   |
-| `tx_msg_delegate`               | The total amount of tokens delegated in a `MsgDelegate`                                   | token           | gauge   |
-| `tx_msg_begin_unbonding`        | The total amount of tokens undelegated in a `MsgUndelegate`                               | token           | gauge   |
-| `tx_msg_begin_redelegate`       | The total amount of tokens redelegated in a `MsgBeginRedelegate`                          | token           | gauge   |
-| `tx_msg_ibc_transfer`           | The total amount of tokens transferred via IBC in a `MsgTransfer` (source or sink chain)  | token           | gauge   |
-| `ibc_transfer_packet_receive`   | The total amount of tokens received in a `FungibleTokenPacketData` (source or sink chain) | token           | gauge   |
-| `new_account`                   | Total number of new accounts created                                                      | account         | counter |
-| `gov_proposal`                  | Total number of governance proposals                                                      | proposal        | counter |
-| `gov_vote`                      | Total number of governance votes for a proposal                                           | vote            | counter |
-| `gov_deposit`                   | Total number of governance deposits for a proposal                                        | deposit         | counter |
-| `staking_delegate`              | Total number of delegations                                                               | delegation      | counter |
-| `staking_undelegate`            | Total number of undelegations                                                             | undelegation    | counter |
-| `staking_redelegate`            | Total number of redelegations                                                             | redelegation    | counter |
-| `ibc_transfer_send`             | Total number of IBC transfers sent from a chain (source or sink)                          | transfer        | counter |
-| `ibc_transfer_receive`          | Total number of IBC transfers received to a chain (source or sink)                        | transfer        | counter |
-| `ibc_client_create`             | Total number of clients created                                                           | create          | counter |
-| `ibc_client_update`             | Total number of client updates                                                            | update          | counter |
-| `ibc_client_upgrade`            | Total number of client upgrades                                                           | upgrade         | counter |
-| `ibc_client_misbehaviour`       | Total number of client misbehaviours                                                      | misbehaviour    | counter |
-| `ibc_connection_open-init`      | Total number of connection `OpenInit` handshakes                                          | handshake       | counter |
-| `ibc_connection_open-try`       | Total number of connection `OpenTry` handshakes                                           | handshake       | counter |
-| `ibc_connection_open-ack`       | Total number of connection `OpenAck` handshakes                                           | handshake       | counter |
-| `ibc_connection_open-confirm`   | Total number of connection `OpenConfirm` handshakes                                       | handshake       | counter |
-| `ibc_channel_open-init`         | Total number of channel `OpenInit` handshakes                                             | handshake       | counter |
-| `ibc_channel_open-try`          | Total number of channel `OpenTry` handshakes                                              | handshake       | counter |
-| `ibc_channel_open-ack`          | Total number of channel `OpenAck` handshakes                                              | handshake       | counter |
-| `ibc_channel_open-confirm`      | Total number of channel `OpenConfirm` handshakes                                          | handshake       | counter |
-| `ibc_channel_close-init`        | Total number of channel `CloseInit` handshakes                                            | handshake       | counter |
-| `ibc_channel_close-confirm`     | Total number of channel `CloseConfirm` handshakes                                         | handshake       | counter |
-| `tx_msg_ibc_recv_packet`        | Total number of IBC packets received                                                      | packet          | counter |
-| `tx_msg_ibc_acknowledge_packet` | Total number of IBC packets acknowledged                                                  | acknowledgement | counter |
-| `ibc_timeout_packet`            | Total number of IBC timeout packets                                                       | timeout         | counter |
-| `store_iavl_get`                | Duration of an IAVL `Store#Get` call                                                      | ms              | summary |
-| `store_iavl_set`                | Duration of an IAVL `Store#Set` call                                                      | ms              | summary |
-| `store_iavl_has`                | Duration of an IAVL `Store#Has` call                                                      | ms              | summary |
-| `store_iavl_delete`             | Duration of an IAVL `Store#Delete` call                                                   | ms              | summary |
-| `store_iavl_commit`             | Duration of an IAVL `Store#Commit` call                                                   | ms              | summary |
-| `store_iavl_query`              | Duration of an IAVL `Store#Query` call                                                    | ms              | summary |
+| Metric                          | Mô tả                                                                                              | Đơn vị          | Kiểu    |
+|:--------------------------------|:---------------------------------------------------------------------------------------------------|:----------------|:--------|
+| `tx_count`                      | Tổng số giao dịch được xử lý qua `DeliverTx`                                                      | tx              | counter |
+| `tx_successful`                 | Tổng số giao dịch thành công được xử lý qua `DeliverTx`                                           | tx              | counter |
+| `tx_failed`                     | Tổng số giao dịch thất bại được xử lý qua `DeliverTx`                                             | tx              | counter |
+| `tx_gas_used`                   | Tổng lượng gas được sử dụng bởi giao dịch                                                         | gas             | gauge   |
+| `tx_gas_wanted`                 | Tổng lượng gas được yêu cầu bởi giao dịch                                                         | gas             | gauge   |
+| `tx_msg_send`                   | Tổng lượng token được gửi trong `MsgSend` (theo denom)                                            | token           | gauge   |
+| `tx_msg_withdraw_reward`        | Tổng lượng token được rút trong `MsgWithdrawDelegatorReward` (theo denom)                         | token           | gauge   |
+| `tx_msg_withdraw_commission`    | Tổng lượng token được rút trong `MsgWithdrawValidatorCommission` (theo denom)                     | token           | gauge   |
+| `tx_msg_delegate`               | Tổng lượng token được ủy quyền trong `MsgDelegate`                                                | token           | gauge   |
+| `tx_msg_begin_unbonding`        | Tổng lượng token bị hủy ủy quyền trong `MsgUndelegate`                                            | token           | gauge   |
+| `tx_msg_begin_redelegate`       | Tổng lượng token được tái ủy quyền trong `MsgBeginRedelegate`                                     | token           | gauge   |
+| `tx_msg_ibc_transfer`           | Tổng lượng token được chuyển qua IBC trong `MsgTransfer` (source hoặc sink chain)                 | token           | gauge   |
+| `ibc_transfer_packet_receive`   | Tổng lượng token nhận được trong `FungibleTokenPacketData` (source hoặc sink chain)               | token           | gauge   |
+| `new_account`                   | Tổng số tài khoản mới được tạo                                                                    | account         | counter |
+| `gov_proposal`                  | Tổng số đề xuất quản trị                                                                           | proposal        | counter |
+| `gov_vote`                      | Tổng số phiếu bầu quản trị cho một đề xuất                                                        | vote            | counter |
+| `gov_deposit`                   | Tổng số ký gửi quản trị cho một đề xuất                                                           | deposit         | counter |
+| `staking_delegate`              | Tổng số ủy quyền                                                                                   | delegation      | counter |
+| `staking_undelegate`            | Tổng số hủy ủy quyền                                                                               | undelegation    | counter |
+| `staking_redelegate`            | Tổng số tái ủy quyền                                                                               | redelegation    | counter |
+| `ibc_transfer_send`             | Tổng số chuyển khoản IBC được gửi từ chain (source hoặc sink)                                     | transfer        | counter |
+| `ibc_transfer_receive`          | Tổng số chuyển khoản IBC nhận được tại chain (source hoặc sink)                                   | transfer        | counter |
+| `ibc_client_create`             | Tổng số client được tạo                                                                            | create          | counter |
+| `ibc_client_update`             | Tổng số cập nhật client                                                                            | update          | counter |
+| `ibc_client_upgrade`            | Tổng số nâng cấp client                                                                            | upgrade         | counter |
+| `ibc_client_misbehaviour`       | Tổng số misbehaviour của client                                                                    | misbehaviour    | counter |
+| `ibc_connection_open-init`      | Tổng số handshake `OpenInit` kết nối                                                               | handshake       | counter |
+| `ibc_connection_open-try`       | Tổng số handshake `OpenTry` kết nối                                                                | handshake       | counter |
+| `ibc_connection_open-ack`       | Tổng số handshake `OpenAck` kết nối                                                                | handshake       | counter |
+| `ibc_connection_open-confirm`   | Tổng số handshake `OpenConfirm` kết nối                                                            | handshake       | counter |
+| `ibc_channel_open-init`         | Tổng số handshake `OpenInit` kênh                                                                  | handshake       | counter |
+| `ibc_channel_open-try`          | Tổng số handshake `OpenTry` kênh                                                                   | handshake       | counter |
+| `ibc_channel_open-ack`          | Tổng số handshake `OpenAck` kênh                                                                   | handshake       | counter |
+| `ibc_channel_open-confirm`      | Tổng số handshake `OpenConfirm` kênh                                                               | handshake       | counter |
+| `ibc_channel_close-init`        | Tổng số handshake `CloseInit` kênh                                                                 | handshake       | counter |
+| `ibc_channel_close-confirm`     | Tổng số handshake `CloseConfirm` kênh                                                              | handshake       | counter |
+| `tx_msg_ibc_recv_packet`        | Tổng số gói IBC nhận được                                                                         | packet          | counter |
+| `tx_msg_ibc_acknowledge_packet` | Tổng số gói IBC được xác nhận                                                                     | acknowledgement | counter |
+| `ibc_timeout_packet`            | Tổng số gói IBC hết hạn                                                                           | timeout         | counter |
+| `store_iavl_get`                | Thời gian của lời gọi IAVL `Store#Get`                                                            | ms              | summary |
+| `store_iavl_set`                | Thời gian của lời gọi IAVL `Store#Set`                                                            | ms              | summary |
+| `store_iavl_has`                | Thời gian của lời gọi IAVL `Store#Has`                                                            | ms              | summary |
+| `store_iavl_delete`             | Thời gian của lời gọi IAVL `Store#Delete`                                                         | ms              | summary |
+| `store_iavl_commit`             | Thời gian của lời gọi IAVL `Store#Commit`                                                         | ms              | summary |
+| `store_iavl_query`              | Thời gian của lời gọi IAVL `Store#Query`                                                          | ms              | summary |

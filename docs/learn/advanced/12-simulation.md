@@ -2,66 +2,44 @@
 sidebar_position: 1
 ---
 
-# Cosmos Blockchain Simulator
+# Bộ Mô Phỏng Blockchain Cosmos
 
-The Cosmos SDK offers a full fledged simulation framework to fuzz test every
-message defined by a module.
+Cosmos SDK cung cấp một framework mô phỏng đầy đủ để kiểm thử fuzz (fuzz test) mọi message được định nghĩa bởi một module.
 
-On the Cosmos SDK, this functionality is provided by [`SimApp`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/simapp/app_di.go), which is a
-`Baseapp` application that is used for running the [`simulation`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/x/simulation) module.
-This module defines all the simulation logic as well as the operations for
-randomized parameters like accounts, balances etc.
+Trong Cosmos SDK, chức năng này được cung cấp bởi [`SimApp`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/simapp/app_di.go) — một ứng dụng `Baseapp` được dùng để chạy module [`simulation`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/x/simulation). Module này định nghĩa toàn bộ logic mô phỏng cũng như các phép toán cho các tham số ngẫu nhiên như tài khoản, số dư, v.v.
 
-## Goals
+## Mục tiêu
 
-The blockchain simulator tests how the blockchain application would behave under
-real life circumstances by generating and sending randomized messages.
-The goal of this is to detect and debug failures that could halt a live chain,
-by providing logs and statistics about the operations run by the simulator as
-well as exporting the latest application state when a failure was found.
+Bộ mô phỏng blockchain kiểm tra cách ứng dụng blockchain sẽ hoạt động trong các tình huống thực tế bằng cách tạo và gửi các message ngẫu nhiên. Mục tiêu là phát hiện và gỡ lỗi các sự cố có thể làm dừng chuỗi đang hoạt động, bằng cách cung cấp log và thống kê về các phép toán được chạy bởi simulator, cũng như xuất trạng thái ứng dụng mới nhất khi phát hiện lỗi.
 
-Its main difference with integration testing is that the simulator app allows
-you to pass parameters to customize the chain that's being simulated.
-This comes in handy when trying to reproduce bugs that were generated in the
-provided operations (randomized or not).
+Điểm khác biệt chính so với kiểm thử tích hợp là ứng dụng simulator cho phép bạn truyền các tham số để tùy chỉnh chuỗi đang được mô phỏng. Điều này rất tiện lợi khi cố gắng tái hiện các lỗi được tạo ra trong các phép toán được cung cấp (ngẫu nhiên hoặc không).
 
-## Simulation commands
+## Các lệnh Simulation
 
-The simulation app has different commands, each of which tests a different
-failure type:
+Ứng dụng simulation có các lệnh khác nhau, mỗi lệnh kiểm tra một loại lỗi khác nhau:
 
-* `AppImportExport`: The simulator exports the initial app state and then it
-  creates a new app with the exported `genesis.json` as an input, checking for
-  inconsistencies between the stores.
-* `AppSimulationAfterImport`: Queues two simulations together. The first one provides the app state (_i.e_ genesis) to the second. Useful to test software upgrades or hard-forks from a live chain.
-* `AppStateDeterminism`: Checks that all the nodes return the same values, in the same order.
-* `FullAppSimulation`: General simulation mode. Runs the chain and the specified operations for a given number of blocks. Tests that there're no `panics` on the simulation.
+* `AppImportExport`: Simulator xuất trạng thái ứng dụng ban đầu rồi tạo một ứng dụng mới với `genesis.json` đã xuất làm đầu vào, kiểm tra sự không nhất quán giữa các store.
+* `AppSimulationAfterImport`: Xếp hàng hai lần mô phỏng liên tiếp. Lần đầu cung cấp trạng thái ứng dụng (tức genesis) cho lần thứ hai. Hữu ích để kiểm tra nâng cấp phần mềm hoặc hard-fork từ một chuỗi đang hoạt động.
+* `AppStateDeterminism`: Kiểm tra rằng tất cả các node trả về cùng giá trị, theo cùng thứ tự.
+* `FullAppSimulation`: Chế độ mô phỏng tổng quát. Chạy chuỗi và các phép toán được chỉ định trong một số lượng block nhất định. Kiểm tra rằng không có `panics` nào xảy ra trong quá trình mô phỏng.
 
-Each simulation must receive a set of inputs (_i.e_ flags) such as the number of
-blocks that the simulation is run, seed, block size, etc.
-Check the full list of flags [here](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/x/simulation/client/cli/flags.go#L43-L70).
+Mỗi lần mô phỏng phải nhận một tập hợp các đầu vào (tức flags) như số lượng block, seed, kích thước block, v.v. Xem danh sách đầy đủ các flags [tại đây](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/x/simulation/client/cli/flags.go#L43-L70).
 
-## Simulator Modes
+## Các chế độ Simulator
 
-In addition to the various inputs and commands, the simulator runs in three modes:
+Ngoài các đầu vào và lệnh khác nhau, simulator chạy ở ba chế độ:
 
-1. Completely random where the initial state, module parameters and simulation
-   parameters are **pseudo-randomly generated**.
-2. From a `genesis.json` file where the initial state and the module parameters are defined.
-   This mode is helpful for running simulations on a known state such as a live network export where a new (mostly likely breaking) version of the application needs to be tested.
-3. From a `params.json` file where the initial state is pseudo-randomly generated but the module and simulation parameters can be provided manually.
-   This allows for a more controlled and deterministic simulation setup while allowing the state space to still be pseudo-randomly simulated.
-   The list of available parameters are listed [here](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/x/simulation/client/cli/flags.go#L72-L90).
+1. Hoàn toàn ngẫu nhiên: trạng thái ban đầu, tham số module và tham số mô phỏng được **tạo ra theo kiểu giả ngẫu nhiên (pseudo-random)**.
+2. Từ file `genesis.json`: trạng thái ban đầu và tham số module được định nghĩa sẵn. Chế độ này hữu ích khi chạy mô phỏng trên một trạng thái đã biết như xuất dữ liệu từ mạng đang hoạt động để kiểm tra phiên bản mới (thường có thay đổi phá vỡ tương thích).
+3. Từ file `params.json`: trạng thái ban đầu được tạo ngẫu nhiên nhưng tham số module và mô phỏng có thể được cung cấp thủ công. Điều này cho phép thiết lập mô phỏng có kiểm soát và xác định hơn trong khi vẫn để không gian trạng thái được mô phỏng ngẫu nhiên. Danh sách các tham số có sẵn được liệt kê [tại đây](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/x/simulation/client/cli/flags.go#L72-L90).
 
 :::tip
-These modes are not mutually exclusive. So you can for example run a randomly
-generated genesis state (`1`) with manually generated simulation params (`3`).
+Các chế độ này không loại trừ lẫn nhau. Ví dụ, bạn có thể chạy genesis state được tạo ngẫu nhiên (chế độ 1) cùng với simulation params được tạo thủ công (chế độ 3).
 :::
 
-## Usage
+## Cách sử dụng
 
-This is a general example of how simulations are run. For more specific examples
-check the Cosmos SDK [Makefile](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/Makefile#L285-L320).
+Đây là ví dụ tổng quát về cách chạy simulation. Để xem các ví dụ cụ thể hơn, hãy xem [Makefile](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/Makefile#L285-L320) của Cosmos SDK.
 
 ```bash
  $ go test -mod=readonly github.com/cosmos/cosmos-sdk/simapp \
@@ -70,25 +48,20 @@ check the Cosmos SDK [Makefile](https://github.com/cosmos/cosmos-sdk/blob/v0.53.
   -v -timeout 24h
 ```
 
-## Debugging Tips
+## Mẹo gỡ lỗi
 
-Here are some suggestions when encountering a simulation failure:
+Một số gợi ý khi gặp lỗi trong quá trình mô phỏng:
 
-* Export the app state at the height where the failure was found. You can do this
-  by passing the `-ExportStatePath` flag to the simulator.
-* Use `-Verbose` logs. They could give you a better hint on all the operations
-  involved.
-* Try using another `-Seed`. If it can reproduce the same error and if it fails
-  sooner, you will spend less time running the simulations.
-* Reduce the `-NumBlocks` . How's the app state at the height previous to the
-  failure?
-* Try adding logs to operations that are not logged. You will have to define a
-  [Logger](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/x/staking/keeper/keeper.go#L77-L81) on your `Keeper`.
+* Xuất trạng thái ứng dụng tại chiều cao (height) phát hiện lỗi bằng cách truyền flag `-ExportStatePath` cho simulator.
+* Dùng log `-Verbose`. Chúng có thể cung cấp gợi ý tốt hơn về tất cả các phép toán liên quan.
+* Thử dùng `-Seed` khác. Nếu nó tái hiện cùng lỗi và thất bại sớm hơn, bạn sẽ tốn ít thời gian chạy simulation hơn.
+* Giảm `-NumBlocks`. Trạng thái ứng dụng ở chiều cao trước khi xảy ra lỗi như thế nào?
+* Thử thêm log cho các phép toán chưa được ghi log. Bạn cần định nghĩa một [Logger](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/x/staking/keeper/keeper.go#L77-L81) trên `Keeper` của mình.
 
-## Use simulation in your Cosmos SDK-based application
+## Sử dụng simulation trong ứng dụng dựa trên Cosmos SDK của bạn
 
-Learn how you can build the simulation into your Cosmos SDK-based application:
+Tìm hiểu cách tích hợp simulation vào ứng dụng dựa trên Cosmos SDK của bạn:
 
 * Application Simulation Manager
-* [Building modules: Simulator](../../build/building-modules/14-simulator.md)
+* [Xây dựng module: Simulator](../../build/building-modules/14-simulator.md)
 * Simulator tests

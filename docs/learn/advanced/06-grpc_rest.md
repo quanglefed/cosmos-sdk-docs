@@ -2,104 +2,103 @@
 sidebar_position: 1
 ---
 
-# gRPC, REST, and CometBFT Endpoints
+# Các Endpoint gRPC, REST và CometBFT
 
-:::note Synopsis
-This document presents an overview of all the endpoints a node exposes: gRPC, REST as well as some other endpoints.
+:::note Tóm tắt
+Tài liệu này trình bày tổng quan về tất cả các endpoint mà một node cung cấp: gRPC, REST và một số endpoint khác.
 :::
 
-## An Overview of All Endpoints
+## Tổng quan về Tất cả Endpoint
 
-Each node exposes the following endpoints for users to interact with a node, each endpoint is served on a different port. Details on how to configure each endpoint is provided in the endpoint's own section.
+Mỗi node cung cấp các endpoint sau cho người dùng tương tác với node, mỗi endpoint được phục vụ trên một cổng khác nhau. Chi tiết về cách cấu hình từng endpoint được cung cấp trong phần riêng của từng endpoint.
 
-* the gRPC server (default port: `9090`),
-* the REST server (default port: `1317`),
-* the CometBFT RPC endpoint (default port: `26657`).
+* gRPC server (cổng mặc định: `9090`),
+* REST server (cổng mặc định: `1317`),
+* CometBFT RPC endpoint (cổng mặc định: `26657`).
 
 :::tip
-The node also exposes some other endpoints, such as the CometBFT P2P endpoint, or the [Prometheus endpoint](https://docs.cometbft.com/v0.37/core/metrics), which are not directly related to the Cosmos SDK. Please refer to the [CometBFT documentation](https://docs.cometbft.com/v0.37/core/configuration) for more information about these endpoints.
+Node cũng cung cấp một số endpoint khác, chẳng hạn như CometBFT P2P endpoint hoặc [Prometheus endpoint](https://docs.cometbft.com/v0.37/core/metrics), không liên quan trực tiếp đến Cosmos SDK. Hãy tham khảo [tài liệu CometBFT](https://docs.cometbft.com/v0.37/core/configuration) để biết thêm thông tin về các endpoint này.
 :::
 
 :::note
-All endpoints are defaulted to localhost and must be modified to be exposed to the public internet.
+Tất cả các endpoint mặc định là localhost và phải được sửa đổi để mở ra internet công cộng.
 :::
 
 ## gRPC Server
 
-In the Cosmos SDK, Protobuf is the main [encoding](./05-encoding.md) library. This brings a wide range of Protobuf-based tools that can be plugged into the Cosmos SDK. One such tool is [gRPC](https://grpc.io), a modern open-source high performance RPC framework that has decent client support in several languages.
+Trong Cosmos SDK, Protobuf là thư viện [mã hóa](./05-encoding.md) chính. Điều này mang lại nhiều công cụ dựa trên Protobuf có thể được tích hợp vào Cosmos SDK. Một trong số đó là [gRPC](https://grpc.io), một framework RPC hiệu suất cao mã nguồn mở hiện đại có hỗ trợ client tốt trong nhiều ngôn ngữ.
 
-Each module exposes a [Protobuf `Query` service](../../build/building-modules/02-messages-and-queries.md#queries) that defines state queries. The `Query` services and a transaction service used to broadcast transactions are hooked up to the gRPC server via the following function inside the application:
+Mỗi module cung cấp một [Protobuf `Query` service](../../build/building-modules/02-messages-and-queries.md#queries) định nghĩa các query trạng thái. Các `Query` service và transaction service dùng để phát sóng giao dịch được kết nối với gRPC server thông qua hàm sau bên trong ứng dụng:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/server/types/app.go#L46-L48
 ```
 
-Note: It is not possible to expose any [Protobuf `Msg` service](../../build/building-modules/02-messages-and-queries.md#messages) endpoints via gRPC. Transactions must be generated and signed using the CLI or programmatically before they can be broadcasted using gRPC. See [Generating, Signing, and Broadcasting Transactions](../../user/run-node/03-txs.md) for more information.
+Lưu ý: Không thể cung cấp bất kỳ endpoint [Protobuf `Msg` service](../../build/building-modules/02-messages-and-queries.md#messages) nào qua gRPC. Giao dịch phải được tạo và ký bằng CLI hoặc theo cách lập trình trước khi có thể được phát sóng bằng gRPC. Xem [Tạo, Ký và Phát sóng Giao dịch](../../user/run-node/03-txs.md) để biết thêm thông tin.
 
-The `grpc.Server` is a concrete gRPC server, which spawns and serves all gRPC query requests and a broadcast transaction request. This server can be configured inside `~/.simapp/config/app.toml`:
+`grpc.Server` là một gRPC server cụ thể, khởi tạo và phục vụ tất cả các gRPC query request và broadcast transaction request. Server này có thể được cấu hình trong `~/.simapp/config/app.toml`:
 
-* `grpc.enable = true|false` field defines if the gRPC server should be enabled. Defaults to `true`.
-* `grpc.address = {string}` field defines the `ip:port` the server should bind to. Defaults to `localhost:9090`.
+* Trường `grpc.enable = true|false` xác định xem gRPC server có nên được bật hay không. Mặc định là `true`.
+* Trường `grpc.address = {string}` xác định `ip:port` mà server nên bind đến. Mặc định là `localhost:9090`.
 
 :::tip
-`~/.simapp` is the directory where the node's configuration and databases are stored. By default, it's set to `~/.{app_name}`.
+`~/.simapp` là thư mục lưu trữ cấu hình và database của node. Theo mặc định, nó được đặt thành `~/.{app_name}`.
 :::
 
-Once the gRPC server is started, you can send requests to it using a gRPC client. Some examples are given in our [Interact with the Node](../../user/run-node/02-interact-node.md#using-grpc) tutorial.
+Sau khi gRPC server được khởi động, bạn có thể gửi request đến nó bằng gRPC client. Một số ví dụ được cung cấp trong hướng dẫn [Tương tác với Node](../../user/run-node/02-interact-node.md#using-grpc).
 
-An overview of all available gRPC endpoints shipped with the Cosmos SDK is [Protobuf documentation](https://buf.build/cosmos/cosmos-sdk).
+Tổng quan về tất cả các gRPC endpoint sẵn có đi kèm với Cosmos SDK được cung cấp trong [Protobuf documentation](https://buf.build/cosmos/cosmos-sdk).
 
 ## REST Server
 
-Cosmos SDK supports REST routes via gRPC-gateway.
+Cosmos SDK hỗ trợ các REST route thông qua gRPC-gateway.
 
-All routes are configured under the following fields in `~/.simapp/config/app.toml`:
+Tất cả các route được cấu hình trong các trường sau trong `~/.simapp/config/app.toml`:
 
-* `api.enable = true|false` field defines if the REST server should be enabled. Defaults to `false`.
-* `api.address = {string}` field defines the `ip:port` the server should bind to. Defaults to `tcp://localhost:1317`.
-* some additional API configuration options are defined in `~/.simapp/config/app.toml`, along with comments, please refer to that file directly.
+* Trường `api.enable = true|false` xác định xem REST server có nên được bật hay không. Mặc định là `false`.
+* Trường `api.address = {string}` xác định `ip:port` mà server nên bind đến. Mặc định là `tcp://localhost:1317`.
+* Một số tùy chọn cấu hình API bổ sung được định nghĩa trong `~/.simapp/config/app.toml`, cùng với các chú thích, hãy tham khảo trực tiếp file đó.
 
-### gRPC-gateway REST Routes
+### REST Routes của gRPC-gateway
 
-If, for various reasons, you cannot use gRPC (for example, you are building a web application, and browsers don't support HTTP2 on which gRPC is built), then the Cosmos SDK offers REST routes via gRPC-gateway.
+Nếu vì nhiều lý do bạn không thể dùng gRPC (ví dụ: bạn đang xây dựng ứng dụng web, và trình duyệt không hỗ trợ HTTP2 mà gRPC được xây dựng trên đó), thì Cosmos SDK cung cấp các REST route thông qua gRPC-gateway.
 
-[gRPC-gateway](https://grpc-ecosystem.github.io/grpc-gateway/) is a tool to expose gRPC endpoints as REST endpoints. For each gRPC endpoint defined in a Protobuf `Query` service, the Cosmos SDK offers a REST equivalent. For instance, querying a balance could be done via the `/cosmos.bank.v1beta1.QueryAllBalances` gRPC endpoint, or alternatively via the gRPC-gateway `"/cosmos/bank/v1beta1/balances/{address}"` REST endpoint: both will return the same result. For each RPC method defined in a Protobuf `Query` service, the corresponding REST endpoint is defined as an option:
+[gRPC-gateway](https://grpc-ecosystem.github.io/grpc-gateway/) là công cụ cung cấp các gRPC endpoint dưới dạng REST endpoint. Đối với mỗi gRPC endpoint được định nghĩa trong một Protobuf `Query` service, Cosmos SDK cung cấp REST endpoint tương đương. Ví dụ, query số dư có thể được thực hiện thông qua gRPC endpoint `/cosmos.bank.v1beta1.QueryAllBalances`, hoặc thay thế bằng gRPC-gateway REST endpoint `"/cosmos/bank/v1beta1/balances/{address}"`: cả hai đều trả về cùng kết quả. Đối với mỗi phương thức RPC được định nghĩa trong một Protobuf `Query` service, REST endpoint tương ứng được định nghĩa như một tùy chọn:
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/proto/cosmos/bank/v1beta1/query.proto#L23-L30
 ```
 
-For application developers, gRPC-gateway REST routes needs to be wired up to the REST server, this is done by calling the `RegisterGRPCGatewayRoutes` function on the ModuleManager.
+Đối với các nhà phát triển ứng dụng, các REST route của gRPC-gateway cần được kết nối với REST server, điều này được thực hiện bằng cách gọi hàm `RegisterGRPCGatewayRoutes` trên ModuleManager.
 
 ### Swagger
 
-A [Swagger](https://swagger.io/) (or OpenAPIv2) specification file is exposed under the `/swagger` route on the API server. Swagger is an open specification describing the API endpoints a server serves, including description, input arguments, return types and much more about each endpoint.
+Một file đặc tả [Swagger](https://swagger.io/) (hoặc OpenAPIv2) được cung cấp tại route `/swagger` trên API server. Swagger là một đặc tả mở mô tả các endpoint API mà server phục vụ, bao gồm mô tả, tham số đầu vào, kiểu trả về và nhiều hơn nữa về từng endpoint.
 
-Enabling the `/swagger` endpoint is configurable inside `~/.simapp/config/app.toml` via the `api.swagger` field, which is set to false by default.
+Việc bật endpoint `/swagger` có thể được cấu hình trong `~/.simapp/config/app.toml` thông qua trường `api.swagger`, mặc định là false.
 
-For application developers, you may want to generate your own Swagger definitions based on your custom modules.
-The Cosmos SDK's [Swagger generation script](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/scripts/protoc-swagger-gen.sh) is a good place to start.
+Đối với các nhà phát triển ứng dụng, bạn có thể muốn tạo định nghĩa Swagger của riêng mình dựa trên các module tùy chỉnh. [Script tạo Swagger của Cosmos SDK](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/scripts/protoc-swagger-gen.sh) là điểm khởi đầu tốt.
 
 ## CometBFT RPC
 
-Independently from the Cosmos SDK, CometBFT also exposes a RPC server. This RPC server can be configured by tuning parameters under the `rpc` table in the `~/.simapp/config/config.toml`, the default listening address is `tcp://localhost:26657`. An OpenAPI specification of all CometBFT RPC endpoints is available [here](https://docs.cometbft.com/main/rpc/).
+Độc lập với Cosmos SDK, CometBFT cũng cung cấp RPC server. RPC server này có thể được cấu hình bằng cách điều chỉnh các tham số trong bảng `rpc` của `~/.simapp/config/config.toml`, địa chỉ lắng nghe mặc định là `tcp://localhost:26657`. Đặc tả OpenAPI của tất cả các CometBFT RPC endpoint có sẵn [ở đây](https://docs.cometbft.com/main/rpc/).
 
-Some CometBFT RPC endpoints are directly related to the Cosmos SDK:
+Một số CometBFT RPC endpoint liên quan trực tiếp đến Cosmos SDK:
 
-* `/abci_query`: this endpoint will query the application for state. As the `path` parameter, you can send the following strings:
-    * any Protobuf fully-qualified service method, such as `/cosmos.bank.v1beta1.Query/AllBalances`. The `data` field should then include the method's request parameter(s) encoded as bytes using Protobuf.
-    * `/app/simulate`: this will simulate a transaction, and return some information such as gas used.
-    * `/app/version`: this will return the application's version.
-    * `/store/{storeName}/key`: this will directly query the named store for data associated with the key represented in the `data` parameter.
-    * `/store/{storeName}/subspace`: this will directly query the named store for key/value pairs in which the key has the value of the `data` parameter as a prefix.
-    * `/p2p/filter/addr/{port}`: this will return a filtered list of the node's P2P peers by address port.
-    * `/p2p/filter/id/{id}`: this will return a filtered list of the node's P2P peers by ID.
-* `/broadcast_tx_{sync,async,commit}`: these 3 endpoints will broadcast a transaction to other peers. CLI, gRPC and REST expose [a way to broadcast transactions](./01-transactions.md#broadcasting-the-transaction), but they all use these 3 CometBFT RPCs under the hood.
+* `/abci_query`: endpoint này sẽ query ứng dụng về trạng thái. Là tham số `path`, bạn có thể gửi các chuỗi sau:
+    * bất kỳ service method gRPC được định danh đầy đủ nào, chẳng hạn như `/cosmos.bank.v1beta1.Query/AllBalances`. Trường `data` sau đó phải bao gồm (các) tham số request của phương thức được mã hóa dưới dạng bytes bằng Protobuf.
+    * `/app/simulate`: sẽ mô phỏng một giao dịch và trả về một số thông tin như gas đã sử dụng.
+    * `/app/version`: sẽ trả về phiên bản của ứng dụng.
+    * `/store/{storeName}/key`: sẽ query trực tiếp store được đặt tên cho dữ liệu liên kết với key được biểu diễn trong tham số `data`.
+    * `/store/{storeName}/subspace`: sẽ query trực tiếp store được đặt tên cho các cặp key/value mà key có giá trị của tham số `data` làm tiền tố.
+    * `/p2p/filter/addr/{port}`: sẽ trả về danh sách được lọc của các P2P peer của node theo cổng địa chỉ.
+    * `/p2p/filter/id/{id}`: sẽ trả về danh sách được lọc của các P2P peer của node theo ID.
+* `/broadcast_tx_{sync,async,commit}`: 3 endpoint này sẽ phát sóng giao dịch đến các peer khác. CLI, gRPC và REST cung cấp [cách để phát sóng giao dịch](./01-transactions.md#broadcasting-the-transaction), nhưng tất cả đều dùng 3 CometBFT RPC này bên dưới.
 
-## Comparison Table
+## Bảng so sánh
 
-| Name           | Advantages                                                                                                                                                            | Disadvantages                                                                                                 |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| gRPC           | - can use code-generated stubs in various languages <br /> - supports streaming and bidirectional communication (HTTP2) <br /> - small wire binary sizes, faster transmission | - based on HTTP2, not available in browsers <br /> - learning curve (mostly due to Protobuf)                      |
-| REST           | - ubiquitous <br/> - client libraries in all languages, faster implementation <br />                                                                                        | - only supports unary request-response communication (HTTP1.1) <br/> - bigger over-the-wire message sizes (JSON) |
-| CometBFT RPC | - easy to use                                                                                                                                                         | - bigger over-the-wire message sizes (JSON)                                                                   |
+| Tên           | Ưu điểm                                                                                                                                                                       | Nhược điểm                                                                                                    |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| gRPC           | - có thể dùng stub được tạo từ code trong nhiều ngôn ngữ <br /> - hỗ trợ streaming và giao tiếp hai chiều (HTTP2) <br /> - kích thước binary wire nhỏ, truyền tải nhanh hơn | - dựa trên HTTP2, không dùng được trên trình duyệt <br /> - đường cong học tập (chủ yếu do Protobuf)         |
+| REST           | - phổ biến rộng rãi <br/> - thư viện client trong mọi ngôn ngữ, triển khai nhanh hơn <br />                                                                                  | - chỉ hỗ trợ giao tiếp request-response đơn chiều (HTTP1.1) <br/> - kích thước message lớn hơn (JSON)        |
+| CometBFT RPC | - dễ sử dụng                                                                                                                                                                  | - kích thước message lớn hơn (JSON)                                                                           |

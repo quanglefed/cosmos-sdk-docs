@@ -2,51 +2,34 @@
 sidebar_position: 1
 ---
 
-# Object-Capability Model
+# Mô Hình Object-Capability
 
-## Intro
+## Giới thiệu
 
-When thinking about security, it is good to start with a specific threat model. Our threat model is the following:
+Khi xem xét về bảo mật, điều tốt nhất là bắt đầu từ một mô hình mối đe dọa cụ thể. Mô hình mối đe dọa của chúng tôi như sau:
 
-> We assume that a thriving ecosystem of Cosmos SDK modules that are easy to compose into a blockchain application will contain faulty or malicious modules.
+> Chúng tôi giả định rằng một hệ sinh thái phong phú gồm các module Cosmos SDK dễ dàng kết hợp thành một ứng dụng blockchain sẽ chứa các module có lỗi hoặc độc hại.
 
-The Cosmos SDK is designed to address this threat by being the
-foundation of an object capability system.
+Cosmos SDK được thiết kế để giải quyết mối đe dọa này bằng cách là nền tảng của một hệ thống object capability.
 
-> The structural properties of object capability systems favor
-> modularity in code design and ensure reliable encapsulation in
-> code implementation.
+> Các thuộc tính cấu trúc của hệ thống object capability ủng hộ tính mô-đun trong thiết kế mã và đảm bảo tính đóng gói đáng tin cậy trong việc triển khai mã.
 >
-> These structural properties facilitate the analysis of some
-> security properties of an object-capability program or operating
-> system. Some of these — in particular, information flow properties
-> — can be analyzed at the level of object references and
-> connectivity, independent of any knowledge or analysis of the code
-> that determines the behavior of the objects.
+> Những thuộc tính cấu trúc này tạo điều kiện cho việc phân tích một số thuộc tính bảo mật của chương trình hoặc hệ điều hành có object-capability. Một số thuộc tính trong đó — đặc biệt là các thuộc tính luồng thông tin — có thể được phân tích ở mức độ tham chiếu đối tượng và khả năng kết nối, độc lập với bất kỳ kiến thức hay phân tích nào về mã xác định hành vi của các đối tượng.
 >
-> As a consequence, these security properties can be established
-> and maintained in the presence of new objects that contain unknown
-> and possibly malicious code.
+> Kết quả là, các thuộc tính bảo mật này có thể được thiết lập và duy trì ngay cả khi có các đối tượng mới chứa mã chưa biết và có thể độc hại.
 >
-> These structural properties stem from the two rules governing
-> access to existing objects:
+> Những thuộc tính cấu trúc này xuất phát từ hai quy tắc quản lý quyền truy cập vào các đối tượng hiện có:
 >
-> 1. An object A can send a message to B only if object A holds a
->     reference to B.
-> 2. An object A can obtain a reference to C only
->     if object A receives a message containing a reference to C. As a
->     consequence of these two rules, an object can obtain a reference
->     to another object only through a preexisting chain of references.
->     In short, "Only connectivity begets connectivity."
+> 1. Đối tượng A chỉ có thể gửi tin nhắn đến B nếu đối tượng A giữ một tham chiếu đến B.
+> 2. Đối tượng A chỉ có thể lấy tham chiếu đến C nếu đối tượng A nhận được tin nhắn chứa tham chiếu đến C. Kết quả của hai quy tắc này là, một đối tượng chỉ có thể lấy tham chiếu đến đối tượng khác thông qua một chuỗi tham chiếu đã có từ trước. Nói ngắn gọn: "Chỉ kết nối mới sinh ra kết nối" (Only connectivity begets connectivity).
 
-For an introduction to object-capabilities, see this [Wikipedia article](https://en.wikipedia.org/wiki/Object-capability_model).
+Để tìm hiểu thêm về object-capability, xem [bài viết Wikipedia](https://en.wikipedia.org/wiki/Object-capability_model) này.
 
-## Ocaps in practice
+## Ocaps trong thực tế
 
-The idea is to only reveal what is necessary to get the work done.
+Ý tưởng là chỉ tiết lộ những gì cần thiết để hoàn thành công việc.
 
-For example, the following code snippet violates the object capabilities
-principle:
+Ví dụ, đoạn code sau đây vi phạm nguyên tắc object capabilities:
 
 ```go
 type AppAccount struct {...}
@@ -57,20 +40,18 @@ account := &AppAccount{
 sumValue := externalModule.ComputeSumValue(account)
 ```
 
-The method `ComputeSumValue` implies a pure function, yet the implied
-capability of accepting a pointer value is the capability to modify that
-value. The preferred method signature should take a copy instead.
+Phương thức `ComputeSumValue` gợi ý một hàm thuần túy, nhưng khả năng ngầm định của việc chấp nhận giá trị con trỏ là khả năng sửa đổi giá trị đó. Chữ ký phương thức ưa thích nên nhận một bản sao thay thế:
 
 ```go
 sumValue := externalModule.ComputeSumValue(*account)
 ```
 
-In the Cosmos SDK, you can see the application of this principle in simapp.
+Trong Cosmos SDK, bạn có thể thấy việc áp dụng nguyên tắc này trong simapp.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/simapp/app.go
 ```
 
-The following diagram shows the current dependencies between keepers.
+Sơ đồ sau đây thể hiện các phụ thuộc hiện tại giữa các keeper.
 
-![Keeper dependencies](https://raw.githubusercontent.com/cosmos/cosmos-sdk/release/v0.46.x/docs/uml/svg/keeper_dependencies.svg)
+![Phụ thuộc giữa các Keeper](https://raw.githubusercontent.com/cosmos/cosmos-sdk/release/v0.46.x/docs/uml/svg/keeper_dependencies.svg)
