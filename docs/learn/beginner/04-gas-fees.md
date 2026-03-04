@@ -2,100 +2,100 @@
 sidebar_position: 1
 ---
 
-# Gas and Fees
+# Gas và Phí
 
-:::note Synopsis
-This document describes the default strategies to handle gas and fees within a Cosmos SDK application.
+:::note Tóm tắt
+Tài liệu này mô tả các chiến lược mặc định để xử lý gas và phí trong một ứng dụng Cosmos SDK.
 :::
 
-:::note Pre-requisite Readings
+:::note Tài liệu cần đọc trước
 
-* [Anatomy of a Cosmos SDK Application](./00-app-anatomy.md)
+* [Cấu trúc của một ứng dụng Cosmos SDK](./00-app-anatomy.md)
 
 :::
 
-## Introduction to `Gas` and `Fees`
+## Giới thiệu về `Gas` và `Fees`
 
-In the Cosmos SDK, `gas` is a special unit that is used to track the consumption of resources during execution. `gas` is typically consumed whenever read and writes are made to the store, but it can also be consumed if expensive computation needs to be done. It serves two main purposes:
+Trong Cosmos SDK, `gas` là một đơn vị đặc biệt được dùng để theo dõi mức tiêu thụ tài nguyên trong quá trình thực thi. `gas` thường được tiêu thụ bất cứ khi nào có thao tác đọc và ghi vào store, nhưng cũng có thể được tiêu thụ nếu cần thực hiện các phép tính tốn kém. Nó phục vụ hai mục đích chính:
 
-* Make sure blocks are not consuming too many resources and are finalized. This is implemented by default in the Cosmos SDK via the [block gas meter](#block-gas-meter).
-* Prevent spam and abuse from end-user. To this end, `gas` consumed during [`message`](../../build/building-modules/02-messages-and-queries.md#messages) execution is typically priced, resulting in a `fee` (`fees = gas * gas-prices`). `fees` generally have to be paid by the sender of the `message`. Note that the Cosmos SDK does not enforce `gas` pricing by default, as there may be other ways to prevent spam (e.g. bandwidth schemes). Still, most applications implement `fee` mechanisms to prevent spam by using the [`AnteHandler`](#antehandler).
+* Đảm bảo các block không tiêu thụ quá nhiều tài nguyên và được hoàn thiện. Điều này được triển khai mặc định trong Cosmos SDK qua [block gas meter](#block-gas-meter).
+* Ngăn chặn spam và lạm dụng từ người dùng cuối. Để đạt mục tiêu này, `gas` được tiêu thụ trong quá trình thực thi [`message`](../../build/building-modules/02-messages-and-queries.md#messages) thường được định giá, dẫn đến một `fee` (`fees = gas * gas-prices`). `fees` thường phải được trả bởi người gửi `message`. Lưu ý rằng Cosmos SDK không thực thi định giá `gas` theo mặc định, vì có thể có các cách khác để ngăn spam (ví dụ: sơ đồ băng thông). Tuy nhiên, hầu hết ứng dụng triển khai cơ chế `fee` để ngăn spam bằng cách sử dụng [`AnteHandler`](#antehandler).
 
 ## Gas Meter
 
-In the Cosmos SDK, `gas` is a simple alias for `uint64`, and is managed by an object called a _gas meter_. Gas meters implement the `GasMeter` interface:
+Trong Cosmos SDK, `gas` là một alias đơn giản cho `uint64` và được quản lý bởi một đối tượng gọi là _gas meter_. Gas meter triển khai interface `GasMeter`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/store/types/gas.go#L40-L51
 ```
 
-where:
+trong đó:
 
-* `GasConsumed()` returns the amount of gas that was consumed by the gas meter instance.
-* `GasConsumedToLimit()` returns the amount of gas that was consumed by the gas meter instance, or the limit if it is reached.
-* `GasRemaining()` returns the gas left in the GasMeter.
-* `Limit()` returns the limit of the gas meter instance. `0` if the gas meter is infinite.
-* `ConsumeGas(amount Gas, descriptor string)` consumes the amount of `gas` provided. If the `gas` overflows, it panics with the `descriptor` message. If the gas meter is not infinite, it panics if `gas` consumed goes above the limit.
-* `RefundGas()` deducts the given amount from the gas consumed. This functionality enables refunding gas to the transaction or block gas pools so that EVM-compatible chains can fully support the go-ethereum StateDB interface.
-* `IsPastLimit()` returns `true` if the amount of gas consumed by the gas meter instance is strictly above the limit, `false` otherwise.
-* `IsOutOfGas()` returns `true` if the amount of gas consumed by the gas meter instance is above or equal to the limit, `false` otherwise.
+* `GasConsumed()` trả về lượng gas đã được tiêu thụ bởi instance gas meter.
+* `GasConsumedToLimit()` trả về lượng gas đã được tiêu thụ bởi instance gas meter, hoặc giới hạn nếu giới hạn đó đã đạt.
+* `GasRemaining()` trả về lượng gas còn lại trong GasMeter.
+* `Limit()` trả về giới hạn của instance gas meter. `0` nếu gas meter là vô hạn.
+* `ConsumeGas(amount Gas, descriptor string)` tiêu thụ lượng `gas` được cung cấp. Nếu `gas` tràn, nó panic với thông báo `descriptor`. Nếu gas meter không phải vô hạn, nó panic nếu `gas` tiêu thụ vượt quá giới hạn.
+* `RefundGas()` khấu trừ lượng đã cho từ gas đã tiêu thụ. Chức năng này cho phép hoàn tiền gas vào pool gas giao dịch hoặc block để các chuỗi tương thích EVM có thể hỗ trợ đầy đủ interface go-ethereum StateDB.
+* `IsPastLimit()` trả về `true` nếu lượng gas đã tiêu thụ bởi instance gas meter nghiêm ngặt cao hơn giới hạn, ngược lại `false`.
+* `IsOutOfGas()` trả về `true` nếu lượng gas đã tiêu thụ bởi instance gas meter lớn hơn hoặc bằng giới hạn, ngược lại `false`.
 
-The gas meter is generally held in [`ctx`](../advanced/02-context.md), and consuming gas is done with the following pattern:
+Gas meter thường được giữ trong [`ctx`](../advanced/02-context.md), và việc tiêu thụ gas được thực hiện theo mẫu sau:
 
 ```go
 ctx.GasMeter().ConsumeGas(amount, "description")
 ```
 
-By default, the Cosmos SDK makes use of two different gas meters, the [main gas meter](#main-gas-meter) and the [block gas meter](#block-gas-meter).
+Theo mặc định, Cosmos SDK sử dụng hai gas meter khác nhau, [main gas meter](#main-gas-meter) và [block gas meter](#block-gas-meter).
 
 ### Main Gas Meter
 
-`ctx.GasMeter()` is the main gas meter of the application. The main gas meter is initialized in `FinalizeBlock` via `setFinalizeBlockState`, and then tracks gas consumption during execution sequences that lead to state-transitions, i.e. those originally triggered by [`FinalizeBlock`](../advanced/00-baseapp.md#finalizeblock). At the beginning of each transaction execution, the main gas meter **must be set to 0** in the [`AnteHandler`](#antehandler), so that it can track gas consumption per-transaction.
+`ctx.GasMeter()` là main gas meter của ứng dụng. Main gas meter được khởi tạo trong `FinalizeBlock` qua `setFinalizeBlockState`, sau đó theo dõi mức tiêu thụ gas trong các chuỗi thực thi dẫn đến chuyển đổi trạng thái, tức là những chuỗi được kích hoạt ban đầu bởi [`FinalizeBlock`](../advanced/00-baseapp.md#finalizeblock). Ở đầu mỗi lần thực thi giao dịch, main gas meter **phải được đặt về 0** trong [`AnteHandler`](#antehandler), để nó có thể theo dõi mức tiêu thụ gas theo từng giao dịch.
 
-Gas consumption can be done manually, generally by the module developer in the [`BeginBlocker`, `EndBlocker`](../../build/building-modules/06-beginblock-endblock.md) or [`Msg` service](../../build/building-modules/03-msg-services.md), but most of the time it is done automatically whenever there is a read or write to the store. This automatic gas consumption logic is implemented in a special store called [`GasKv`](../advanced/04-store.md#gaskv-store).
+Việc tiêu thụ gas có thể được thực hiện thủ công, thường bởi nhà phát triển module trong [`BeginBlocker`, `EndBlocker`](../../build/building-modules/06-beginblock-endblock.md) hoặc [`Msg` service](../../build/building-modules/03-msg-services.md), nhưng hầu hết thời gian nó được thực hiện tự động bất cứ khi nào có thao tác đọc hoặc ghi vào store. Logic tiêu thụ gas tự động này được triển khai trong một store đặc biệt gọi là [`GasKv`](../advanced/04-store.md#gaskv-store).
 
 ### Block Gas Meter
 
-`ctx.BlockGasMeter()` is the gas meter used to track gas consumption per block and make sure it does not go above a certain limit. 
+`ctx.BlockGasMeter()` là gas meter được dùng để theo dõi mức tiêu thụ gas trên mỗi block và đảm bảo nó không vượt quá một giới hạn nhất định.
 
-During the genesis phase, gas consumption is unlimited to accommodate initialization transactions. 
+Trong giai đoạn genesis, mức tiêu thụ gas là vô hạn để phục vụ các giao dịch khởi tạo.
 
 ```go
 app.finalizeBlockState.SetContext(app.finalizeBlockState.Context().WithBlockGasMeter(storetypes.NewInfiniteGasMeter()))
 ```
 
-Following the genesis block, the block gas meter is set to a finite value by the SDK. This transition is facilitated by the consensus engine (e.g., CometBFT) calling the `RequestFinalizeBlock` function, which in turn triggers the SDK's `FinalizeBlock` method. Within `FinalizeBlock`, `internalFinalizeBlock` is executed, performing necessary state updates and function executions. The block gas meter, initialized each with a finite limit, is then incorporated into the context for transaction execution, ensuring gas consumption does not exceed the block's gas limit and is reset at the end of each block.
+Sau block genesis, block gas meter được đặt thành một giá trị hữu hạn bởi SDK. Sự chuyển đổi này được tạo điều kiện bởi consensus engine (ví dụ: CometBFT) gọi hàm `RequestFinalizeBlock`, lần lượt kích hoạt phương thức `FinalizeBlock` của SDK. Trong `FinalizeBlock`, `internalFinalizeBlock` được thực thi, thực hiện các cập nhật trạng thái và thực thi hàm cần thiết. Block gas meter, được khởi tạo mỗi lần với giới hạn hữu hạn, sau đó được tích hợp vào context để thực thi giao dịch, đảm bảo mức tiêu thụ gas không vượt quá giới hạn gas của block và được reset ở cuối mỗi block.
 
-Modules within the Cosmos SDK can consume block gas at any point during their execution by utilizing the `ctx`. This gas consumption primarily occurs during state read/write operations and transaction processing. The block gas meter, accessible via `ctx.BlockGasMeter()`, monitors the total gas usage within a block, enforcing the gas limit to prevent excessive computation. This ensures that gas limits are adhered to on a per-block basis, starting from the first block post-genesis.
+Các module trong Cosmos SDK có thể tiêu thụ block gas tại bất kỳ thời điểm nào trong quá trình thực thi bằng cách sử dụng `ctx`. Việc tiêu thụ gas này chủ yếu xảy ra trong các thao tác đọc/ghi trạng thái và xử lý giao dịch. Block gas meter, có thể truy cập qua `ctx.BlockGasMeter()`, giám sát tổng mức sử dụng gas trong một block, thực thi giới hạn gas để ngăn tính toán quá mức.
 
 ```go
 gasMeter := app.getBlockGasMeter(app.finalizeBlockState.Context())
 app.finalizeBlockState.SetContext(app.finalizeBlockState.Context().WithBlockGasMeter(gasMeter))
 ```
 
-The above shows the general mechanism for setting the block gas meter with a finite limit based on the block's consensus parameters.
+Phần trên cho thấy cơ chế chung để đặt block gas meter với giới hạn hữu hạn dựa trên các tham số đồng thuận của block.
 
 ## AnteHandler
 
-The `AnteHandler` is run for every transaction during `CheckTx` and `FinalizeBlock`, before a Protobuf `Msg` service method for each `sdk.Msg` in the transaction. 
+`AnteHandler` được chạy cho mỗi giao dịch trong `CheckTx` và `FinalizeBlock`, trước khi phương thức Protobuf `Msg` service cho mỗi `sdk.Msg` trong giao dịch được thực thi.
 
-The anteHandler is not implemented in the core Cosmos SDK but in a module. That said, most applications today use the default implementation defined in the [`auth` module](https://github.com/cosmos/cosmos-sdk/tree/main/x/auth). Here is what the `anteHandler` is intended to do in a normal Cosmos SDK application:
+AnteHandler không được triển khai trong core Cosmos SDK mà trong một module. Tuy vậy, hầu hết ứng dụng ngày nay sử dụng triển khai mặc định được định nghĩa trong [module `auth`](https://github.com/cosmos/cosmos-sdk/tree/main/x/auth). Đây là những gì `anteHandler` dự định thực hiện trong một ứng dụng Cosmos SDK thông thường:
 
-* Verify that the transactions are of the correct type. Transaction types are defined in the module that implements the `anteHandler`, and they follow the transaction interface:
+* Xác minh rằng các giao dịch có đúng loại. Các loại giao dịch được định nghĩa trong module triển khai `anteHandler`, và chúng tuân theo interface giao dịch:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/types/tx_msg.go#L53-L58
 ```
 
-  This enables developers to play with various types for the transaction of their application. In the default `auth` module, the default transaction type is `Tx`: 
+  Điều này cho phép các nhà phát triển làm việc với nhiều loại giao dịch khác nhau cho ứng dụng của họ. Trong module `auth` mặc định, loại giao dịch mặc định là `Tx`:
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0-rc.2/proto/cosmos/tx/v1beta1/tx.proto#L15-L28
 ```
 
-* Verify signatures for each [`message`](../../build/building-modules/02-messages-and-queries.md#messages) contained in the transaction. Each `message` should be signed by one or multiple sender(s), and these signatures must be verified in the `anteHandler`.
-* During `CheckTx`, verify that the gas prices provided with the transaction are greater than the local `min-gas-prices` (as a reminder, gas-prices can be deducted from the following equation: `fees = gas * gas-prices`). `min-gas-prices` is a parameter local to each full-node and used during `CheckTx` to discard transactions that do not provide a minimum amount of fees. This ensures that the mempool cannot be spammed with garbage transactions.
-* Verify that the sender of the transaction has enough funds to cover for the `fees`. When the end-user generates a transaction, they must indicate 2 of the 3 following parameters (the third one being implicit): `fees`, `gas` and `gas-prices`. This signals how much they are willing to pay for nodes to execute their transaction. The provided `gas` value is stored in a parameter called `GasWanted` for later use.
-* Set `newCtx.GasMeter` to 0, with a limit of `GasWanted`. **This step is crucial**, as it not only makes sure the transaction cannot consume infinite gas, but also that `ctx.GasMeter` is reset in-between each transaction (`ctx` is set to `newCtx` after `anteHandler` is run, and the `anteHandler` is run each time a transaction executes).
+* Xác minh chữ ký cho mỗi [`message`](../../build/building-modules/02-messages-and-queries.md#messages) chứa trong giao dịch. Mỗi `message` nên được ký bởi một hoặc nhiều người gửi, và các chữ ký này phải được xác minh trong `anteHandler`.
+* Trong `CheckTx`, xác minh rằng gas price được cung cấp cùng giao dịch lớn hơn `min-gas-prices` cục bộ (nhắc lại, gas-prices có thể được suy ra từ phương trình: `fees = gas * gas-prices`). `min-gas-prices` là tham số cục bộ cho mỗi full-node và được dùng trong `CheckTx` để loại bỏ các giao dịch không cung cấp đủ phí tối thiểu. Điều này đảm bảo mempool không thể bị spam bởi các giao dịch rác.
+* Xác minh rằng người gửi giao dịch có đủ tiền để trang trải `fees`. Khi người dùng cuối tạo giao dịch, họ phải chỉ định 2 trong 3 tham số sau (tham số thứ ba là ngầm định): `fees`, `gas` và `gas-prices`. Điều này cho biết họ sẵn lòng trả bao nhiêu để các node thực thi giao dịch của họ. Giá trị `gas` được cung cấp được lưu trong tham số `GasWanted` để dùng sau.
+* Đặt `newCtx.GasMeter` về 0, với giới hạn là `GasWanted`. **Bước này rất quan trọng**, vì nó không chỉ đảm bảo giao dịch không thể tiêu thụ gas vô hạn, mà còn đảm bảo `ctx.GasMeter` được reset giữa mỗi giao dịch (`ctx` được đặt thành `newCtx` sau khi `anteHandler` chạy, và `anteHandler` chạy mỗi lần một giao dịch thực thi).
 
-As explained above, the `anteHandler` returns a maximum limit of `gas` the transaction can consume during execution called `GasWanted`. The actual amount consumed in the end is denominated `GasUsed`, and we must therefore have `GasUsed =< GasWanted`. Both `GasWanted` and `GasUsed` are relayed to the underlying consensus engine when [`FinalizeBlock`](../advanced/00-baseapp.md#finalizeblock) returns.
+Như đã giải thích ở trên, `anteHandler` trả về giới hạn tối đa của `gas` mà giao dịch có thể tiêu thụ trong quá trình thực thi, được gọi là `GasWanted`. Lượng thực tế tiêu thụ cuối cùng được gọi là `GasUsed`, và do đó chúng ta phải có `GasUsed =< GasWanted`. Cả `GasWanted` và `GasUsed` đều được chuyển tiếp đến consensus engine bên dưới khi [`FinalizeBlock`](../advanced/00-baseapp.md#finalizeblock) trả về.

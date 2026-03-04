@@ -2,139 +2,136 @@
 sidebar_position: 1
 ---
 
-# Accounts
+# Tài Khoản
 
-:::note Synopsis
-This document describes the in-built account and public key system of the Cosmos SDK.
+:::note Tóm tắt
+Tài liệu này mô tả hệ thống tài khoản và khóa công khai tích hợp sẵn của Cosmos SDK.
 :::
 
-:::note Pre-requisite Readings
+:::note Tài liệu cần đọc trước
 
-
-* [Anatomy of a Cosmos SDK Application](./00-app-anatomy.md)
+* [Cấu trúc của một ứng dụng Cosmos SDK](./00-app-anatomy.md)
 
 :::
 
-## Account Definition
+## Định nghĩa tài khoản
 
-In the Cosmos SDK, an _account_ designates a pair of _public key_ `PubKey` and _private key_ `PrivKey`. The `PubKey` can be derived to generate various `Addresses`, which are used to identify users (among other parties) in the application. `Addresses` are also associated with [`message`s](../../build/building-modules/02-messages-and-queries.md#messages) to identify the sender of the `message`. The `PrivKey` is used to generate [digital signatures](#signatures) to prove that an `Address` associated with the `PrivKey` approved of a given `message`.
+Trong Cosmos SDK, một _tài khoản_ chỉ một cặp _khóa công khai_ `PubKey` và _khóa riêng tư_ `PrivKey`. `PubKey` có thể được suy ra để tạo ra nhiều `Address` khác nhau, được dùng để xác định người dùng (trong số các bên khác) trong ứng dụng. `Address` cũng được liên kết với [`message`](../../build/building-modules/02-messages-and-queries.md#messages) để xác định người gửi `message`. `PrivKey` được dùng để tạo [chữ ký số](#signatures) nhằm chứng minh rằng một `Address` liên kết với `PrivKey` đã phê duyệt một `message` nhất định.
 
-For HD key derivation the Cosmos SDK uses a standard called [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki). The BIP32 allows users to create an HD wallet (as specified in [BIP44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki)) - a set of accounts derived from an initial secret seed. A seed is usually created from a 12- or 24-word mnemonic. A single seed can derive any number of `PrivKey`s using a one-way cryptographic function. Then, a `PubKey` can be derived from the `PrivKey`. Naturally, the mnemonic is the most sensitive information, as private keys can always be re-generated if the mnemonic is preserved.
+Để dẫn xuất khóa HD (hierarchical deterministic), Cosmos SDK sử dụng một tiêu chuẩn gọi là [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki). BIP32 cho phép người dùng tạo một HD wallet (như được quy định trong [BIP44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki)) — một tập hợp các tài khoản được dẫn xuất từ một hạt nhân bí mật (seed) ban đầu. Seed thường được tạo từ một cụm từ ghi nhớ (mnemonic) 12 hoặc 24 từ. Một seed duy nhất có thể dẫn xuất bất kỳ số lượng `PrivKey` nào bằng cách sử dụng hàm mật mã một chiều. Sau đó, `PubKey` có thể được dẫn xuất từ `PrivKey`. Đương nhiên, mnemonic là thông tin nhạy cảm nhất, vì các khóa riêng tư luôn có thể được tái tạo nếu mnemonic được giữ nguyên.
 
 ```text
-     Account 0                         Account 1                         Account 2
+     Tài khoản 0                    Tài khoản 1                    Tài khoản 2
 
-+------------------+              +------------------+               +------------------+
-|                  |              |                  |               |                  |
-|    Address 0     |              |    Address 1     |               |    Address 2     |
-|        ^         |              |        ^         |               |        ^         |
-|        |         |              |        |         |               |        |         |
-|        |         |              |        |         |               |        |         |
-|        |         |              |        |         |               |        |         |
-|        +         |              |        +         |               |        +         |
-|  Public key 0    |              |  Public key 1    |               |  Public key 2    |
-|        ^         |              |        ^         |               |        ^         |
-|        |         |              |        |         |               |        |         |
-|        |         |              |        |         |               |        |         |
-|        |         |              |        |         |               |        |         |
-|        +         |              |        +         |               |        +         |
-|  Private key 0   |              |  Private key 1   |               |  Private key 2   |
-|        ^         |              |        ^         |               |        ^         |
-+------------------+              +------------------+               +------------------+
-         |                                 |                                  |
-         |                                 |                                  |
-         |                                 |                                  |
-         +--------------------------------------------------------------------+
-                                           |
-                                           |
-                                 +---------+---------+
-                                 |                   |
-                                 |  Master PrivKey   |
-                                 |                   |
-                                 +-------------------+
-                                           |
-                                           |
-                                 +---------+---------+
-                                 |                   |
-                                 |  Mnemonic (Seed)  |
-                                 |                   |
-                                 +-------------------+
++------------------+            +------------------+           +------------------+
+|                  |            |                  |           |                  |
+|    Address 0     |            |    Address 1     |           |    Address 2     |
+|        ^         |            |        ^         |           |        ^         |
+|        |         |            |        |         |           |        |         |
+|        |         |            |        |         |           |        |         |
+|        |         |            |        |         |           |        |         |
+|        +         |            |        +         |           |        +         |
+|  Public key 0    |            |  Public key 1    |           |  Public key 2    |
+|        ^         |            |        ^         |           |        ^         |
+|        |         |            |        |         |           |        |         |
+|        |         |            |        |         |           |        |         |
+|        |         |            |        |         |           |        |         |
+|        +         |            |        +         |           |        +         |
+|  Private key 0   |            |  Private key 1   |           |  Private key 2   |
+|        ^         |            |        ^         |           |        ^         |
++------------------+            +------------------+           +------------------+
+         |                               |                              |
+         |                               |                              |
+         |                               |                              |
+         +--------------------------------------------------------------+
+                                         |
+                                         |
+                               +---------+---------+
+                               |                   |
+                               |  Master PrivKey   |
+                               |                   |
+                               +-------------------+
+                                         |
+                                         |
+                               +---------+---------+
+                               |                   |
+                               |  Mnemonic (Seed)  |
+                               |                   |
+                               +-------------------+
 ```
 
-In the Cosmos SDK, keys are stored and managed by using an object called a [`Keyring`](#keyring).
+Trong Cosmos SDK, các khóa được lưu trữ và quản lý bằng cách sử dụng một đối tượng gọi là [`Keyring`](#keyring).
 
-## Keys, accounts, addresses, and signatures
+## Khóa, tài khoản, địa chỉ và chữ ký
 
-The principal way of authenticating a user is done using [digital signatures](https://en.wikipedia.org/wiki/Digital_signature). Users sign transactions using their own private key. Signature verification is done with the associated public key. For on-chain signature verification purposes, we store the public key in an `Account` object (alongside other data required for a proper transaction validation).
+Phương thức xác thực người dùng chính là sử dụng [chữ ký số](https://en.wikipedia.org/wiki/Digital_signature). Người dùng ký giao dịch bằng khóa riêng tư của họ. Xác minh chữ ký được thực hiện bằng khóa công khai liên kết. Để xác minh chữ ký on-chain, chúng ta lưu khóa công khai trong đối tượng `Account` (cùng với các dữ liệu khác cần thiết cho việc xác thực giao dịch đúng cách).
 
-In the node, all data is stored using Protocol Buffers serialization.
+Trong node, tất cả dữ liệu được lưu trữ bằng tuần tự hóa Protocol Buffers.
 
-The Cosmos SDK supports the following digital key schemes for creating digital signatures:
+Cosmos SDK hỗ trợ các sơ đồ khóa số sau để tạo chữ ký số:
 
-* `secp256k1`, as implemented in the [Cosmos SDK's `crypto/keys/secp256k1` package](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/keys/secp256k1/secp256k1.go).
-* `secp256r1`, as implemented in the [Cosmos SDK's `crypto/keys/secp256r1` package](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/keys/secp256r1/pubkey.go).
-* `tm-ed25519`, as implemented in the [Cosmos SDK `crypto/keys/ed25519` package](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/keys/ed25519/ed25519.go). This scheme is supported only for the consensus validation.
+* `secp256k1`, được triển khai trong [package `crypto/keys/secp256k1` của Cosmos SDK](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/keys/secp256k1/secp256k1.go).
+* `secp256r1`, được triển khai trong [package `crypto/keys/secp256r1` của Cosmos SDK](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/keys/secp256r1/pubkey.go).
+* `tm-ed25519`, được triển khai trong [package `crypto/keys/ed25519` của Cosmos SDK](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/keys/ed25519/ed25519.go). Sơ đồ này chỉ được hỗ trợ cho xác thực đồng thuận.
 
-|              | Address length in bytes | Public key length in bytes | Used for transaction authentication | Used for consensus (cometbft) |
-| :----------: | :---------------------: | :------------------------: | :---------------------------------: | :-----------------------------: |
-| `secp256k1`  |           20            |             33             |                 yes                 |               no                |
-| `secp256r1`  |           32            |             33             |                 yes                 |               no                |
-| `tm-ed25519` |     -- not used --      |             32             |                 no                  |               yes               |
+|              | Độ dài địa chỉ (byte) | Độ dài khóa công khai (byte) | Dùng cho xác thực giao dịch | Dùng cho đồng thuận (cometbft) |
+| :----------: | :-------------------: | :--------------------------: | :-------------------------: | :-----------------------------: |
+| `secp256k1`  |          20           |             33               |            có               |               không             |
+| `secp256r1`  |          32           |             33               |            có               |               không             |
+| `tm-ed25519` |    -- không dùng --   |             32               |           không             |               có                |
 
-## Addresses
+## Địa chỉ
 
-`Addresses` and `PubKey`s are both public information that identifies actors in the application. `Account` is used to store authentication information. The basic account implementation is provided by a `BaseAccount` object.
+`Address` và `PubKey` đều là thông tin công khai xác định các tác nhân trong ứng dụng. `Account` được dùng để lưu thông tin xác thực. Triển khai tài khoản cơ bản được cung cấp bởi đối tượng `BaseAccount`.
 
-Each account is identified using `Address` which is a sequence of bytes derived from a public key. In the Cosmos SDK, we define 3 types of addresses that specify a context where an account is used:
+Mỗi tài khoản được xác định bằng `Address` là một chuỗi byte được dẫn xuất từ một khóa công khai. Trong Cosmos SDK, chúng ta định nghĩa 3 loại địa chỉ xác định ngữ cảnh mà tài khoản được sử dụng:
 
-* `AccAddress` identifies users (the sender of a `message`).
-* `ValAddress` identifies validator operators.
-* `ConsAddress` identifies validator nodes that are participating in consensus. Validator nodes are derived using the **`ed25519`** curve.
+* `AccAddress` xác định người dùng (người gửi của `message`).
+* `ValAddress` xác định các operator validator.
+* `ConsAddress` xác định các validator node đang tham gia vào đồng thuận. Validator node được dẫn xuất bằng đường cong **`ed25519`**.
 
-These types implement the `Address` interface:
+Các kiểu này triển khai interface `Address`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/types/address.go#L126-L134
 ```
 
-Address construction algorithm is defined in [ADR-28](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-028-public-key-addresses.md).
-Here is the standard way to obtain an account address from a `pub` public key:
+Thuật toán xây dựng địa chỉ được định nghĩa trong [ADR-28](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-028-public-key-addresses.md). Đây là cách tiêu chuẩn để lấy địa chỉ tài khoản từ một khóa công khai `pub`:
 
 ```go
 sdk.AccAddress(pub.Address().Bytes())
 ```
 
-Of note, the `Marshal()` and `Bytes()` method both return the same raw `[]byte` form of the address. `Marshal()` is required for Protobuf compatibility.
+Đáng lưu ý, cả phương thức `Marshal()` và `Bytes()` đều trả về cùng dạng `[]byte` thô của địa chỉ. `Marshal()` được yêu cầu để tương thích với Protobuf.
 
-For user interaction, addresses are formatted using [Bech32](https://en.bitcoin.it/wiki/Bech32) and implemented by the `String` method. The Bech32 method is the only supported format to use when interacting with a blockchain. The Bech32 human-readable part (Bech32 prefix) is used to denote an address type. Example:
+Để tương tác với người dùng, địa chỉ được định dạng bằng [Bech32](https://en.bitcoin.it/wiki/Bech32) và được triển khai bởi phương thức `String`. Định dạng Bech32 là định dạng duy nhất được hỗ trợ khi tương tác với blockchain. Phần con người đọc được (human-readable part) của Bech32 (tiền tố Bech32) được dùng để biểu thị loại địa chỉ. Ví dụ:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/types/address.go#L299-L316
 ```
 
-|                    | Address Bech32 Prefix |
-| ------------------ | --------------------- |
-| Accounts           | cosmos                |
-| Validator Operator | cosmosvaloper         |
-| Consensus Nodes    | cosmosvalcons         |
+|                    | Tiền tố Bech32 của địa chỉ |
+| ------------------ | -------------------------- |
+| Tài khoản          | cosmos                     |
+| Operator Validator | cosmosvaloper              |
+| Node Consensus     | cosmosvalcons              |
 
-### Public Keys
+### Khóa công khai
 
-Public keys in Cosmos SDK are defined by `cryptotypes.PubKey` interface. Since public keys are saved in a store, `cryptotypes.PubKey` extends the `proto.Message` interface:
+Khóa công khai trong Cosmos SDK được định nghĩa bởi interface `cryptotypes.PubKey`. Vì khóa công khai được lưu trong store, `cryptotypes.PubKey` mở rộng interface `proto.Message`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/types/types.go#L8-L17
 ```
 
-A compressed format is used for `secp256k1` and `secp256r1` serialization.
+Định dạng nén được sử dụng cho tuần tự hóa `secp256k1` và `secp256r1`.
 
-* The first byte is a `0x02` byte if the `y`-coordinate is the lexicographically largest of the two associated with the `x`-coordinate.
-* Otherwise the first byte is a `0x03`.
+* Byte đầu tiên là `0x02` nếu tọa độ `y` là tọa độ lớn nhất theo thứ tự từ điển trong hai tọa độ liên kết với tọa độ `x`.
+* Ngược lại byte đầu tiên là `0x03`.
 
-This prefix is followed by the `x`-coordinate.
+Tiền tố này được theo sau bởi tọa độ `x`.
 
-Public Keys are not used to reference accounts (or users) and in general are not used when composing transaction messages (with few exceptions: `MsgCreateValidator`, `Validator` and `Multisig` messages).
-For user interactions, `PubKey` is formatted using Protobufs JSON ([ProtoMarshalJSON](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/codec/json.go#L14-L34) function). Example:
+Khóa công khai không được dùng để tham chiếu tài khoản (hoặc người dùng) và nói chung không được dùng khi soạn các message giao dịch (với một vài ngoại lệ: `MsgCreateValidator`, `Validator` và message `Multisig`). Để tương tác với người dùng, `PubKey` được định dạng bằng Protobufs JSON (hàm [ProtoMarshalJSON](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/codec/json.go#L14-L34)). Ví dụ:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/client/keys/output.go#L23-L39
@@ -142,60 +139,58 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/client/keys/output.go#L23-L39
 
 ## Keyring
 
-A `Keyring` is an object that stores and manages accounts. In the Cosmos SDK, a `Keyring` implementation follows the `Keyring` interface:
+`Keyring` là một đối tượng lưu trữ và quản lý tài khoản. Trong Cosmos SDK, một triển khai `Keyring` tuân theo interface `Keyring`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/keyring/keyring.go#L58-L106
 ```
 
-The default implementation of `Keyring` comes from the third-party [`99designs/keyring`](https://github.com/99designs/keyring) library.
+Triển khai mặc định của `Keyring` đến từ thư viện bên thứ ba [`99designs/keyring`](https://github.com/99designs/keyring).
 
-A few notes on the `Keyring` methods:
+Một vài ghi chú về các phương thức `Keyring`:
 
-* `Sign(uid string, msg []byte) ([]byte, types.PubKey, error)` strictly deals with the signature of the `msg` bytes. You must prepare and encode the transaction into a canonical `[]byte` form. Because protobuf is not deterministic, it has been decided in [ADR-020](../../build/architecture/adr-020-protobuf-transaction-encoding.md) that the canonical `payload` to sign is the `SignDoc` struct, deterministically encoded using [ADR-027](../../build/architecture/adr-027-deterministic-protobuf-serialization.md). Note that signature verification is not implemented in the Cosmos SDK by default, it is deferred to the [`anteHandler`](../advanced/00-baseapp.md#antehandler).
+* `Sign(uid string, msg []byte) ([]byte, types.PubKey, error)` xử lý nghiêm ngặt chữ ký của các byte `msg`. Bạn phải chuẩn bị và mã hóa giao dịch thành dạng `[]byte` chuẩn. Vì protobuf không xác định (non-deterministic), trong [ADR-020](../../build/architecture/adr-020-protobuf-transaction-encoding.md) đã quyết định rằng `payload` chuẩn để ký là struct `SignDoc`, được mã hóa xác định bằng [ADR-027](../../build/architecture/adr-027-deterministic-protobuf-serialization.md). Lưu ý rằng xác minh chữ ký không được triển khai mặc định trong Cosmos SDK, nó được ủy thác cho [`anteHandler`](../advanced/00-baseapp.md#antehandler).
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/proto/cosmos/tx/v1beta1/tx.proto#L50-L67
 ```
 
-* `NewAccount(uid, mnemonic, bip39Passphrase, hdPath string, algo SignatureAlgo) (*Record, error)` creates a new account based on the [`bip44 path`](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki) and persists it on disk. The `PrivKey` is **never stored unencrypted**, instead it is [encrypted with a passphrase](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/armor.go) before being persisted. In the context of this method, the key type and sequence number refer to the segment of the BIP44 derivation path (for example, `0`, `1`, `2`, ...) that is used to derive a private and a public key from the mnemonic. Using the same mnemonic and derivation path, the same `PrivKey`, `PubKey` and `Address` is generated. The following keys are supported by the keyring:
+* `NewAccount(uid, mnemonic, bip39Passphrase, hdPath string, algo SignatureAlgo) (*Record, error)` tạo một tài khoản mới dựa trên [`bip44 path`](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki) và lưu nó vào đĩa. `PrivKey` **không bao giờ được lưu dạng không mã hóa**, thay vào đó nó được [mã hóa bằng passphrase](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/armor.go) trước khi được lưu. Trong ngữ cảnh của phương thức này, loại khóa và số sequence đề cập đến phân đoạn của đường dẫn dẫn xuất BIP44 (ví dụ: `0`, `1`, `2`, ...) được dùng để dẫn xuất khóa riêng tư và công khai từ mnemonic. Sử dụng cùng mnemonic và đường dẫn dẫn xuất, cùng `PrivKey`, `PubKey` và `Address` sẽ được tạo ra. Các loại khóa sau được keyring hỗ trợ:
 
 * `secp256k1`
 * `ed25519`
 
-* `ExportPrivKeyArmor(uid, encryptPassphrase string) (armor string, err error)` exports a private key in ASCII-armored encrypted format using the given passphrase. You can then either import the private key again into the keyring using the `ImportPrivKey(uid, armor, passphrase string)` function or decrypt it into a raw private key using the `UnarmorDecryptPrivKey(armorStr string, passphrase string)` function.
+* `ExportPrivKeyArmor(uid, encryptPassphrase string) (armor string, err error)` xuất khóa riêng tư ở định dạng mã hóa ASCII-armored bằng passphrase đã cho. Sau đó bạn có thể import khóa riêng tư lại vào keyring bằng hàm `ImportPrivKey(uid, armor, passphrase string)` hoặc giải mã nó thành khóa riêng tư thô bằng hàm `UnarmorDecryptPrivKey(armorStr string, passphrase string)`.
 
-### Create New Key Type
+### Tạo loại khóa mới
 
-To create a new key type for using in keyring, `keyring.SignatureAlgo` interface must be fulfilled.
+Để tạo một loại khóa mới dùng trong keyring, interface `keyring.SignatureAlgo` phải được thỏa mãn.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/keyring/signing_algorithms.go#L11-L16
 ```
 
-The interface consists of three methods where `Name()` returns the name of the algorithm as a `hd.PubKeyType` and `Derive()` and `Generate()` must return the following functions respectively:
+Interface bao gồm ba phương thức trong đó `Name()` trả về tên của thuật toán dưới dạng `hd.PubKeyType` và `Derive()` và `Generate()` phải trả về các hàm sau tương ứng:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/hd/algo.go#L28-L31
 ```
 
-Once the `keyring.SignatureAlgo` has been implemented it must be added to the [list of supported algos](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/keyring/keyring.go#L209) of the keyring.
+Khi `keyring.SignatureAlgo` đã được triển khai, nó phải được thêm vào [danh sách các thuật toán được hỗ trợ](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/keyring/keyring.go#L209) của keyring.
 
-For simplicity the implementation of a new key type should be done inside the `crypto/hd` package.
-There is an example of a working `secp256k1` implementation in [algo.go](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/hd/algo.go#L38).
+Để đơn giản, việc triển khai loại khóa mới nên được thực hiện trong package `crypto/hd`. Có một ví dụ về triển khai `secp256k1` đang hoạt động trong [algo.go](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/hd/algo.go#L38).
 
+#### Triển khai thuật toán secp256r1
 
-#### Implementing secp256r1 algo
+Đây là ví dụ về cách secp256r1 có thể được triển khai.
 
-Here is an example of how secp256r1 could be implemented.
-
-First a new function to create a private key from a secret number is needed in the secp256r1 package. This function could look like this:
+Đầu tiên cần một hàm mới để tạo khóa riêng tư từ một số bí mật trong package secp256r1. Hàm này có thể trông như sau:
 
 ```go
 // cosmos-sdk/crypto/keys/secp256r1/privkey.go
 
-// NewPrivKeyFromSecret creates a private key derived for the secret number
-// represented in big-endian. The `secret` must be a valid ECDSA field element.
+// NewPrivKeyFromSecret tạo khóa riêng tư được dẫn xuất cho số bí mật
+// được biểu diễn dưới dạng big-endian. `secret` phải là phần tử trường ECDSA hợp lệ.
 func NewPrivKeyFromSecret(secret []byte) (*PrivKey, error) {
 	var d = new(big.Int).SetBytes(secret)
 	if d.Cmp(secp256r1.Params().N) >= 1 {
@@ -206,7 +201,7 @@ func NewPrivKeyFromSecret(secret []byte) (*PrivKey, error) {
 }
 ```
 
-After that `secp256r1Algo` can be implemented.
+Sau đó `secp256r1Algo` có thể được triển khai.
 
 ```go
 // cosmos-sdk/crypto/hd/secp256r1Algo.go
@@ -220,7 +215,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/types"
 )
 
-// Secp256r1Type uses the secp256r1 ECDSA parameters.
+// Secp256r1Type sử dụng các tham số ECDSA secp256r1.
 const Secp256r1Type = PubKeyType("secp256r1")
 
 var Secp256r1 = secp256r1Algo{}
@@ -231,7 +226,7 @@ func (s secp256r1Algo) Name() PubKeyType {
 	return Secp256r1Type
 }
 
-// Derive derives and returns the secp256r1 private key for the given seed and HD path.
+// Derive dẫn xuất và trả về khóa riêng tư secp256r1 cho seed và HD path đã cho.
 func (s secp256r1Algo) Derive() DeriveFn {
 	return func(mnemonic string, bip39Passphrase, hdPath string) ([]byte, error) {
 		seed, err := bip39.NewSeedWithErrorChecking(mnemonic, bip39Passphrase)
@@ -249,7 +244,7 @@ func (s secp256r1Algo) Derive() DeriveFn {
 	}
 }
 
-// Generate generates a secp256r1 private key from the given bytes.
+// Generate tạo khóa riêng tư secp256r1 từ các byte đã cho.
 func (s secp256r1Algo) Generate() GenerateFn {
 	return func(bz []byte) types.PrivKey {
 		key, err := secp256r1.NewPrivKeyFromSecret(bz)
@@ -261,21 +256,21 @@ func (s secp256r1Algo) Generate() GenerateFn {
 }
 ```
 
-Finally, the algo must be added to the list of [supported algos](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/keyring/keyring.go#L209) by the keyring.
+Cuối cùng, thuật toán phải được thêm vào danh sách [các thuật toán được hỗ trợ](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/crypto/keyring/keyring.go#L209) bởi keyring.
 
 ```go
 // cosmos-sdk/crypto/keyring/keyring.go
 
 func newKeystore(kr keyring.Keyring, cdc codec.Codec, backend string, opts ...Option) keystore {
-	// Default options for keybase, these can be overwritten using the
-	// Option function
+	// Các tùy chọn mặc định cho keybase, có thể bị ghi đè bằng
+	// hàm Option
 	options := Options{
-		SupportedAlgos:       SigningAlgoList{hd.Secp256k1, hd.Secp256r1}, // added here
+		SupportedAlgos:       SigningAlgoList{hd.Secp256k1, hd.Secp256r1}, // được thêm ở đây
 		SupportedAlgosLedger: SigningAlgoList{hd.Secp256k1},
 	}
 ...
 ```
 
-Hereafter to create new keys using your algo, you must specify it with the flag `--algo` :
+Sau đây để tạo khóa mới bằng thuật toán của bạn, bạn phải chỉ định nó bằng flag `--algo`:
 
 `simd keys add myKey --algo secp256r1`

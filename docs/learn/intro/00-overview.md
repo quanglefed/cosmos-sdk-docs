@@ -2,42 +2,41 @@
 sidebar_position: 1
 ---
 
-# What is the Cosmos SDK
+# Cosmos SDK là gì
 
-The [Cosmos SDK](https://github.com/cosmos/cosmos-sdk) is an open-source toolkit for building multi-asset public Proof-of-Stake (PoS) <df value="blockchain">blockchains</df>, like the Cosmos Hub, as well as permissioned Proof-of-Authority (PoA) blockchains. Blockchains built with the Cosmos SDK are generally referred to as **application-specific blockchains**.
+[Cosmos SDK](https://github.com/cosmos/cosmos-sdk) là một bộ công cụ mã nguồn mở để xây dựng các blockchain Proof-of-Stake (PoS) đa tài sản công khai, như Cosmos Hub, cũng như các blockchain Proof-of-Authority (PoA) có cấp phép. Các blockchain được xây dựng với Cosmos SDK thường được gọi là **blockchain dành riêng cho ứng dụng** (application-specific blockchains).
 
-The goal of the Cosmos SDK is to allow developers to easily create custom blockchains from scratch that can natively interoperate with other blockchains. 
-We further this modular approach by allowing developers to plug and play with different consensus engines this can range from the [CometBFT](https://github.com/cometbft/cometbft) or [Rollkit](https://rollkit.dev/). 
+Mục tiêu của Cosmos SDK là cho phép các nhà phát triển dễ dàng tạo ra các blockchain tùy chỉnh từ đầu, có khả năng tương tác gốc với các blockchain khác. Chúng tôi thúc đẩy thêm cách tiếp cận theo module này bằng cách cho phép nhà phát triển cắm vào và hoán đổi các consensus engine khác nhau — có thể là [CometBFT](https://github.com/cometbft/cometbft) hoặc [Rollkit](https://rollkit.dev/).
 
-SDK-based blockchains have the choice to use the predefined modules or to build their own modules. What this means is that developers can build a blockchain that is tailored to their specific use case, without having to worry about the low-level details of building a blockchain from scratch. Predefined modules include staking, governance, and token issuance, among others.
+Các blockchain dựa trên SDK có thể chọn sử dụng các module được định nghĩa sẵn hoặc xây dựng module của riêng mình. Điều này có nghĩa là các nhà phát triển có thể xây dựng một blockchain phù hợp với trường hợp sử dụng cụ thể của họ, mà không phải lo lắng về các chi tiết cấp thấp của việc xây dựng blockchain từ đầu. Các module được định nghĩa sẵn bao gồm staking, governance, và phát hành token, trong số nhiều module khác.
 
-What's more, the Cosmos SDK is a capabilities-based system that allows developers to better reason about the security of interactions between modules. For a deeper look at capabilities, jump to [Object-Capability Model](../advanced/10-ocap.md).
+Hơn nữa, Cosmos SDK là một hệ thống dựa trên capabilities (năng lực), cho phép các nhà phát triển suy luận tốt hơn về bảo mật của các tương tác giữa các module. Để tìm hiểu sâu hơn về capabilities, hãy xem [Mô hình Object-Capability](../advanced/10-ocap.md).
 
-How you can look at this is if we imagine that the SDK is like a lego kit. You can choose to build the basic house from the instructions or you can choose to modify your house and add more floors, more doors, more windows. The choice is yours.
+Hãy hình dung SDK giống như một bộ lego. Bạn có thể chọn xây ngôi nhà cơ bản theo hướng dẫn, hoặc bạn có thể tùy chỉnh ngôi nhà của mình và thêm nhiều tầng, nhiều cửa, nhiều cửa sổ hơn. Lựa chọn là của bạn.
 
-## What are Application-Specific Blockchains
+## Blockchain Dành Riêng Cho Ứng Dụng Là Gì
 
-One development paradigm in the blockchain world today is that of virtual-machine blockchains like Ethereum, where development generally revolves around building decentralized applications on top of an existing blockchain as a set of smart contracts. While smart contracts can be very good for some use cases like single-use applications (e.g. ICOs), they often fall short for building complex decentralized platforms. More generally, smart contracts can be limiting in terms of flexibility, sovereignty and performance.
+Một mô hình phát triển trong thế giới blockchain ngày nay là các blockchain máy ảo như Ethereum, nơi việc phát triển thường xoay quanh việc xây dựng các ứng dụng phi tập trung trên một blockchain hiện có dưới dạng tập hợp smart contract. Mặc dù smart contract rất tốt cho một số trường hợp sử dụng như các ứng dụng dùng một lần (ví dụ: ICO), chúng thường không đủ để xây dựng các nền tảng phi tập trung phức tạp. Nói chung, smart contract có thể bị hạn chế về tính linh hoạt, chủ quyền và hiệu suất.
 
-Application-specific blockchains offer a radically different development paradigm than virtual-machine blockchains. An application-specific blockchain is a blockchain customized to operate a single application: developers have all the freedom to make the design decisions required for the application to run optimally. They can also provide better sovereignty, security and performance.
+Blockchain dành riêng cho ứng dụng cung cấp một mô hình phát triển hoàn toàn khác so với blockchain máy ảo. Blockchain dành riêng cho ứng dụng là một blockchain được tùy chỉnh để vận hành một ứng dụng duy nhất: các nhà phát triển có toàn quyền tự do thực hiện các quyết định thiết kế cần thiết để ứng dụng hoạt động tối ưu. Chúng cũng có thể cung cấp chủ quyền, bảo mật và hiệu suất tốt hơn.
 
-Learn more about [application-specific blockchains](./01-why-app-specific.md).
+Tìm hiểu thêm về [blockchain dành riêng cho ứng dụng](./01-why-app-specific.md).
 
-## What is Modularity
+## Tính Module Là Gì
 
-Today there is a lot of talk around modularity and discussions between monolithic and modular. Originally the Cosmos SDK was built with a vision of modularity in mind. Modularity is derived from splitting a blockchain into customizable layers of execution, consensus, settlement and data availability, which is what the Cosmos SDK enables. This means that developers can plug and play, making their blockchain customisable by using different software for different layers. For example you can choose to build a vanilla chain and use the Cosmos SDK with CometBFT. CometBFT will be your consensus layer and the chain itself would be the settlement and execution layer. Another route could be to use the SDK with Rollkit and Celestia as your consensus and data availability layer. The benefit of modularity is that you can customize your chain to your specific use case.
+Ngày nay có nhiều cuộc thảo luận về tính module và các cuộc tranh luận giữa kiến trúc monolithic và modular. Ban đầu, Cosmos SDK được xây dựng với tầm nhìn về tính module. Tính module xuất phát từ việc tách blockchain thành các lớp có thể tùy chỉnh bao gồm thực thi (execution), đồng thuận (consensus), thanh toán (settlement) và khả dụng dữ liệu (data availability) — đây chính là những gì Cosmos SDK cho phép. Điều này có nghĩa là các nhà phát triển có thể cắm vào và hoán đổi, làm cho blockchain của họ có thể tùy chỉnh bằng cách sử dụng phần mềm khác nhau cho các lớp khác nhau. Ví dụ, bạn có thể chọn xây dựng một chuỗi cơ bản và sử dụng Cosmos SDK với CometBFT. CometBFT sẽ là lớp đồng thuận và bản thân chuỗi sẽ là lớp thanh toán và thực thi. Một hướng khác có thể là sử dụng SDK với Rollkit và Celestia làm lớp đồng thuận và khả dụng dữ liệu. Lợi ích của tính module là bạn có thể tùy chỉnh chuỗi theo trường hợp sử dụng cụ thể của mình.
 
-## Why the Cosmos SDK
+## Tại Sao Chọn Cosmos SDK
 
-The Cosmos SDK is the most advanced framework for building custom modular application-specific blockchains today. Here are a few reasons why you might want to consider building your decentralized application with the Cosmos SDK:
+Cosmos SDK là framework tiên tiến nhất để xây dựng các blockchain dành riêng cho ứng dụng theo dạng module tùy chỉnh hiện nay. Dưới đây là một vài lý do tại sao bạn có thể muốn xem xét xây dựng ứng dụng phi tập trung với Cosmos SDK:
 
-* It allows you to plug and play and customize your consensus layer. As above you can use Rollkit and Celestia as your consensus and data availability layer. This offers a lot of flexibility and customisation. 
-* Previously the default consensus engine available within the Cosmos SDK is [CometBFT](https://github.com/cometbft/cometbft). CometBFT is the most mature BFT consensus engine in existence. It is widely used across the industry and is considered the gold standard consensus engine for building Proof-of-Stake systems.
-* The Cosmos SDK is open-source and designed to make it easy to build blockchains out of composable [modules](../../build/modules). As the ecosystem of open-source Cosmos SDK modules grows, it will become increasingly easier to build complex decentralized platforms with it.
-* The Cosmos SDK is inspired by capabilities-based security, and informed by years of wrestling with blockchain state-machines. This makes the Cosmos SDK a very secure environment to build blockchains.
-* Most importantly, the Cosmos SDK has already been used to build many application-specific blockchains that are already in production. Among others, we can cite [Cosmos Hub](https://hub.cosmos.network), [IRIS Hub](https://irisnet.org), [Binance Chain](https://docs.binance.org/), [Terra](https://terra.money/) or [Kava](https://www.kava.io/). [Many more](https://cosmos.network/ecosystem) are building on the Cosmos SDK.
+* Nó cho phép bạn cắm vào và hoán đổi, tùy chỉnh lớp đồng thuận. Như đã đề cập ở trên, bạn có thể sử dụng Rollkit và Celestia làm lớp đồng thuận và khả dụng dữ liệu. Điều này mang lại rất nhiều sự linh hoạt và khả năng tùy chỉnh.
+* Trước đây, consensus engine mặc định trong Cosmos SDK là [CometBFT](https://github.com/cometbft/cometbft). CometBFT là consensus engine BFT trưởng thành nhất hiện tại. Nó được sử dụng rộng rãi trong ngành và được coi là tiêu chuẩn vàng cho việc xây dựng các hệ thống Proof-of-Stake.
+* Cosmos SDK là mã nguồn mở và được thiết kế để dễ dàng xây dựng blockchain từ các [module](../../build/modules) có thể kết hợp. Khi hệ sinh thái các module Cosmos SDK mã nguồn mở phát triển, việc xây dựng các nền tảng phi tập trung phức tạp sẽ ngày càng dễ dàng hơn.
+* Cosmos SDK được lấy cảm hứng từ bảo mật dựa trên capabilities, và được định hướng bởi nhiều năm làm việc với các state-machine blockchain. Điều này làm cho Cosmos SDK trở thành môi trường rất an toàn để xây dựng blockchain.
+* Quan trọng nhất, Cosmos SDK đã được sử dụng để xây dựng nhiều blockchain dành riêng cho ứng dụng đang hoạt động trong thực tế. Trong số đó, có thể kể đến [Cosmos Hub](https://hub.cosmos.network), [IRIS Hub](https://irisnet.org), [Binance Chain](https://docs.binance.org/), [Terra](https://terra.money/) hoặc [Kava](https://www.kava.io/). [Nhiều blockchain khác](https://cosmos.network/ecosystem) đang được xây dựng trên Cosmos SDK.
 
-## Getting started with the Cosmos SDK
+## Bắt Đầu Với Cosmos SDK
 
-* Learn more about the [architecture of a Cosmos SDK application](./02-sdk-app-architecture.md)
-* Learn how to build an application-specific blockchain from scratch with the [Cosmos SDK Tutorial](https://cosmos.network/docs/tutorial)
+* Tìm hiểu thêm về [kiến trúc của một ứng dụng Cosmos SDK](./02-sdk-app-architecture.md)
+* Tìm hiểu cách xây dựng blockchain dành riêng cho ứng dụng từ đầu với [Cosmos SDK Tutorial](https://cosmos.network/docs/tutorial)

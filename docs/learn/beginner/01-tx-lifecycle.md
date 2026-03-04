@@ -2,186 +2,147 @@
 sidebar_position: 1
 ---
 
-# Transaction Lifecycle
+# Vòng Đời Giao Dịch
 
-:::note Synopsis
-This document describes the lifecycle of a transaction from creation to committed state changes. Transaction definition is described in a [different doc](../advanced/01-transactions.md). The transaction is referred to as `Tx`.
+:::note Tóm tắt
+Tài liệu này mô tả vòng đời của một giao dịch từ khi tạo cho đến khi các thay đổi trạng thái được commit. Định nghĩa giao dịch được mô tả trong [tài liệu khác](../advanced/01-transactions.md). Giao dịch được gọi là `Tx`.
 :::
 
-:::note Pre-requisite Readings
+:::note Tài liệu cần đọc trước
 
-* [Anatomy of a Cosmos SDK Application](./00-app-anatomy.md)
+* [Cấu trúc của một ứng dụng Cosmos SDK](./00-app-anatomy.md)
 :::
 
-## Creation
+## Tạo giao dịch
 
-### Transaction Creation
+### Tạo giao dịch
 
-One of the main application interfaces is the command-line interface. The transaction `Tx` can be created by the user inputting a command in the following format from the [command-line](../advanced/07-cli.md), providing the type of transaction in `[command]`, arguments in `[args]`, and configurations such as gas prices in `[flags]`:
+Một trong những giao diện ứng dụng chính là command-line interface. Giao dịch `Tx` có thể được tạo bởi người dùng bằng cách nhập một lệnh theo định dạng sau từ [command-line](../advanced/07-cli.md), cung cấp loại giao dịch trong `[command]`, các đối số trong `[args]`, và cấu hình như gas price trong `[flags]`:
 
 ```bash
 [appname] tx [command] [args] [flags]
 ```
 
-This command automatically **creates** the transaction, **signs** it using the account's private key, and **broadcasts** it to the specified peer node.
+Lệnh này tự động **tạo** giao dịch, **ký** nó bằng private key của tài khoản, và **broadcast** nó đến peer node được chỉ định.
 
-There are several required and optional flags for transaction creation. The `--from` flag specifies which [account](./03-accounts.md) the transaction is originating from. For example, if the transaction is sending coins, the funds are drawn from the specified `from` address.
+Có một số flag bắt buộc và tùy chọn để tạo giao dịch. Flag `--from` chỉ định [tài khoản](./03-accounts.md) nào là nguồn gốc của giao dịch. Ví dụ, nếu giao dịch là gửi coin, tiền sẽ được lấy từ địa chỉ `from` được chỉ định.
 
-#### Gas and Fees
+#### Gas và Phí
 
-Additionally, there are several [flags](../advanced/07-cli.md) users can use to indicate how much they are willing to pay in [fees](./04-gas-fees.md):
+Ngoài ra, có một số [flag](../advanced/07-cli.md) mà người dùng có thể dùng để chỉ định mức sẵn lòng thanh toán trong [phí](./04-gas-fees.md):
 
-* `--gas` refers to how much [gas](./04-gas-fees.md), which represents computational resources, `Tx` consumes. Gas is dependent on the transaction and is not precisely calculated until execution, but can be estimated by providing `auto` as the value for `--gas`.
-* `--gas-adjustment` (optional) can be used to scale `gas` up in order to avoid underestimating. For example, users can specify their gas adjustment as 1.5 to use 1.5 times the estimated gas.
-* `--gas-prices` specifies how much the user is willing to pay per unit of gas, which can be one or multiple denominations of tokens. For example, `--gas-prices=0.025uatom, 0.025upho` means the user is willing to pay 0.025uatom AND 0.025upho per unit of gas.
-* `--fees` specifies how much in fees the user is willing to pay in total.
-* `--timeout-height` specifies a block timeout height to prevent the tx from being committed past a certain height.
+* `--gas` chỉ số [gas](./04-gas-fees.md), đại diện cho tài nguyên tính toán, mà `Tx` tiêu thụ. Gas phụ thuộc vào giao dịch và không được tính chính xác cho đến khi thực thi, nhưng có thể được ước tính bằng cách cung cấp `auto` làm giá trị cho `--gas`.
+* `--gas-adjustment` (tùy chọn) có thể được dùng để tăng `gas` nhằm tránh ước tính thiếu. Ví dụ, người dùng có thể chỉ định hệ số điều chỉnh gas là 1.5 để dùng 1.5 lần gas ước tính.
+* `--gas-prices` chỉ định mức người dùng sẵn lòng trả cho mỗi đơn vị gas, có thể theo một hoặc nhiều đơn vị token. Ví dụ, `--gas-prices=0.025uatom, 0.025upho` có nghĩa người dùng sẵn lòng trả 0.025uatom VÀ 0.025upho cho mỗi đơn vị gas.
+* `--fees` chỉ định tổng số phí người dùng sẵn lòng trả.
+* `--timeout-height` chỉ định chiều cao block timeout để ngăn giao dịch được commit sau một chiều cao nhất định.
 
-The ultimate value of the fees paid is equal to the gas multiplied by the gas prices. In other words, `fees = ceil(gas * gasPrices)`. Thus, since fees can be calculated using gas prices and vice versa, the users specify only one of the two.
+Giá trị cuối cùng của phí được trả bằng gas nhân với gas price. Nói cách khác, `fees = ceil(gas * gasPrices)`. Do đó, vì phí có thể được tính từ gas price và ngược lại, người dùng chỉ cần chỉ định một trong hai.
 
-Later, validators decide whether to include the transaction in their block by comparing the given or calculated `gas-prices` to their local `min-gas-prices`. `Tx` is rejected if its `gas-prices` is not high enough, so users are incentivized to pay more.
+Sau đó, các validator quyết định có đưa giao dịch vào block không bằng cách so sánh `gas-prices` được cung cấp hoặc tính toán với `min-gas-prices` cục bộ của họ. `Tx` bị từ chối nếu `gas-prices` của nó không đủ cao, do đó người dùng được khuyến khích trả nhiều hơn.
 
-#### Unordered Transactions
+#### Giao Dịch Không Có Thứ Tự (Unordered Transactions)
 
-With Cosmos SDK v0.53.0, users may send unordered transactions to chains that have this feature enabled.
-The following flags allow a user to build an unordered transaction from the CLI.
+Với Cosmos SDK v0.53.0, người dùng có thể gửi giao dịch không có thứ tự đến các chuỗi đã bật tính năng này. Các flag sau cho phép người dùng tạo giao dịch không có thứ tự từ CLI.
 
-* `--unordered` specifies that this transaction should be unordered. (transaction sequence must be unset)
-* `--timeout-duration` specifies the amount of time the unordered transaction should be valid in the mempool. The transaction's unordered nonce will be set to the time of transaction creation + timeout duration.
+* `--unordered` chỉ định rằng giao dịch này là không có thứ tự. (sequence của giao dịch phải không được đặt)
+* `--timeout-duration` chỉ định khoảng thời gian mà giao dịch không có thứ tự có hiệu lực trong mempool. Nonce không có thứ tự của giao dịch sẽ được đặt thành thời gian tạo giao dịch + timeout duration.
 
 :::warning
 
-Unordered transactions MUST leave sequence values unset. When a transaction is both unordered and contains a non-zero sequence value,
-the transaction will be rejected. External services that operate on prior assumptions about transaction sequence values should be updated to handle unordered transactions.
-Services should be aware that when the transaction is unordered, the transaction sequence will always be zero.
+Giao dịch không có thứ tự PHẢI để các giá trị sequence không được đặt. Khi một giao dịch vừa không có thứ tự vừa chứa giá trị sequence khác không, giao dịch sẽ bị từ chối. Các dịch vụ bên ngoài hoạt động dựa trên các giả định trước đây về giá trị sequence của giao dịch nên được cập nhật để xử lý giao dịch không có thứ tự. Các dịch vụ cần biết rằng khi giao dịch là không có thứ tự, sequence của giao dịch sẽ luôn bằng không.
 
 :::
 
-#### CLI Example
+#### Ví dụ CLI
 
-Users of the application `app` can enter the following command into their CLI to generate a transaction to send 1000uatom from a `senderAddress` to a `recipientAddress`. The command specifies how much gas they are willing to pay: an automatic estimate scaled up by 1.5 times, with a gas price of 0.025uatom per unit gas.
+Người dùng ứng dụng `app` có thể nhập lệnh sau vào CLI để tạo giao dịch gửi 1000uatom từ `senderAddress` đến `recipientAddress`. Lệnh chỉ định mức gas sẵn lòng trả: ước tính tự động nhân lên 1.5 lần, với gas price là 0.025uatom mỗi đơn vị gas.
 
 ```bash
 appd tx send <recipientAddress> 1000uatom --from <senderAddress> --gas auto --gas-adjustment 1.5 --gas-prices 0.025uatom
 ```
 
-#### Other Transaction Creation Methods
+#### Các phương thức tạo giao dịch khác
 
-The command-line is an easy way to interact with an application, but `Tx` can also be created using a [gRPC or REST interface](../advanced/06-grpc_rest.md) or some other entry point defined by the application developer. From the user's perspective, the interaction depends on the web interface or wallet they are using (e.g. creating `Tx` using [Lunie.io](https://lunie.io/#/) and signing it with a Ledger Nano S).
+Command-line là cách dễ dàng để tương tác với ứng dụng, nhưng `Tx` cũng có thể được tạo bằng [giao diện gRPC hoặc REST](../advanced/06-grpc_rest.md) hoặc một số điểm vào khác được định nghĩa bởi nhà phát triển ứng dụng.
 
-## Addition to Mempool
+## Thêm vào Mempool
 
-Each full-node (running CometBFT) that receives a `Tx` sends an [ABCI message](https://docs.cometbft.com/v0.37/spec/p2p/legacy-docs/messages/),
-`CheckTx`, to the application layer to check for validity, and receives an `abci.CheckTxResponse`. If the `Tx` passes the checks, it is held in the node's
-[**Mempool**](https://docs.cometbft.com/v0.37/spec/p2p/legacy-docs/messages/mempool), an in-memory pool of transactions unique to each node, pending inclusion in a block - honest nodes discard a `Tx` if it is found to be invalid. Prior to consensus, nodes continuously check incoming transactions and gossip them to their peers.
+Mỗi full-node (chạy CometBFT) nhận được một `Tx` gửi một [thông báo ABCI](https://docs.cometbft.com/v0.37/spec/p2p/legacy-docs/messages/) `CheckTx` đến lớp ứng dụng để kiểm tra tính hợp lệ, và nhận một `abci.CheckTxResponse`. Nếu `Tx` qua được các kiểm tra, nó được giữ trong [**Mempool**](https://docs.cometbft.com/v0.37/spec/p2p/legacy-docs/messages/mempool) của node — một pool giao dịch trong bộ nhớ duy nhất cho mỗi node, chờ được đưa vào block. Các node trung thực loại bỏ `Tx` nếu nó được phát hiện là không hợp lệ. Trước khi đồng thuận, các node liên tục kiểm tra các giao dịch đến và gossip chúng đến các peer.
 
-### Types of Checks
+### Các loại kiểm tra
 
-The full-nodes perform stateless, then stateful checks on `Tx` during `CheckTx`, with the goal to
-identify and reject an invalid transaction as early on as possible to avoid wasted computation.
+Các full-node thực hiện kiểm tra stateless rồi stateful trên `Tx` trong quá trình `CheckTx`, với mục tiêu xác định và từ chối giao dịch không hợp lệ càng sớm càng tốt để tránh lãng phí tính toán.
 
-**_Stateless_** checks do not require nodes to access state - light clients or offline nodes can do
-them - and are thus less computationally expensive. Stateless checks include making sure addresses
-are not empty, enforcing nonnegative numbers, and other logic specified in the definitions.
+**Kiểm tra _stateless_** không yêu cầu node truy cập trạng thái — light client hoặc node offline cũng có thể thực hiện — và do đó ít tốn kém về mặt tính toán hơn. Kiểm tra stateless bao gồm đảm bảo địa chỉ không rỗng, thực thi các số không âm, và các logic khác được chỉ định trong các định nghĩa.
 
-**_Stateful_** checks validate transactions and messages based on a committed state. Examples
-include checking that the relevant values exist and can be transacted with, the address
-has sufficient funds, and the sender is authorized or has the correct ownership to transact.
-At any given moment, full-nodes typically have [multiple versions](../advanced/00-baseapp.md#state-updates)
-of the application's internal state for different purposes. For example, nodes execute state
-changes while in the process of verifying transactions, but still need a copy of the last committed
-state in order to answer queries - they should not respond using state with uncommitted changes.
+**Kiểm tra _stateful_** xác thực giao dịch và message dựa trên trạng thái đã commit. Ví dụ bao gồm kiểm tra rằng các giá trị liên quan tồn tại và có thể giao dịch được, địa chỉ có đủ tiền, và người gửi được ủy quyền hoặc có quyền sở hữu đúng để giao dịch. Tại bất kỳ thời điểm nào, các full-node thường có [nhiều phiên bản](../advanced/00-baseapp.md#state-updates) trạng thái nội bộ của ứng dụng cho các mục đích khác nhau.
 
-In order to verify a `Tx`, full-nodes call `CheckTx`, which includes both _stateless_ and _stateful_
-checks. Further validation happens later in the [`DeliverTx`](#delivertx) stage. `CheckTx` goes
-through several steps, beginning with decoding `Tx`.
+Để xác minh `Tx`, các full-node gọi `CheckTx`, bao gồm cả kiểm tra _stateless_ và _stateful_. Việc xác thực thêm xảy ra sau đó trong giai đoạn [`DeliverTx`](#delivertx). `CheckTx` đi qua nhiều bước, bắt đầu bằng giải mã `Tx`.
 
-### Decoding
+### Giải mã (Decoding)
 
-When `Tx` is received by the application from the underlying consensus engine (e.g. CometBFT), it is still in its [encoded](../advanced/05-encoding.md) `[]byte` form and needs to be unmarshaled in order to be processed. Then, the [`runTx`](../advanced/00-baseapp.md#runtx-antehandler-runmsgs-posthandler) function is called to run in `runTxModeCheck` mode, meaning the function runs all checks but exits before executing messages and writing state changes.
+Khi `Tx` được ứng dụng nhận từ consensus engine bên dưới (ví dụ: CometBFT), nó vẫn ở dạng `[]byte` đã [mã hóa](../advanced/05-encoding.md) và cần được unmarshal để được xử lý. Sau đó, hàm [`runTx`](../advanced/00-baseapp.md#runtx-antehandler-runmsgs-posthandler) được gọi để chạy ở chế độ `runTxModeCheck`, nghĩa là hàm chạy tất cả các kiểm tra nhưng thoát trước khi thực thi các message và ghi các thay đổi trạng thái.
 
-### ValidateBasic (deprecated)
+### ValidateBasic (đã lỗi thời)
 
-Messages ([`sdk.Msg`](../advanced/01-transactions.md#messages)) are extracted from transactions (`Tx`). The `ValidateBasic` method of the `sdk.Msg` interface implemented by the module developer is run for each transaction.
-To discard obviously invalid messages, the `BaseApp` type calls the `ValidateBasic` method very early in the processing of the message in the [`CheckTx`](../advanced/00-baseapp.md#checktx) and [`DeliverTx`](../advanced/00-baseapp.md#delivertx) transactions.
-`ValidateBasic` can include only **stateless** checks (the checks that do not require access to the state). 
+Các message ([`sdk.Msg`](../advanced/01-transactions.md#messages)) được trích xuất từ giao dịch (`Tx`). Phương thức `ValidateBasic` của interface `sdk.Msg` được triển khai bởi nhà phát triển module sẽ được chạy cho mỗi giao dịch. Để loại bỏ các message rõ ràng không hợp lệ, kiểu `BaseApp` gọi phương thức `ValidateBasic` rất sớm trong quá trình xử lý message.
+
+`ValidateBasic` chỉ có thể bao gồm các kiểm tra **stateless** (các kiểm tra không yêu cầu truy cập trạng thái).
 
 :::warning
-The `ValidateBasic` method on messages has been deprecated in favor of validating messages directly in their respective [`Msg` services](../../build/building-modules/03-msg-services.md#Validation).
+Phương thức `ValidateBasic` trên message đã bị lỗi thời thay bằng cách xác thực message trực tiếp trong các [`Msg` service](../../build/building-modules/03-msg-services.md#Validation) tương ứng.
 
-Read [RFC 001](https://docs.cosmos.network/main/rfc/rfc-001-tx-validation) for more details.
+Đọc [RFC 001](https://docs.cosmos.network/main/rfc/rfc-001-tx-validation) để biết thêm chi tiết.
 :::
 
 :::note
-`BaseApp` still calls `ValidateBasic` on messages that implement that method for backwards compatibility.
+`BaseApp` vẫn gọi `ValidateBasic` trên các message triển khai phương thức đó để đảm bảo tương thích ngược.
 :::
 
-#### Guideline
+#### Hướng dẫn
 
-`ValidateBasic` should not be used anymore. Message validation should be performed in the `Msg` service when [handling a message](../../build/building-modules/msg-services#Validation) in a module Msg Server.
+`ValidateBasic` không nên được dùng nữa. Việc xác thực message nên được thực hiện trong `Msg` service khi [xử lý một message](../../build/building-modules/msg-services#Validation) trong module Msg Server.
 
 ### AnteHandler
 
-`AnteHandler`s even though optional, are in practice very often used to perform signature verification, gas calculation, fee deduction, and other core operations related to blockchain transactions.
+`AnteHandler`, dù tùy chọn, nhưng trong thực tế thường được dùng để thực hiện xác minh chữ ký, tính toán gas, khấu trừ phí, và các hoạt động cốt lõi khác liên quan đến giao dịch blockchain.
 
-A copy of the cached context is provided to the `AnteHandler`, which performs limited checks specified for the transaction type. Using a copy allows the `AnteHandler` to do stateful checks for `Tx` without modifying the last committed state, and revert back to the original if the execution fails.
+Một bản sao của cached context được cung cấp cho `AnteHandler`, thực hiện các kiểm tra giới hạn được chỉ định cho loại giao dịch. Sử dụng bản sao cho phép `AnteHandler` thực hiện các kiểm tra stateful cho `Tx` mà không sửa đổi trạng thái đã commit cuối cùng, và hoàn tác về trạng thái ban đầu nếu thực thi thất bại.
 
-For example, the [`auth`](https://github.com/cosmos/cosmos-sdk/blob/main/x/auth/README.md) module `AnteHandler` checks and increments sequence numbers, checks signatures and account numbers, and deducts fees from the first signer of the transaction - all state changes are made using the `checkState`.
+Ví dụ, `AnteHandler` của module [`auth`](https://github.com/cosmos/cosmos-sdk/blob/main/x/auth/README.md) kiểm tra và tăng số sequence, kiểm tra chữ ký và số tài khoản, và khấu trừ phí từ người ký đầu tiên của giao dịch.
 
 :::warning
-Ante handlers only run on a transaction. If a transaction embeds multiple messages (like some x/authz, x/gov transactions for instance), the ante handlers only have awareness of the outer message. Inner messages are mostly directly routed to the [message router](https://docs.cosmos.network/main/learn/advanced/baseapp#msg-service-router) and will skip the chain of ante handlers. Keep that in mind when designing your own ante handler.
+Ante handler chỉ chạy trên một giao dịch. Nếu một giao dịch nhúng nhiều message (như một số giao dịch x/authz, x/gov chẳng hạn), ante handler chỉ biết về message ngoài. Các message bên trong chủ yếu được định tuyến trực tiếp đến [message router](https://docs.cosmos.network/main/learn/advanced/baseapp#msg-service-router) và sẽ bỏ qua chuỗi ante handler. Hãy ghi nhớ điều này khi thiết kế ante handler của bạn.
 :::
 
 ### Gas
 
-The [`Context`](../advanced/02-context.md), which keeps a `GasMeter` that tracks how much gas is used during the execution of `Tx`, is initialized. The user-provided amount of gas for `Tx` is known as `GasWanted`. If `GasConsumed`, the amount of gas consumed during execution, ever exceeds `GasWanted`, the execution stops and the changes made to the cached copy of the state are not committed. Otherwise, `CheckTx` sets `GasUsed` equal to `GasConsumed` and returns it in the result. After calculating the gas and fee values, validator-nodes check that the user-specified `gas-prices` is greater than their locally defined `min-gas-prices`.
+[`Context`](../advanced/02-context.md), giữ một `GasMeter` theo dõi lượng gas đã sử dụng trong quá trình thực thi `Tx`, được khởi tạo. Lượng gas mà người dùng cung cấp cho `Tx` được gọi là `GasWanted`. Nếu `GasConsumed` — lượng gas tiêu thụ trong quá trình thực thi — vượt quá `GasWanted`, việc thực thi dừng lại và các thay đổi đối với bản sao cached của trạng thái không được commit. Ngược lại, `CheckTx` đặt `GasUsed` bằng `GasConsumed` và trả về trong kết quả. Sau khi tính toán giá trị gas và phí, validator node kiểm tra rằng `gas-prices` do người dùng chỉ định lớn hơn `min-gas-prices` được định nghĩa cục bộ của họ.
 
-### Discard or Addition to Mempool
+### Loại bỏ hoặc Thêm vào Mempool
 
-If at any point during `CheckTx` the `Tx` fails, it is discarded and the transaction lifecycle ends
-there. Otherwise, if it passes `CheckTx` successfully, the default protocol is to relay it to peer
-nodes and add it to the Mempool so that the `Tx` becomes a candidate to be included in the next block.
+Nếu tại bất kỳ thời điểm nào trong `CheckTx` mà `Tx` thất bại, nó bị loại bỏ và vòng đời giao dịch kết thúc ở đó. Nếu không, nếu nó qua `CheckTx` thành công, giao thức mặc định là chuyển tiếp nó đến các peer node và thêm vào Mempool để `Tx` trở thành ứng cử viên được đưa vào block tiếp theo.
 
-The **mempool** serves the purpose of keeping track of transactions seen by all full-nodes.
-Full-nodes keep a **mempool cache** of the last `mempool.cache_size` transactions they have seen, as a first line of
-defense to prevent replay attacks. Ideally, `mempool.cache_size` is large enough to encompass all
-of the transactions in the full mempool. If the mempool cache is too small to keep track of all
-the transactions, `CheckTx` is responsible for identifying and rejecting replayed transactions.
+**Mempool** phục vụ mục đích theo dõi các giao dịch được tất cả full-node thấy. Full-node giữ một **bộ nhớ cache mempool** của `mempool.cache_size` giao dịch cuối cùng mà chúng đã thấy, như lớp phòng thủ đầu tiên để ngăn chặn tấn công replay. Lý tưởng nhất, `mempool.cache_size` đủ lớn để bao gồm tất cả giao dịch trong mempool đầy đủ. Nếu bộ nhớ cache mempool quá nhỏ, `CheckTx` chịu trách nhiệm xác định và từ chối các giao dịch replay.
 
-Currently existing preventative measures include fees and a `sequence` (nonce) counter to distinguish
-replayed transactions from identical but valid ones. If an attacker tries to spam nodes with many
-copies of a `Tx`, full-nodes keeping a mempool cache reject all identical copies instead of running
-`CheckTx` on them. Even if the copies have incremented `sequence` numbers, attackers are
-disincentivized by the need to pay fees.
+Các biện pháp phòng ngừa hiện có bao gồm phí và bộ đếm `sequence` (nonce) để phân biệt giao dịch replay với các giao dịch giống hệt nhưng hợp lệ. Nếu kẻ tấn công cố spam các node với nhiều bản sao của `Tx`, các full-node giữ bộ nhớ cache mempool sẽ từ chối tất cả bản sao giống nhau thay vì chạy `CheckTx` trên chúng. Ngay cả khi các bản sao có số `sequence` tăng dần, kẻ tấn công bị cản trở bởi nhu cầu trả phí.
 
-Validator nodes keep a mempool to prevent replay attacks, just as full-nodes do, but also use it as
-a pool of unconfirmed transactions in preparation of block inclusion. Note that even if a `Tx`
-passes all checks at this stage, it is still possible to be found invalid later on, because
-`CheckTx` does not fully validate the transaction (that is, it does not actually execute the messages).
+Các validator node giữ mempool để ngăn chặn tấn công replay, giống như full-node, nhưng cũng dùng nó như một pool giao dịch chưa xác nhận để chuẩn bị đưa vào block. Lưu ý rằng ngay cả khi `Tx` vượt qua tất cả kiểm tra ở giai đoạn này, nó vẫn có thể bị phát hiện là không hợp lệ sau này, vì `CheckTx` không xác thực đầy đủ giao dịch (tức là không thực sự thực thi các message).
 
-## Inclusion in a Block
+## Đưa vào Block
 
-Consensus, the process through which validator nodes come to agreement on which transactions to
-accept, happens in **rounds**. Each round begins with a proposer creating a block of the most
-recent transactions and ends with **validators**, special full-nodes with voting power responsible
-for consensus, agreeing to accept the block or go with a `nil` block instead. Validator nodes
-execute the consensus algorithm, such as [CometBFT](https://docs.cometbft.com/v0.37/spec/consensus/),
-confirming the transactions using ABCI requests to the application, in order to come to this agreement.
+Đồng thuận, quá trình mà các validator node đồng ý về giao dịch nào cần chấp nhận, xảy ra theo **vòng**. Mỗi vòng bắt đầu với một proposer tạo một block gồm các giao dịch gần đây nhất và kết thúc với **validator** — các full-node đặc biệt có voting power chịu trách nhiệm đồng thuận — đồng ý chấp nhận block hoặc chọn block `nil` thay thế. Các validator node thực thi thuật toán đồng thuận như [CometBFT](https://docs.cometbft.com/v0.37/spec/consensus/) để đi đến thỏa thuận này.
 
-The first step of consensus is the **block proposal**. One proposer amongst the validators is chosen
-by the consensus algorithm to create and propose a block - in order for a `Tx` to be included, it
-must be in this proposer's mempool.
+Bước đầu tiên của đồng thuận là **đề xuất block**. Một proposer trong số các validator được thuật toán đồng thuận chọn để tạo và đề xuất block — để `Tx` được đưa vào, nó phải có trong mempool của proposer này.
 
-## State Changes
+## Thay Đổi Trạng Thái
 
-The next step of consensus is to execute the transactions to fully validate them. All full-nodes
-that receive a block proposal from the correct proposer execute the transactions by calling the ABCI function `FinalizeBlock`. 
-As mentioned throughout the documentation `BeginBlock`, `ExecuteTx` and `EndBlock` are called within FinalizeBlock. 
-Although every full-node operates individually and locally, the outcome is always consistent and unequivocal. This is because the state changes brought about by the messages are predictable, and the transactions are specifically sequenced in the proposed block.
+Bước tiếp theo của đồng thuận là thực thi các giao dịch để xác thực đầy đủ chúng. Tất cả full-node nhận được đề xuất block từ proposer đúng sẽ thực thi các giao dịch bằng cách gọi hàm ABCI `FinalizeBlock`. Như đã đề cập xuyên suốt tài liệu, `BeginBlock`, `ExecuteTx` và `EndBlock` được gọi bên trong `FinalizeBlock`. Mặc dù mỗi full-node hoạt động độc lập và cục bộ, kết quả luôn nhất quán và rõ ràng, vì các thay đổi trạng thái do message mang lại là có thể dự đoán được và các giao dịch được sắp xếp cụ thể trong block được đề xuất.
 
 ```text
         --------------------------
-        | Receive Block Proposal |
+        | Nhận đề xuất block     |
         --------------------------
                     |
                     v
@@ -221,64 +182,30 @@ Although every full-node operates individually and locally, the outcome is alway
         -------------------------
 ```
 
-### Transaction Execution
+### Thực Thi Giao Dịch
 
-The `FinalizeBlock` ABCI function defined in [`BaseApp`](../advanced/00-baseapp.md) does the bulk of the
-state transitions: it is run for each transaction in the block in sequential order as committed
-to during consensus. Under the hood, transaction execution is almost identical to `CheckTx` but calls the
-[`runTx`](../advanced/00-baseapp.md#runtx) function in deliver mode instead of check mode.
-Instead of using their `checkState`, full-nodes use `finalizeblock`:
+Hàm ABCI `FinalizeBlock` được định nghĩa trong [`BaseApp`](../advanced/00-baseapp.md) thực hiện phần lớn các chuyển đổi trạng thái: nó được chạy cho mỗi giao dịch trong block theo thứ tự tuần tự như đã commit trong quá trình đồng thuận. Về cơ bản, việc thực thi giao dịch gần giống với `CheckTx` nhưng gọi hàm [`runTx`](../advanced/00-baseapp.md#runtx) ở chế độ deliver thay vì check mode. Thay vì dùng `checkState`, các full-node dùng `finalizeblock`:
 
-* **Decoding:** Since `FinalizeBlock` is an ABCI call, `Tx` is received in the encoded `[]byte` form.
-  Nodes first unmarshal the transaction, using the [`TxConfig`](./00-app-anatomy.md#register-codec) defined in the app, then call `runTx` in `execModeFinalize`, which is very similar to `CheckTx` but also executes and writes state changes.
+* **Giải mã:** Vì `FinalizeBlock` là một lời gọi ABCI, `Tx` được nhận ở dạng `[]byte` đã mã hóa. Các node trước tiên unmarshal giao dịch bằng [`TxConfig`](./00-app-anatomy.md#register-codec) được định nghĩa trong ứng dụng, sau đó gọi `runTx` trong `execModeFinalize`, rất giống với `CheckTx` nhưng cũng thực thi và ghi các thay đổi trạng thái.
 
-* **Checks and `AnteHandler`:** Full-nodes call `validateBasicMsgs` and `AnteHandler` again. This second check
-  happens because they may not have seen the same transactions during the addition to Mempool stage 
-  and a malicious proposer may have included invalid ones. One difference here is that the
-  `AnteHandler` does not compare `gas-prices` to the node's `min-gas-prices` since that value is local
-  to each node - differing values across nodes yield nondeterministic results.
+* **Kiểm tra và `AnteHandler`:** Full-node gọi `validateBasicMsgs` và `AnteHandler` một lần nữa. Lần kiểm tra thứ hai này xảy ra vì chúng có thể không đã thấy các giao dịch tương tự trong giai đoạn thêm vào Mempool, và một proposer độc hại có thể đã bao gồm các giao dịch không hợp lệ. Một điểm khác biệt là `AnteHandler` không so sánh `gas-prices` với `min-gas-prices` của node vì giá trị đó là cục bộ cho mỗi node.
 
-* **`MsgServiceRouter`:** After `CheckTx` exits, `FinalizeBlock` continues to run
-  [`runMsgs`](../advanced/00-baseapp.md#runtx-antehandler-runmsgs-posthandler) to fully execute each `Msg` within the transaction.
-  Since the transaction may have messages from different modules, `BaseApp` needs to know which module
-  to find the appropriate handler. This is achieved using `BaseApp`'s `MsgServiceRouter` so that it can be processed by the module's Protobuf [`Msg` service](../../build/building-modules/03-msg-services.md).
-  For `LegacyMsg` routing, the `Route` function is called via the [module manager](../../build/building-modules/01-module-manager.md) to retrieve the route name and find the legacy [`Handler`](../../build/building-modules/03-msg-services.md#handler-type) within the module.
-  
-* **`Msg` service:** Protobuf `Msg` service is responsible for executing each message in the `Tx` and causes state transitions to persist in `finalizeBlockState`.
+* **`MsgServiceRouter`:** Sau khi `CheckTx` thoát, `FinalizeBlock` tiếp tục chạy [`runMsgs`](../advanced/00-baseapp.md#runtx-antehandler-runmsgs-posthandler) để thực thi đầy đủ mỗi `Msg` trong giao dịch. Vì giao dịch có thể có message từ các module khác nhau, `BaseApp` cần biết module nào để tìm handler phù hợp bằng cách dùng `MsgServiceRouter` của `BaseApp`.
 
-* **PostHandlers:** [`PostHandler`](../advanced/00-baseapp.md#posthandler)s run after the execution of the message. If they fail, the state change of `runMsgs`, as well of `PostHandlers`, are both reverted.
+* **`Msg` service:** Protobuf `Msg` service chịu trách nhiệm thực thi mỗi message trong `Tx` và gây ra các chuyển đổi trạng thái được lưu trong `finalizeBlockState`.
 
-* **Gas:** While a `Tx` is being delivered, a `GasMeter` is used to keep track of how much
-  gas is being used; if execution completes, `GasUsed` is set and returned in the
-  `abci.ExecTxResult`. If execution halts because `BlockGasMeter` or `GasMeter` has run out or something else goes
-  wrong, a deferred function at the end appropriately errors or panics.
+* **PostHandlers:** [`PostHandler`](../advanced/00-baseapp.md#posthandler) chạy sau khi thực thi message. Nếu chúng thất bại, thay đổi trạng thái của `runMsgs` cũng như `PostHandlers` đều bị hoàn tác.
 
-If there are any failed state changes resulting from a `Tx` being invalid or `GasMeter` running out,
-the transaction processing terminates and any state changes are reverted. Invalid transactions in a
-block proposal cause validator nodes to reject the block and vote for a `nil` block instead.
+* **Gas:** Trong khi `Tx` đang được xử lý, `GasMeter` được dùng để theo dõi lượng gas đang được sử dụng; nếu thực thi hoàn tất, `GasUsed` được đặt và trả về trong `abci.ExecTxResult`. Nếu thực thi dừng vì `BlockGasMeter` hoặc `GasMeter` đã cạn hoặc có gì đó sai, một hàm deferred ở cuối sẽ xử lý lỗi hoặc panic phù hợp.
+
+Nếu có bất kỳ thay đổi trạng thái thất bại nào do `Tx` không hợp lệ hoặc `GasMeter` cạn kiệt, quá trình xử lý giao dịch kết thúc và mọi thay đổi trạng thái đều bị hoàn tác. Giao dịch không hợp lệ trong đề xuất block khiến validator node từ chối block và bỏ phiếu cho block `nil` thay thế.
 
 ### Commit
 
-The final step is for nodes to commit the block and state changes. Validator nodes
-perform the previous step of executing state transitions in order to validate the transactions,
-then sign the block to confirm it. Full nodes that are not validators do not
-participate in consensus - i.e. they cannot vote - but listen for votes to understand whether or
-not they should commit the state changes.
+Bước cuối cùng là các node commit block và thay đổi trạng thái. Các validator node thực hiện bước thực thi chuyển đổi trạng thái trước đó để xác thực các giao dịch, sau đó ký block để xác nhận nó. Các full-node không phải validator không tham gia vào đồng thuận — tức là họ không thể bỏ phiếu — nhưng lắng nghe các phiếu bầu để hiểu liệu họ có nên commit các thay đổi trạng thái hay không.
 
-When they receive enough validator votes (2/3+ _precommits_ weighted by voting power), full nodes commit to a new block to be added to the blockchain and
-finalize the state transitions in the application layer. A new state root is generated to serve as
-a merkle proof for the state transitions. Applications use the [`Commit`](../advanced/00-baseapp.md#commit)
-ABCI method inherited from [Baseapp](../advanced/00-baseapp.md); it syncs all the state transitions by
-writing the `deliverState` into the application's internal state. As soon as the state changes are
-committed, `checkState` starts afresh from the most recently committed state and `deliverState`
-resets to `nil` in order to be consistent and reflect the changes.
+Khi nhận đủ phiếu validator (2/3+ _precommit_ được tính theo voting power), các full-node commit vào một block mới để thêm vào blockchain và hoàn thiện các chuyển đổi trạng thái trong lớp ứng dụng. Một state root mới được tạo ra để phục vụ như bằng chứng merkle cho các chuyển đổi trạng thái. Ứng dụng sử dụng phương thức ABCI [`Commit`](../advanced/00-baseapp.md#commit) kế thừa từ [Baseapp](../advanced/00-baseapp.md); nó đồng bộ tất cả các chuyển đổi trạng thái bằng cách ghi `deliverState` vào trạng thái nội bộ của ứng dụng. Ngay khi các thay đổi trạng thái được commit, `checkState` bắt đầu lại từ trạng thái đã commit gần đây nhất và `deliverState` được reset về `nil`.
 
-Note that not all blocks have the same number of transactions and it is possible for consensus to
-result in a `nil` block or one with none at all. In a public blockchain network, it is also possible
-for validators to be **byzantine**, or malicious, which may prevent a `Tx` from being committed in
-the blockchain. Possible malicious behaviors include the proposer deciding to censor a `Tx` by
-excluding it from the block or a validator voting against the block.
+Lưu ý rằng không phải tất cả block đều có cùng số lượng giao dịch và đồng thuận có thể dẫn đến block `nil` hoặc block không có giao dịch. Trong một mạng blockchain công khai, các validator cũng có thể **byzantine** — tức là độc hại — điều này có thể ngăn `Tx` được commit vào blockchain.
 
-At this point, the transaction lifecycle of a `Tx` is over: nodes have verified its validity,
-delivered it by executing its state changes, and committed those changes. The `Tx` itself,
-in `[]byte` form, is stored in a block and appended to the blockchain.
+Tại đây, vòng đời giao dịch của `Tx` đã hoàn tất: các node đã xác minh tính hợp lệ của nó, thực thi bằng cách thực hiện các thay đổi trạng thái của nó, và commit các thay đổi đó. Bản thân `Tx`, ở dạng `[]byte`, được lưu trong một block và được nối thêm vào blockchain.

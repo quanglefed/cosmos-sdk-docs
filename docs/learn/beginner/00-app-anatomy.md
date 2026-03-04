@@ -2,21 +2,21 @@
 sidebar_position: 1
 ---
 
-# Anatomy of a Cosmos SDK Application
+# Cấu Trúc Của Một Ứng Dụng Cosmos SDK
 
-:::note Synopsis
-This document describes the core parts of a Cosmos SDK application, represented throughout the document as a placeholder application named `app`.
+:::note Tóm tắt
+Tài liệu này mô tả các thành phần cốt lõi của một ứng dụng Cosmos SDK, được đề cập xuyên suốt tài liệu dưới dạng một ứng dụng mẫu có tên `app`.
 :::
 
 ## Node Client
 
-The Daemon, or [Full-Node Client](../advanced/03-node.md), is the core process of a Cosmos SDK-based blockchain. Participants in the network run this process to initialize their state-machine, connect with other full-nodes, and update their state-machine as new blocks come in.
+Daemon, hay còn gọi là [Full-Node Client](../advanced/03-node.md), là tiến trình cốt lõi của một blockchain dựa trên Cosmos SDK. Các thành viên tham gia mạng lưới chạy tiến trình này để khởi tạo state-machine của họ, kết nối với các full-node khác, và cập nhật state-machine khi có block mới đến.
 
 ```text
                 ^  +-------------------------------+  ^
                 |  |                               |  |
                 |  |  State-machine = Application  |  |
-                |  |                               |  |   Built with Cosmos SDK
+                |  |                               |  |   Xây dựng với Cosmos SDK
                 |  |            ^      +           |  |
                 |  +----------- | ABCI | ----------+  v
                 |  |            +      v           |  ^
@@ -30,67 +30,67 @@ Blockchain Node |  |           Consensus           |  |
                 v  +-------------------------------+  v
 ```
 
-The blockchain full-node presents itself as a binary, generally suffixed by `-d` for "daemon" (e.g. `appd` for `app` or `gaiad` for `gaia`). This binary is built by running a simple [`main.go`](../advanced/03-node.md#main-function) function placed in `./cmd/appd/`. This operation usually happens through the [Makefile](#dependencies-and-makefile).
+Full-node của blockchain được trình bày dưới dạng một binary, thường có hậu tố `-d` cho "daemon" (ví dụ: `appd` cho `app` hoặc `gaiad` cho `gaia`). Binary này được xây dựng bằng cách chạy một hàm [`main.go`](../advanced/03-node.md#main-function) đơn giản đặt trong `./cmd/appd/`. Thao tác này thường được thực hiện thông qua [Makefile](#dependencies-and-makefile).
 
-Once the main binary is built, the node can be started by running the [`start` command](../advanced/03-node.md#start-command). This command function primarily does three things:
+Khi binary chính đã được xây dựng, node có thể được khởi động bằng cách chạy [lệnh `start`](../advanced/03-node.md#start-command). Hàm lệnh này chủ yếu thực hiện ba việc:
 
-1. Create an instance of the state-machine defined in [`app.go`](#core-application-file).
-2. Initialize the state-machine with the latest known state, extracted from the `db` stored in the `~/.app/data` folder. At this point, the state-machine is at height `appBlockHeight`.
-3. Create and start a new CometBFT instance. Among other things, the node performs a handshake with its peers. It gets the latest `blockHeight` from them and replays blocks to sync to this height if it is greater than the local `appBlockHeight`. The node starts from genesis and CometBFT sends an `InitChain` message via the ABCI to the `app`, which triggers the [`InitChainer`](#initchainer).
+1. Tạo một instance của state-machine được định nghĩa trong [`app.go`](#core-application-file).
+2. Khởi tạo state-machine với trạng thái mới nhất đã biết, được lấy từ `db` lưu trong thư mục `~/.app/data`. Tại thời điểm này, state-machine ở chiều cao `appBlockHeight`.
+3. Tạo và khởi động một instance CometBFT mới. Trong số các thứ khác, node thực hiện handshake với các peer. Nó lấy `blockHeight` mới nhất từ chúng và phát lại các block để đồng bộ đến chiều cao đó nếu lớn hơn `appBlockHeight` cục bộ. Node bắt đầu từ genesis và CometBFT gửi thông báo `InitChain` qua ABCI đến `app`, kích hoạt [`InitChainer`](#initchainer).
 
 :::note
-When starting a CometBFT instance, the genesis file is the `0` height and the state within the genesis file is committed at block height `1`. When querying the state of the node, querying block height 0 will return an error.
-::: 
+Khi khởi động một instance CometBFT, file genesis là chiều cao `0` và trạng thái trong file genesis được commit tại chiều cao block `1`. Khi truy vấn trạng thái của node, truy vấn chiều cao block 0 sẽ trả về lỗi.
+:::
 
-## Core Application File
+## File Ứng Dụng Cốt Lõi
 
-In general, the core of the state-machine is defined in a file called `app.go`. This file mainly contains the **type definition of the application** and functions to **create and initialize it**.
+Nói chung, cốt lõi của state-machine được định nghĩa trong một file gọi là `app.go`. File này chủ yếu chứa **định nghĩa kiểu (type) của ứng dụng** và các hàm để **tạo và khởi tạo** nó.
 
-### Type Definition of the Application
+### Định nghĩa kiểu của ứng dụng
 
-The first thing defined in `app.go` is the `type` of the application. It is generally comprised of the following parts:
+Thứ đầu tiên được định nghĩa trong `app.go` là `type` của ứng dụng. Nó thường bao gồm các phần sau:
 
-* **Embedding [runtime.App](../../build/building-apps/00-runtime.md)** The runtime package manages the application's core components and modules through dependency injection. It provides declarative configuration for module management, state storage, and ABCI handling.
-    * `Runtime` wraps `BaseApp`, meaning when a transaction is relayed by CometBFT to the application, `app` uses `runtime`'s methods to route them to the appropriate module. `BaseApp` implements all the [ABCI methods](https://docs.cometbft.com/v0.38/spec/abci/) and the [routing logic](../advanced/00-baseapp.md#service-routers).
-    * It automatically configures the **[module manager](../../build/building-modules/01-module-manager.md#manager)** based on the app wiring configuration. The module manager facilitates operations related to these modules, like registering their [`Msg` service](../../build/building-modules/03-msg-services.md) and [gRPC `Query` service](#grpc-query-services), or setting the order of execution between modules for various functions like [`InitChainer`](#initchainer), [`PreBlocker`](#preblocker) and [`BeginBlocker` and `EndBlocker`](#beginblocker-and-endblocker).
-* [**An App Wiring configuration file**](../../build/building-apps/00-runtime.md) The app wiring configuration file contains the list of application's modules that `runtime` must instantiate. The instantiation of the modules is done using `depinject`. It also contains the order in which all modules' `InitGenesis` and `Pre/Begin/EndBlocker` methods should be executed.
-* **A reference to an [`appCodec`](../advanced/05-encoding.md).** The application's `appCodec` is used to serialize and deserialize data structures in order to store them, as stores can only persist `[]bytes`. The default codec is [Protocol Buffers](../advanced/05-encoding.md).
-* **A reference to a [`legacyAmino`](../advanced/05-encoding.md) codec.** Some parts of the Cosmos SDK have not been migrated to use the `appCodec` above, and are still hardcoded to use Amino. Other parts explicitly use Amino for backwards compatibility. For these reasons, the application still holds a reference to the legacy Amino codec. Please note that the Amino codec will be removed from the SDK in the upcoming releases.
+* **Nhúng [runtime.App](../../build/building-apps/00-runtime.md)**: Package runtime quản lý các thành phần cốt lõi và module của ứng dụng thông qua dependency injection. Nó cung cấp cấu hình khai báo cho quản lý module, lưu trữ trạng thái, và xử lý ABCI.
+    * `Runtime` bọc `BaseApp`, nghĩa là khi một giao dịch được CometBFT chuyển tiếp đến ứng dụng, `app` sử dụng các phương thức của `runtime` để định tuyến chúng đến module thích hợp. `BaseApp` triển khai tất cả [ABCI methods](https://docs.cometbft.com/v0.38/spec/abci/) và [routing logic](../advanced/00-baseapp.md#service-routers).
+    * Nó tự động cấu hình **[module manager](../../build/building-modules/01-module-manager.md#manager)** dựa trên cấu hình app wiring. Module manager tạo điều kiện cho các hoạt động liên quan đến các module này, như đăng ký [`Msg` service](../../build/building-modules/03-msg-services.md) và [gRPC `Query` service](#grpc-query-services), hoặc đặt thứ tự thực thi giữa các module cho các hàm như [`InitChainer`](#initchainer), [`PreBlocker`](#preblocker) và [`BeginBlocker` và `EndBlocker`](#beginblocker-and-endblocker).
+* [**File cấu hình App Wiring**](../../build/building-apps/00-runtime.md): File cấu hình app wiring chứa danh sách các module của ứng dụng mà `runtime` phải khởi tạo. Việc khởi tạo các module được thực hiện bằng `depinject`. Nó cũng chứa thứ tự mà tất cả các phương thức `InitGenesis` và `Pre/Begin/EndBlocker` của các module nên được thực thi.
+* **Tham chiếu đến một [`appCodec`](../advanced/05-encoding.md).** `appCodec` của ứng dụng được dùng để tuần tự hóa và giải tuần tự hóa các cấu trúc dữ liệu để lưu trữ, vì store chỉ có thể lưu `[]bytes`. Codec mặc định là [Protocol Buffers](../advanced/05-encoding.md).
+* **Tham chiếu đến codec [`legacyAmino`](../advanced/05-encoding.md).** Một số phần của Cosmos SDK chưa được chuyển sang dùng `appCodec` và vẫn được hardcode để dùng Amino. Các phần khác dùng Amino tường minh vì lý do tương thích ngược. Vì những lý do này, ứng dụng vẫn giữ tham chiếu đến codec Amino cũ. Lưu ý rằng codec Amino sẽ bị xóa khỏi SDK trong các phiên bản sắp tới.
 
-See an example of application type definition from `simapp`, the Cosmos SDK's own app used for demo and testing purposes:
+Xem ví dụ về định nghĩa kiểu ứng dụng từ `simapp`, ứng dụng của chính Cosmos SDK dùng cho demo và kiểm thử:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/app_di.go#L57-L90
 ```
 
-### Constructor Function
+### Hàm Constructor
 
-Also defined in `app.go` is the constructor function, which constructs a new application of the type defined in the preceding section. The function must fulfill the `AppCreator` signature in order to be used in the [`start` command](../advanced/03-node.md#start-command) of the application's daemon command.
+Cũng được định nghĩa trong `app.go` là hàm constructor, hàm này xây dựng một ứng dụng mới theo kiểu được định nghĩa ở phần trên. Hàm phải thỏa mãn chữ ký `AppCreator` để được sử dụng trong [lệnh `start`](../advanced/03-node.md#start-command) của lệnh daemon của ứng dụng.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/server/types/app.go#L67-L69
 ```
 
-Here are the main actions performed by this function:
+Dưới đây là các hành động chính được thực hiện bởi hàm này:
 
-* Instantiate a new [`codec`](../advanced/05-encoding.md) and initialize the `codec` of each of the application's modules using the [basic manager](../../build/building-modules/01-module-manager.md#basicmanager).
-* Instantiate a new application with a reference to a `baseapp` instance, a codec, and all the appropriate store keys.
-* Instantiate all the [`keeper`](#keeper) objects defined in the application's `type` using the `NewKeeper` function of each of the application's modules. Note that keepers must be instantiated in the correct order, as the `NewKeeper` of one module might require a reference to another module's `keeper`.
-* Instantiate the application's [module manager](../../build/building-modules/01-module-manager.md#manager) with the [`AppModule`](#application-module-interface) object of each of the application's modules.
-* With the module manager, initialize the application's [`Msg` services](../advanced/00-baseapp.md#msg-services), [gRPC `Query` services](../advanced/00-baseapp.md#grpc-query-services), [legacy `Msg` routes](../advanced/00-baseapp.md#routing), and [legacy query routes](../advanced/00-baseapp.md#query-routing). When a transaction is relayed to the application by CometBFT via the ABCI, it is routed to the appropriate module's [`Msg` service](#msg-services) using the routes defined here. Likewise, when a gRPC query request is received by the application, it is routed to the appropriate module's [`gRPC query service`](#grpc-query-services) using the gRPC routes defined here. The Cosmos SDK still supports legacy `Msg`s and legacy CometBFT queries, which are routed using the legacy `Msg` routes and the legacy query routes, respectively.
-* With the module manager, register the [application's modules' invariants](../../build/building-modules/07-invariants.md). Invariants are variables (e.g. total supply of a token) that are evaluated at the end of each block. The process of checking invariants is done via a special module called the [`InvariantsRegistry`](../../build/building-modules/07-invariants.md#invariant-registry). The value of the invariant should be equal to a predicted value defined in the module. Should the value be different than the predicted one, special logic defined in the invariant registry is triggered (usually the chain is halted). This is useful to make sure that no critical bug goes unnoticed, producing long-lasting effects that are hard to fix.
-* With the module manager, set the order of execution between the `InitGenesis`, `PreBlocker`, `BeginBlocker`, and `EndBlocker` functions of each of the [application's modules](#application-module-interface). Note that not all modules implement these functions.
-* Set the remaining application parameters:
-    * [`InitChainer`](#initchainer): used to initialize the application when it is first started.
-    * [`PreBlocker`](#preblocker): called before BeginBlock.
-    * [`BeginBlocker`, `EndBlocker`](#beginblocker-and-endblocker): called at the beginning and at the end of every block.
-    * [`anteHandler`](../advanced/00-baseapp.md#antehandler): used to handle fees and signature verification.
-* Mount the stores.
-* Return the application.
+* Khởi tạo một [`codec`](../advanced/05-encoding.md) mới và khởi tạo `codec` của mỗi module của ứng dụng bằng cách dùng [basic manager](../../build/building-modules/01-module-manager.md#basicmanager).
+* Khởi tạo một ứng dụng mới với tham chiếu đến một instance `baseapp`, một codec, và tất cả các store key phù hợp.
+* Khởi tạo tất cả các đối tượng [`keeper`](#keeper) được định nghĩa trong `type` của ứng dụng bằng cách dùng hàm `NewKeeper` của mỗi module. Lưu ý rằng keeper phải được khởi tạo theo đúng thứ tự, vì `NewKeeper` của một module có thể yêu cầu tham chiếu đến `keeper` của module khác.
+* Khởi tạo [module manager](../../build/building-modules/01-module-manager.md#manager) của ứng dụng với đối tượng [`AppModule`](#application-module-interface) của mỗi module.
+* Với module manager, khởi tạo các [`Msg` service](../advanced/00-baseapp.md#msg-services), [gRPC `Query` service](../advanced/00-baseapp.md#grpc-query-services), [legacy `Msg` route](../advanced/00-baseapp.md#routing) và [legacy query route](../advanced/00-baseapp.md#query-routing) của ứng dụng. Khi một giao dịch được CometBFT chuyển tiếp đến ứng dụng qua ABCI, nó được định tuyến đến [`Msg` service](#msg-services) của module phù hợp sử dụng các route được định nghĩa ở đây. Tương tự, khi một yêu cầu truy vấn gRPC được ứng dụng nhận, nó được định tuyến đến [`gRPC query service`](#grpc-query-services) của module phù hợp.
+* Với module manager, đăng ký [các invariant của module ứng dụng](../../build/building-modules/07-invariants.md). Invariant là các biến (ví dụ: tổng cung của một token) được đánh giá vào cuối mỗi block. Quá trình kiểm tra invariant được thực hiện qua một module đặc biệt gọi là [`InvariantsRegistry`](../../build/building-modules/07-invariants.md#invariant-registry). Giá trị của invariant phải bằng một giá trị dự đoán được định nghĩa trong module. Nếu giá trị khác với giá trị dự đoán, logic đặc biệt được định nghĩa trong invariant registry sẽ được kích hoạt (thường là chuỗi bị dừng).
+* Với module manager, đặt thứ tự thực thi giữa các hàm `InitGenesis`, `PreBlocker`, `BeginBlocker` và `EndBlocker` của mỗi [module của ứng dụng](#application-module-interface). Lưu ý rằng không phải tất cả module đều triển khai các hàm này.
+* Đặt các tham số ứng dụng còn lại:
+    * [`InitChainer`](#initchainer): dùng để khởi tạo ứng dụng khi nó lần đầu được khởi động.
+    * [`PreBlocker`](#preblocker): được gọi trước BeginBlock.
+    * [`BeginBlocker`, `EndBlocker`](#beginblocker-and-endblocker): được gọi ở đầu và cuối mỗi block.
+    * [`anteHandler`](../advanced/00-baseapp.md#antehandler): dùng để xử lý phí và xác minh chữ ký.
+* Mount các store.
+* Trả về ứng dụng.
 
-Note that the constructor function only creates an instance of the app, while the actual state is either carried over from the `~/.app/data` folder if the node is restarted, or generated from the genesis file if the node is started for the first time.
+Lưu ý rằng hàm constructor chỉ tạo một instance của ứng dụng, trong khi trạng thái thực tế hoặc được mang từ thư mục `~/.app/data` nếu node được khởi động lại, hoặc được tạo từ file genesis nếu node được khởi động lần đầu.
 
-See an example of application constructor from `simapp`:
+Xem ví dụ về constructor ứng dụng từ `simapp`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/app.go#L190-L708
@@ -98,11 +98,11 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/app.go#L190-L708
 
 ### InitChainer
 
-The `InitChainer` is a function that initializes the state of the application from a genesis file (i.e. token balances of genesis accounts). It is called when the application receives the `InitChain` message from the CometBFT engine, which happens when the node is started at `appBlockHeight == 0` (i.e. on genesis). The application must set the `InitChainer` in its [constructor](#constructor-function) via the [`SetInitChainer`](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/baseapp#BaseApp.SetInitChainer) method.
+`InitChainer` là một hàm khởi tạo trạng thái của ứng dụng từ một file genesis (tức là số dư token của các tài khoản genesis). Nó được gọi khi ứng dụng nhận thông báo `InitChain` từ CometBFT engine, điều này xảy ra khi node được khởi động tại `appBlockHeight == 0` (tức là khi genesis). Ứng dụng phải đặt `InitChainer` trong [constructor](#constructor-function) của nó qua phương thức [`SetInitChainer`](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/baseapp#BaseApp.SetInitChainer).
 
-In general, the `InitChainer` is mostly composed of the [`InitGenesis`](../../build/building-modules/08-genesis.md#initgenesis) function of each of the application's modules. This is done by calling the `InitGenesis` function of the module manager, which in turn calls the `InitGenesis` function of each of the modules it contains. Note that the order in which the modules' `InitGenesis` functions must be called has to be set in the module manager using the [module manager's](../../build/building-modules/01-module-manager.md) `SetOrderInitGenesis` method. This is done in the [application's constructor](#constructor-function), and the `SetOrderInitGenesis` has to be called before the `SetInitChainer`.
+Nói chung, `InitChainer` chủ yếu bao gồm hàm [`InitGenesis`](../../build/building-modules/08-genesis.md#initgenesis) của mỗi module trong ứng dụng. Điều này được thực hiện bằng cách gọi hàm `InitGenesis` của module manager, hàm này lần lượt gọi `InitGenesis` của mỗi module chứa trong nó. Lưu ý rằng thứ tự gọi hàm `InitGenesis` của các module phải được đặt trong module manager bằng phương thức `SetOrderInitGenesis`. Điều này được thực hiện trong [constructor của ứng dụng](#constructor-function) và `SetOrderInitGenesis` phải được gọi trước `SetInitChainer`.
 
-See an example of an `InitChainer` from `simapp`:
+Xem ví dụ về `InitChainer` từ `simapp`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/app.go#L765-L773
@@ -110,170 +110,165 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/app.go#L765-L773
 
 ### PreBlocker
 
-There are two semantics around the new lifecycle method:
+Có hai ngữ nghĩa xung quanh phương thức vòng đời mới này:
 
-* It runs before the `BeginBlocker` of all modules
-* It can modify consensus parameters in storage, and signal the caller through the return value.
+* Nó chạy trước `BeginBlocker` của tất cả các module.
+* Nó có thể sửa đổi các tham số đồng thuận trong storage và thông báo cho caller thông qua giá trị trả về.
 
-When it returns `ConsensusParamsChanged=true`, the caller must refresh the consensus parameter in the finalize context:
+Khi nó trả về `ConsensusParamsChanged=true`, caller phải làm mới tham số đồng thuận trong finalize context:
 
 ```go
 app.finalizeBlockState.ctx = app.finalizeBlockState.ctx.WithConsensusParams(app.GetConsensusParams())
 ```
 
-The new ctx must be passed to all the other lifecycle methods.
+Context mới phải được truyền cho tất cả các phương thức vòng đời khác.
 
-### BeginBlocker and EndBlocker
+### BeginBlocker và EndBlocker
 
-The Cosmos SDK offers developers the possibility to implement automatic execution of code as part of their application. This is implemented through two functions called `BeginBlocker` and `EndBlocker`. They are called when the application receives the `FinalizeBlock` messages from the CometBFT consensus engine, which happens respectively at the beginning and at the end of each block. The application must set the `BeginBlocker` and `EndBlocker` in its [constructor](#constructor-function) via the [`SetBeginBlocker`](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/baseapp#BaseApp.SetBeginBlocker) and [`SetEndBlocker`](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/baseapp#BaseApp.SetEndBlocker) methods.
+Cosmos SDK cung cấp cho các nhà phát triển khả năng triển khai việc thực thi code tự động như một phần của ứng dụng của họ. Điều này được triển khai qua hai hàm gọi là `BeginBlocker` và `EndBlocker`. Chúng được gọi khi ứng dụng nhận thông báo `FinalizeBlock` từ CometBFT consensus engine, điều này xảy ra tương ứng ở đầu và cuối mỗi block. Ứng dụng phải đặt `BeginBlocker` và `EndBlocker` trong [constructor](#constructor-function) của nó qua các phương thức [`SetBeginBlocker`](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/baseapp#BaseApp.SetBeginBlocker) và [`SetEndBlocker`](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/baseapp#BaseApp.SetEndBlocker).
 
-In general, the `BeginBlocker` and `EndBlocker` functions are mostly composed of the [`BeginBlock` and `EndBlock`](../../build/building-modules/06-beginblock-endblock.md) functions of each of the application's modules. This is done by calling the `BeginBlock` and `EndBlock` functions of the module manager, which in turn calls the `BeginBlock` and `EndBlock` functions of each of the modules it contains. Note that the order in which the modules' `BeginBlock` and `EndBlock` functions must be called has to be set in the module manager using the `SetOrderBeginBlockers` and `SetOrderEndBlockers` methods, respectively. This is done via the [module manager](../../build/building-modules/01-module-manager.md) in the [application's constructor](#application-constructor), and the `SetOrderBeginBlockers` and `SetOrderEndBlockers` methods have to be called before the `SetBeginBlocker` and `SetEndBlocker` functions.
+Nói chung, các hàm `BeginBlocker` và `EndBlocker` chủ yếu bao gồm các hàm [`BeginBlock` và `EndBlock`](../../build/building-modules/06-beginblock-endblock.md) của mỗi module trong ứng dụng. Điều này được thực hiện bằng cách gọi các hàm `BeginBlock` và `EndBlock` của module manager, hàm này lần lượt gọi `BeginBlock` và `EndBlock` của mỗi module. Thứ tự gọi phải được đặt trong module manager bằng các phương thức `SetOrderBeginBlockers` và `SetOrderEndBlockers`.
 
-As a sidenote, it is important to remember that application-specific blockchains are deterministic. Developers must be careful not to introduce non-determinism in `BeginBlocker` or `EndBlocker`, and must also be careful not to make them too computationally expensive, as [gas](./04-gas-fees.md) does not constrain the cost of `BeginBlocker` and `EndBlocker` execution.
+Cần lưu ý rằng các blockchain dành riêng cho ứng dụng là xác định (deterministic). Các nhà phát triển phải cẩn thận không đưa tính không xác định vào `BeginBlocker` hoặc `EndBlocker`, và cũng phải cẩn thận không làm chúng quá tốn kém về mặt tính toán, vì [gas](./04-gas-fees.md) không ràng buộc chi phí thực thi của `BeginBlocker` và `EndBlocker`.
 
-See an example of `BeginBlocker` and `EndBlocker` functions from `simapp`:
+Xem ví dụ về các hàm `BeginBlocker` và `EndBlocker` từ `simapp`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/app.go#L752-L759
 ```
 
-### Register Codec
+### Đăng ký Codec
 
-The `EncodingConfig` structure is the last important part of the `app.go` file. The goal of this structure is to define the codecs that will be used throughout the app.
+Cấu trúc `EncodingConfig` là phần quan trọng cuối cùng của file `app.go`. Mục tiêu của cấu trúc này là định nghĩa các codec sẽ được sử dụng xuyên suốt ứng dụng.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/params/encoding.go#L9-L16
 ```
 
-Here are descriptions of what each of the four fields means:
+Dưới đây là mô tả ý nghĩa của bốn trường:
 
-* `InterfaceRegistry`: The `InterfaceRegistry` is used by the Protobuf codec to handle interfaces that are encoded and decoded (we also say "unpacked") using [`google.protobuf.Any`](https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/any.proto). `Any` could be thought as a struct that contains a `type_url` (name of a concrete type implementing the interface) and a `value` (its encoded bytes). `InterfaceRegistry` provides a mechanism for registering interfaces and implementations that can be safely unpacked from `Any`. Each application module implements the `RegisterInterfaces` method that can be used to register the module's own interfaces and implementations.
-    * You can read more about `Any` in [ADR-019](../../build/architecture/adr-019-protobuf-state-encoding.md).
-    * To go more into details, the Cosmos SDK uses an implementation of the Protobuf specification called [`gogoprotobuf`](https://github.com/cosmos/gogoproto). By default, the [gogo protobuf implementation of `Any`](https://pkg.go.dev/github.com/cosmos/gogoproto/types) uses [global type registration](https://github.com/cosmos/gogoproto/blob/master/proto/properties.go#L540) to decode values packed in `Any` into concrete Go types. This introduces a vulnerability where any malicious module in the dependency tree could register a type with the global protobuf registry and cause it to be loaded and unmarshaled by a transaction that referenced it in the `type_url` field. For more information, please refer to [ADR-019](../../build/architecture/adr-019-protobuf-state-encoding.md).
-* `Codec`: The default codec used throughout the Cosmos SDK. It is composed of a `BinaryCodec` used to encode and decode state, and a `JSONCodec` used to output data to the users (for example, in the [CLI](#cli)). By default, the SDK uses Protobuf as `Codec`.
-* `TxConfig`: `TxConfig` defines an interface a client can utilize to generate an application-defined concrete transaction type. Currently, the SDK handles two transaction types: `SIGN_MODE_DIRECT` (which uses Protobuf binary as over-the-wire encoding) and `SIGN_MODE_LEGACY_AMINO_JSON` (which depends on Amino). Read more about transactions [here](../advanced/01-transactions.md).
-* `Amino`: Some legacy parts of the Cosmos SDK still use Amino for backwards-compatibility. Each module exposes a `RegisterLegacyAmino` method to register the module's specific types within Amino. This `Amino` codec should not be used by app developers anymore, and will be removed in future releases.
+* `InterfaceRegistry`: `InterfaceRegistry` được dùng bởi codec Protobuf để xử lý các interface được mã hóa và giải mã (còn gọi là "unpack") bằng [`google.protobuf.Any`](https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/any.proto). `Any` có thể được coi như một struct chứa `type_url` (tên của kiểu cụ thể triển khai interface) và `value` (các byte được mã hóa của nó). `InterfaceRegistry` cung cấp cơ chế để đăng ký các interface và các triển khai có thể được unpack an toàn từ `Any`. Mỗi module ứng dụng triển khai phương thức `RegisterInterfaces` có thể được dùng để đăng ký các interface và triển khai của module.
+* `Codec`: Codec mặc định được dùng xuyên suốt Cosmos SDK. Nó bao gồm `BinaryCodec` dùng để mã hóa và giải mã trạng thái, và `JSONCodec` dùng để xuất dữ liệu cho người dùng (ví dụ: trong [CLI](#cli)). Mặc định SDK dùng Protobuf làm `Codec`.
+* `TxConfig`: `TxConfig` định nghĩa một interface mà client có thể sử dụng để tạo kiểu giao dịch cụ thể do ứng dụng định nghĩa. Hiện tại, SDK xử lý hai loại giao dịch: `SIGN_MODE_DIRECT` (dùng Protobuf binary làm mã hóa truyền qua mạng) và `SIGN_MODE_LEGACY_AMINO_JSON` (phụ thuộc vào Amino).
+* `Amino`: Một số phần cũ của Cosmos SDK vẫn dùng Amino để tương thích ngược. Mỗi module expose một phương thức `RegisterLegacyAmino` để đăng ký các kiểu cụ thể của module trong Amino. Codec `Amino` này không nên được nhà phát triển ứng dụng sử dụng nữa và sẽ bị xóa trong các phiên bản tương lai.
 
-An application should create its own encoding config.
-See an example of a `simappparams.EncodingConfig` from `simapp`:
+Một ứng dụng nên tạo encoding config riêng của mình. Xem ví dụ về `simappparams.EncodingConfig` từ `simapp`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/params/encoding.go#L11-L16
 ```
 
-## Modules
+## Các Module
 
-[Modules](../../build/building-modules/00-intro.md) are the heart and soul of Cosmos SDK applications. They can be considered as state-machines nested within the state-machine. When a transaction is relayed from the underlying CometBFT engine via the ABCI to the application, it is routed by [`baseapp`](../advanced/00-baseapp.md) to the appropriate module in order to be processed. This paradigm enables developers to easily build complex state-machines, as most of the modules they need often already exist. **For developers, most of the work involved in building a Cosmos SDK application revolves around building custom modules required by their application that do not exist yet, and integrating them with modules that do already exist into one coherent application**. In the application directory, the standard practice is to store modules in the `x/` folder (not to be confused with the Cosmos SDK's `x/` folder, which contains already-built modules).
+[Module](../../build/building-modules/00-intro.md) là trái tim và linh hồn của các ứng dụng Cosmos SDK. Chúng có thể được coi là các state-machine lồng nhau bên trong state-machine. Khi một giao dịch được CometBFT engine chuyển tiếp qua ABCI đến ứng dụng, nó được [`baseapp`](../advanced/00-baseapp.md) định tuyến đến module thích hợp để được xử lý. Mô hình này giúp các nhà phát triển dễ dàng xây dựng các state-machine phức tạp, vì hầu hết các module họ cần thường đã tồn tại sẵn. **Với các nhà phát triển, phần lớn công việc khi xây dựng một ứng dụng Cosmos SDK xoay quanh việc xây dựng các module tùy chỉnh mà ứng dụng cần nhưng chưa tồn tại, và tích hợp chúng với các module đã tồn tại thành một ứng dụng gắn kết.** Trong thư mục ứng dụng, thực hành tiêu chuẩn là lưu trữ module trong thư mục `x/` (không nhầm với thư mục `x/` của Cosmos SDK chứa các module đã được xây dựng sẵn).
 
-### Application Module Interface
+### Giao Diện Module Ứng Dụng
 
-Modules must implement [interfaces](../../build/building-modules/01-module-manager.md#application-module-interfaces) defined in the Cosmos SDK, [`AppModuleBasic`](../../build/building-modules/01-module-manager.md#appmodulebasic) and [`AppModule`](../../build/building-modules/01-module-manager.md#appmodule). The former implements basic non-dependent elements of the module, such as the `codec`, while the latter handles the bulk of the module methods (including methods that require references to other modules' `keeper`s). Both the `AppModule` and `AppModuleBasic` types are, by convention, defined in a file called `module.go`.
+Các module phải triển khai [các interface](../../build/building-modules/01-module-manager.md#application-module-interfaces) được định nghĩa trong Cosmos SDK, [`AppModuleBasic`](../../build/building-modules/01-module-manager.md#appmodulebasic) và [`AppModule`](../../build/building-modules/01-module-manager.md#appmodule). Interface trước triển khai các phần tử cơ bản không phụ thuộc của module như `codec`, trong khi interface sau xử lý phần lớn các phương thức của module (bao gồm các phương thức yêu cầu tham chiếu đến `keeper` của các module khác). Cả hai kiểu `AppModule` và `AppModuleBasic` đều được quy ước định nghĩa trong một file gọi là `module.go`.
 
-`AppModule` exposes a collection of useful methods on the module that facilitates the composition of modules into a coherent application. These methods are called from the [`module manager`](../../build/building-modules/01-module-manager.md#manager), which manages the application's collection of modules.
+`AppModule` expose một tập hợp các phương thức hữu ích trên module giúp kết hợp các module thành một ứng dụng gắn kết. Các phương thức này được gọi từ [`module manager`](../../build/building-modules/01-module-manager.md#manager), quản lý tập hợp các module của ứng dụng.
 
 ### `Msg` Services
 
-Each application module defines two [Protobuf services](https://developers.google.com/protocol-buffers/docs/proto#services): one `Msg` service to handle messages, and one gRPC `Query` service to handle queries. If we consider the module as a state-machine, then a `Msg` service is a set of state transition RPC methods.
-Each Protobuf `Msg` service method is 1:1 related to a Protobuf request type, which must implement `sdk.Msg` interface.
-Note that `sdk.Msg`s are bundled in [transactions](../advanced/01-transactions.md), and each transaction contains one or multiple messages.
+Mỗi module ứng dụng định nghĩa hai [Protobuf service](https://developers.google.com/protocol-buffers/docs/proto#services): một `Msg` service để xử lý message, và một gRPC `Query` service để xử lý truy vấn. Nếu coi module như một state-machine, thì `Msg` service là tập hợp các phương thức RPC chuyển đổi trạng thái. Mỗi phương thức `Msg` service Protobuf có quan hệ 1:1 với một kiểu yêu cầu Protobuf, phải triển khai interface `sdk.Msg`. Lưu ý rằng các `sdk.Msg` được đóng gói trong [giao dịch](../advanced/01-transactions.md), và mỗi giao dịch chứa một hoặc nhiều message.
 
-When a valid block of transactions is received by the full-node, CometBFT relays each one to the application via [`DeliverTx`](https://docs.cometbft.com/v0.37/spec/abci/abci++_app_requirements#specifics-of-responsedelivertx). Then, the application handles the transaction:
+Khi một block giao dịch hợp lệ được full-node nhận, CometBFT chuyển tiếp từng giao dịch đến ứng dụng qua [`DeliverTx`](https://docs.cometbft.com/v0.37/spec/abci/abci++_app_requirements#specifics-of-responsedelivertx). Sau đó ứng dụng xử lý giao dịch:
 
-1. Upon receiving the transaction, the application first unmarshals it from `[]byte`.
-2. Then, it verifies a few things about the transaction like [fee payment and signatures](./04-gas-fees.md#antehandler) before extracting the `Msg`(s) contained in the transaction.
-3. `sdk.Msg`s are encoded using Protobuf [`Any`s](#register-codec). By analyzing each `Any`'s `type_url`, baseapp's `msgServiceRouter` routes the `sdk.Msg` to the corresponding module's `Msg` service.
-4. If the message is successfully processed, the state is updated.
+1. Khi nhận được giao dịch, ứng dụng trước tiên giải mã (unmarshal) nó từ `[]byte`.
+2. Sau đó, nó xác minh một số thứ về giao dịch như [thanh toán phí và chữ ký](./04-gas-fees.md#antehandler) trước khi trích xuất các `Msg` chứa trong giao dịch.
+3. Các `sdk.Msg` được mã hóa bằng Protobuf [`Any`](#register-codec). Bằng cách phân tích `type_url` của mỗi `Any`, `msgServiceRouter` của baseapp định tuyến `sdk.Msg` đến `Msg` service của module tương ứng.
+4. Nếu message được xử lý thành công, trạng thái được cập nhật.
 
-For more details, see [transaction lifecycle](./01-tx-lifecycle.md).
+Để biết thêm chi tiết, xem [vòng đời giao dịch](./01-tx-lifecycle.md).
 
-Module developers create custom `Msg` services when they build their own module. The general practice is to define the `Msg` Protobuf service in a `tx.proto` file. For example, the `x/bank` module defines a service with two methods to transfer tokens:
+Nhà phát triển module tạo các `Msg` service tùy chỉnh khi họ xây dựng module của mình. Thực hành thông thường là định nghĩa `Msg` Protobuf service trong file `tx.proto`. Ví dụ, module `x/bank` định nghĩa một service với hai phương thức để chuyển token:
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/proto/cosmos/bank/v1beta1/tx.proto#L13-L36
 ```
 
-Service methods use `keeper` in order to update the module state.
+Các phương thức service sử dụng `keeper` để cập nhật trạng thái module.
 
-Each module should also implement the `RegisterServices` method as part of the [`AppModule` interface](#application-module-interface). This method should call the `RegisterMsgServer` function provided by the generated Protobuf code.
+Mỗi module cũng nên triển khai phương thức `RegisterServices` như một phần của [interface `AppModule`](#application-module-interface). Phương thức này nên gọi hàm `RegisterMsgServer` được cung cấp bởi code Protobuf được tạo ra.
 
 ### gRPC `Query` Services
 
-gRPC `Query` services allow users to query the state using [gRPC](https://grpc.io). They are enabled by default, and can be configured under the `grpc.enable` and `grpc.address` fields inside [`app.toml`](../../user/run-node/01-run-node.md#configuring-the-node-using-apptoml-and-configtoml).
+gRPC `Query` service cho phép người dùng truy vấn trạng thái bằng [gRPC](https://grpc.io). Chúng được bật theo mặc định và có thể được cấu hình trong các trường `grpc.enable` và `grpc.address` bên trong [`app.toml`](../../user/run-node/01-run-node.md#configuring-the-node-using-apptoml-and-configtoml).
 
-gRPC `Query` services are defined in the module's Protobuf definition files, specifically inside `query.proto`. The `query.proto` definition file exposes a single `Query` [Protobuf service](https://developers.google.com/protocol-buffers/docs/proto#services). Each gRPC query endpoint corresponds to a service method, starting with the `rpc` keyword, inside the `Query` service.
+gRPC `Query` service được định nghĩa trong các file định nghĩa Protobuf của module, cụ thể trong `query.proto`. File định nghĩa `query.proto` expose một `Query` [Protobuf service](https://developers.google.com/protocol-buffers/docs/proto#services) duy nhất. Mỗi gRPC query endpoint tương ứng với một phương thức service, bắt đầu bằng từ khóa `rpc`, bên trong `Query` service.
 
-Protobuf generates a `QueryServer` interface for each module, containing all the service methods. A module's [`keeper`](#keeper) then needs to implement this `QueryServer` interface, by providing the concrete implementation of each service method. This concrete implementation is the handler of the corresponding gRPC query endpoint.
+Protobuf tạo ra interface `QueryServer` cho mỗi module, chứa tất cả các phương thức service. [`keeper`](#keeper) của module sau đó cần triển khai interface `QueryServer` này bằng cách cung cấp triển khai cụ thể của mỗi phương thức service.
 
-Finally, each module should also implement the `RegisterServices` method as part of the [`AppModule` interface](#application-module-interface). This method should call the `RegisterQueryServer` function provided by the generated Protobuf code.
+Cuối cùng, mỗi module cũng nên triển khai phương thức `RegisterServices` như một phần của [interface `AppModule`](#application-module-interface). Phương thức này nên gọi hàm `RegisterQueryServer` được cung cấp bởi code Protobuf được tạo ra.
 
 ### Keeper
 
-[`Keepers`](../../build/building-modules/06-keeper.md) are the gatekeepers of their module's store(s). To read or write in a module's store, it is mandatory to go through one of its `keeper`'s methods. This is ensured by the [object-capabilities](../advanced/10-ocap.md) model of the Cosmos SDK. Only objects that hold the key to a store can access it, and only the module's `keeper` should hold the key(s) to the module's store(s).
+[`Keeper`](../../build/building-modules/06-keeper.md) là những người gác cổng của các store trong module. Để đọc hoặc ghi vào store của module, bắt buộc phải đi qua một trong các phương thức `keeper` của nó. Điều này được đảm bảo bởi mô hình [object-capability](../advanced/10-ocap.md) của Cosmos SDK. Chỉ các đối tượng giữ key đến store mới có thể truy cập nó, và chỉ `keeper` của module mới nên giữ key đến store của module đó.
 
-`Keepers` are generally defined in a file called `keeper.go`. It contains the `keeper`'s type definition and methods.
+`Keeper` thường được định nghĩa trong một file gọi là `keeper.go`. Nó chứa định nghĩa kiểu và các phương thức của `keeper`.
 
-The `keeper` type definition generally consists of the following:
+Định nghĩa kiểu của `keeper` thường bao gồm:
 
-* **Key(s)** to the module's store(s) in the multistore.
-* Reference to **other module's `keepers`**. Only needed if the `keeper` needs to access other module's store(s) (either to read or write from them).
-* A reference to the application's **codec**. The `keeper` needs it to marshal structs before storing them, or to unmarshal them when it retrieves them, because stores only accept `[]bytes` as value.
+* **Key** đến các store của module trong multistore.
+* Tham chiếu đến **`keeper` của các module khác**. Chỉ cần thiết nếu `keeper` cần truy cập store của module khác (để đọc hoặc ghi).
+* Tham chiếu đến **codec** của ứng dụng. `keeper` cần nó để marshal các struct trước khi lưu, hoặc unmarshal khi lấy ra, vì store chỉ chấp nhận `[]bytes` làm giá trị.
 
-Along with the type definition, the next important component of the `keeper.go` file is the `keeper`'s constructor function, `NewKeeper`. This function instantiates a new `keeper` of the type defined above with a `codec`, stores `keys` and potentially references other modules' `keeper`s as parameters. The `NewKeeper` function is called from the [application's constructor](#constructor-function). The rest of the file defines the `keeper`'s methods, which are primarily getters and setters.
+Cùng với định nghĩa kiểu, thành phần quan trọng tiếp theo trong file `keeper.go` là hàm constructor `NewKeeper`. Hàm này khởi tạo một `keeper` mới theo kiểu được định nghĩa ở trên với `codec`, các `key` store và có thể tham chiếu đến `keeper` của các module khác làm tham số. Hàm `NewKeeper` được gọi từ [constructor của ứng dụng](#constructor-function). Phần còn lại của file định nghĩa các phương thức của `keeper`, chủ yếu là getter và setter.
 
-### Command-Line, gRPC Services and REST Interfaces
+### Giao Diện CLI, gRPC Services và REST
 
-Each module defines command-line commands, gRPC services, and REST routes to be exposed to the end-user via the [application's interfaces](#application-interfaces). This enables end-users to create messages of the types defined in the module, or to query the subset of the state managed by the module.
+Mỗi module định nghĩa các lệnh command-line, gRPC service và REST route để được expose cho người dùng cuối qua [giao diện của ứng dụng](#application-interfaces). Điều này cho phép người dùng cuối tạo các message theo kiểu được định nghĩa trong module, hoặc truy vấn tập con trạng thái được quản lý bởi module.
 
 #### CLI
 
-Generally, the [commands related to a module](../../build/building-modules/09-module-interfaces.md#cli) are defined in a folder called `client/cli` in the module's folder. The CLI divides commands into two categories, transactions and queries, defined in `client/cli/tx.go` and `client/cli/query.go`, respectively. Both commands are built on top of the [Cobra Library](https://github.com/spf13/cobra):
+Nói chung, [các lệnh liên quan đến module](../../build/building-modules/09-module-interfaces.md#cli) được định nghĩa trong một thư mục gọi là `client/cli` trong thư mục module. CLI chia lệnh thành hai loại, giao dịch và truy vấn, được định nghĩa trong `client/cli/tx.go` và `client/cli/query.go` tương ứng. Cả hai lệnh đều được xây dựng trên [Cobra Library](https://github.com/spf13/cobra):
 
-* Transactions commands let users generate new transactions so that they can be included in a block and eventually update the state. One command should be created for each [message type](#message-types) defined in the module. The command calls the constructor of the message with the parameters provided by the end-user, and wraps it into a transaction. The Cosmos SDK handles signing and the addition of other transaction metadata.
-* Queries let users query the subset of the state defined by the module. Query commands forward queries to the [application's query router](../advanced/00-baseapp.md#query-routing), which routes them to the appropriate [querier](#querier) the `queryRoute` parameter supplied.
+* Lệnh giao dịch cho phép người dùng tạo giao dịch mới để có thể được đưa vào block và cuối cùng cập nhật trạng thái. Một lệnh nên được tạo cho mỗi [kiểu message](#message-types) được định nghĩa trong module. Lệnh gọi constructor của message với các tham số do người dùng cung cấp và bọc nó vào một giao dịch. Cosmos SDK xử lý việc ký và thêm các metadata giao dịch khác.
+* Truy vấn cho phép người dùng truy vấn tập con trạng thái được định nghĩa bởi module.
 
 #### gRPC
 
-[gRPC](https://grpc.io) is a modern open-source high performance RPC framework that has support in multiple languages. It is the recommended way for external clients (such as wallets, browsers and other backend services) to interact with a node.
+[gRPC](https://grpc.io) là framework RPC hiệu năng cao nguồn mở hiện đại có hỗ trợ nhiều ngôn ngữ. Đây là cách được khuyến nghị cho các client bên ngoài (như ví, trình duyệt và các dịch vụ backend khác) để tương tác với một node.
 
-Each module can expose gRPC endpoints called [service methods](https://grpc.io/docs/what-is-grpc/core-concepts/#service-definition), which are defined in the [module's Protobuf `query.proto` file](#grpc-query-services). A service method is defined by its name, input arguments, and output response. The module then needs to perform the following actions:
+Mỗi module có thể expose các gRPC endpoint gọi là [service method](https://grpc.io/docs/what-is-grpc/core-concepts/#service-definition), được định nghĩa trong [file Protobuf `query.proto` của module](#grpc-query-services). Một service method được định nghĩa bởi tên, tham số đầu vào và phản hồi đầu ra. Module sau đó cần thực hiện các hành động sau:
 
-* Define a `RegisterGRPCGatewayRoutes` method on `AppModuleBasic` to wire the client gRPC requests to the correct handler inside the module.
-* For each service method, define a corresponding handler. The handler implements the core logic necessary to serve the gRPC request, and is located in the `keeper/grpc_query.go` file.
+* Định nghĩa phương thức `RegisterGRPCGatewayRoutes` trên `AppModuleBasic` để kết nối các yêu cầu gRPC của client đến handler đúng bên trong module.
+* Với mỗi service method, định nghĩa một handler tương ứng, nằm trong file `keeper/grpc_query.go`.
 
 #### gRPC-gateway REST Endpoints
 
-Some external clients may not wish to use gRPC. In this case, the Cosmos SDK provides a gRPC gateway service, which exposes each gRPC service as a corresponding REST endpoint. Please refer to the [grpc-gateway](https://grpc-ecosystem.github.io/grpc-gateway/) documentation to learn more.
+Một số client bên ngoài có thể không muốn dùng gRPC. Trong trường hợp này, Cosmos SDK cung cấp dịch vụ gRPC gateway, expose mỗi gRPC service như một REST endpoint tương ứng. Tham khảo [tài liệu grpc-gateway](https://grpc-ecosystem.github.io/grpc-gateway/) để tìm hiểu thêm.
 
-The REST endpoints are defined in the Protobuf files, along with the gRPC services, using Protobuf annotations. Modules that want to expose REST queries should add `google.api.http` annotations to their `rpc` methods. By default, all REST endpoints defined in the SDK have a URL starting with the `/cosmos/` prefix.
+Các REST endpoint được định nghĩa trong các file Protobuf, cùng với gRPC service, sử dụng các Protobuf annotation. Các module muốn expose REST query nên thêm `google.api.http` annotation vào các phương thức `rpc` của chúng. Theo mặc định, tất cả REST endpoint được định nghĩa trong SDK có URL bắt đầu bằng tiền tố `/cosmos/`.
 
-The Cosmos SDK also provides a development endpoint to generate [Swagger](https://swagger.io/) definition files for these REST endpoints. This endpoint can be enabled inside the [`app.toml`](../../user/run-node/01-run-node.md#configuring-the-node-using-apptoml-and-configtoml) config file, under the `api.swagger` key.
+Cosmos SDK cũng cung cấp một development endpoint để tạo các file định nghĩa [Swagger](https://swagger.io/) cho các REST endpoint này. Endpoint này có thể được bật trong file cấu hình [`app.toml`](../../user/run-node/01-run-node.md#configuring-the-node-using-apptoml-and-configtoml), dưới key `api.swagger`.
 
-## Application Interface
+## Giao Diện Ứng Dụng
 
-[Interfaces](#command-line-grpc-services-and-rest-interfaces) let end-users interact with full-node clients. This means querying data from the full-node or creating and sending new transactions to be relayed by the full-node and eventually included in a block.
+[Các giao diện](#command-line-grpc-services-and-rest-interfaces) cho phép người dùng cuối tương tác với các full-node client. Điều này có nghĩa là truy vấn dữ liệu từ full-node hoặc tạo và gửi giao dịch mới để được full-node chuyển tiếp và cuối cùng được đưa vào block.
 
-The main interface is the [Command-Line Interface](../advanced/07-cli.md). The CLI of a Cosmos SDK application is built by aggregating [CLI commands](#cli) defined in each of the modules used by the application. The CLI of an application is the same as the daemon (e.g. `appd`), and is defined in a file called `appd/main.go`. The file contains the following:
+Giao diện chính là [Command-Line Interface](../advanced/07-cli.md). CLI của một ứng dụng Cosmos SDK được xây dựng bằng cách tổng hợp [các lệnh CLI](#cli) được định nghĩa trong mỗi module được ứng dụng sử dụng. CLI của một ứng dụng giống như daemon (ví dụ: `appd`) và được định nghĩa trong một file gọi là `appd/main.go`. File này chứa:
 
-* **A `main()` function**, which is executed to build the `appd` interface client. This function prepares each command and adds them to the `rootCmd` before building them. At the root of `appd`, the function adds generic commands like `status`, `keys`, and `config`, query commands, tx commands, and `rest-server`.
-* **Query commands**, which are added by calling the `queryCmd` function. This function returns a Cobra command that contains the query commands defined in each of the application's modules (passed as an array of `sdk.ModuleClients` from the `main()` function), as well as some other lower level query commands such as block or validator queries. Query command are called by using the command `appd query [query]` of the CLI.
-* **Transaction commands**, which are added by calling the `txCmd` function. Similar to `queryCmd`, the function returns a Cobra command that contains the tx commands defined in each of the application's modules, as well as lower level tx commands like transaction signing or broadcasting. Tx commands are called by using the command `appd tx [tx]` of the CLI.
+* **Hàm `main()`**, được thực thi để xây dựng interface client `appd`. Hàm này chuẩn bị mỗi lệnh và thêm chúng vào `rootCmd` trước khi build. Tại gốc của `appd`, hàm thêm các lệnh chung như `status`, `keys`, và `config`, lệnh truy vấn, lệnh tx và `rest-server`.
+* **Lệnh truy vấn**, được thêm bằng cách gọi hàm `queryCmd`. Hàm này trả về một lệnh Cobra chứa các lệnh truy vấn được định nghĩa trong mỗi module của ứng dụng, cũng như một số lệnh truy vấn cấp thấp hơn như truy vấn block hoặc validator.
+* **Lệnh giao dịch**, được thêm bằng cách gọi hàm `txCmd`. Tương tự `queryCmd`, hàm trả về một lệnh Cobra chứa các lệnh tx được định nghĩa trong mỗi module của ứng dụng, cũng như các lệnh tx cấp thấp hơn như ký hoặc broadcast giao dịch.
 
-See an example of an application's main command-line file from the [Cosmos Hub](https://github.com/cosmos/gaia).
+Xem ví dụ về file lệnh command-line chính của ứng dụng từ [Cosmos Hub](https://github.com/cosmos/gaia).
 
 ```go reference
 https://github.com/cosmos/gaia/blob/26ae7c2/cmd/gaiad/cmd/root.go#L39-L80
 ```
 
-## Dependencies and Makefile
+## Dependencies và Makefile
 
-This section is optional, as developers are free to choose their dependency manager and project building method. That said, the current most used framework for versioning control is [`go.mod`](https://github.com/golang/go/wiki/Modules). It ensures each of the libraries used throughout the application are imported with the correct version.
+Phần này là tùy chọn, vì các nhà phát triển được tự do chọn trình quản lý dependency và phương pháp build dự án. Tuy vậy, framework hiện được sử dụng nhiều nhất cho quản lý phiên bản là [`go.mod`](https://github.com/golang/go/wiki/Modules). Nó đảm bảo rằng mỗi thư viện được sử dụng xuyên suốt ứng dụng được import với đúng phiên bản.
 
-The following is the `go.mod` of the [Cosmos Hub](https://github.com/cosmos/gaia), provided as an example.
+Dưới đây là `go.mod` của [Cosmos Hub](https://github.com/cosmos/gaia), được cung cấp làm ví dụ.
 
 ```go reference
 https://github.com/cosmos/gaia/blob/26ae7c2/go.mod#L1-L28
 ```
 
-For building the application, a [Makefile](https://en.wikipedia.org/wiki/Makefile) is generally used. The Makefile primarily ensures that the `go.mod` is run before building the two entrypoints to the application, [`Node Client`](#node-client) and [`Application Interface`](#application-interface).
+Để build ứng dụng, [Makefile](https://en.wikipedia.org/wiki/Makefile) thường được sử dụng. Makefile chủ yếu đảm bảo rằng `go.mod` được chạy trước khi build hai điểm vào của ứng dụng, [`Node Client`](#node-client) và [`Application Interface`](#application-interface).
 
-Here is an example of the [Cosmos Hub Makefile](https://github.com/cosmos/gaia/blob/main/Makefile).
+Đây là ví dụ về [Makefile của Cosmos Hub](https://github.com/cosmos/gaia/blob/main/Makefile).
