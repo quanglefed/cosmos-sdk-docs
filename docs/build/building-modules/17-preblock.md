@@ -4,11 +4,11 @@ sidebar_position: 1
 
 # PreBlocker
 
-:::note Synopsis
-`PreBlocker` is an optional method module developers can implement in their module. They will be triggered before [`BeginBlock`](../../learn/advanced/00-baseapp.md#beginblock).
+:::note Tóm tắt
+`PreBlocker` là một phương thức tùy chọn mà nhà phát triển module có thể triển khai trong module của họ. Chúng sẽ được kích hoạt trước [`BeginBlock`](../../learn/advanced/00-baseapp.md#beginblock).
 :::
 
-:::note Pre-requisite Readings
+:::note Yêu Cầu Đọc Trước
 
 * [Module Manager](./01-module-manager.md)
 
@@ -16,17 +16,15 @@ sidebar_position: 1
 
 ## PreBlocker
 
-There are two semantics around the new lifecycle method:
+Có hai ngữ nghĩa xung quanh phương thức vòng đời mới này:
 
-* It runs before the `BeginBlocker` of all modules
-* It can modify consensus parameters in storage, and signal the caller through the return value.
+* Nó chạy trước `BeginBlocker` của tất cả các module
+* Nó có thể sửa đổi các consensus parameter trong storage, và báo hiệu cho người gọi thông qua giá trị trả về.
 
-When it returns `ConsensusParamsChanged=true`, the caller must refresh the consensus parameters in the deliver context:
+Khi nó trả về `ConsensusParamsChanged=true`, người gọi phải làm mới các consensus parameter trong deliver context:
 
 ```
 app.finalizeBlockState.ctx = app.finalizeBlockState.ctx.WithConsensusParams(app.GetConsensusParams())
 ```
 
-The new ctx must be passed to all the other lifecycle methods.
-
-<!-- TODO: leaving this here to update docs with core api changes  -->
+Context mới phải được truyền cho tất cả các phương thức vòng đời khác.

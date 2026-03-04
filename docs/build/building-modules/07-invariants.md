@@ -4,43 +4,43 @@ sidebar_position: 1
 
 # Invariants
 
-:::note Synopsis
-An invariant is a property of the application that should always be true. In the context of the Cosmos SDK, an `Invariant` is a function that checks for a particular invariant. These functions are useful to detect bugs early on and act upon them to limit their potential consequences (e.g. by halting the chain). They are also useful in the development process of the application to detect bugs via simulations.
+:::note Tóm tắt
+Invariant là một thuộc tính của ứng dụng phải luôn luôn đúng. Trong ngữ cảnh của Cosmos SDK, `Invariant` là một hàm kiểm tra một invariant cụ thể. Các hàm này hữu ích để phát hiện bug sớm và hành động dựa trên chúng để hạn chế hậu quả tiềm tàng (ví dụ: bằng cách dừng chain). Chúng cũng hữu ích trong quá trình phát triển ứng dụng để phát hiện bug thông qua simulation.
 :::
 
-:::note Pre-requisite Readings
+:::note Yêu Cầu Đọc Trước
 
 * [Keepers](./06-keeper.md)
 
 :::
 
-## Implementing `Invariant`s
+## Triển Khai `Invariant`
 
-An `Invariant` is a function that checks for a particular invariant within a module. Module `Invariant`s must follow the `Invariant` type:
+Một `Invariant` là một hàm kiểm tra một invariant cụ thể trong một module. Các `Invariant` của module phải tuân theo kiểu `Invariant`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/types/invariant.go#L9
 ```
 
-The `string` return value is the invariant message, which can be used when printing logs, and the `bool` return value is the actual result of the invariant check.
+Giá trị trả về `string` là thông điệp invariant, có thể được sử dụng khi in log, và giá trị trả về `bool` là kết quả thực tế của kiểm tra invariant.
 
-In practice, each module implements `Invariant`s in a `keeper/invariants.go` file within the module's folder. The standard is to implement one `Invariant` function per logical grouping of invariants with the following model:
+Trong thực tế, mỗi module triển khai các `Invariant` trong file `keeper/invariants.go` trong thư mục của module. Tiêu chuẩn là triển khai một hàm `Invariant` cho mỗi nhóm logic của các invariant với mô hình sau:
 
 ```go
-// Example for an Invariant that checks balance-related invariants
+// Ví dụ cho Invariant kiểm tra các invariant liên quan đến số dư
 
 func BalanceInvariants(k Keeper) sdk.Invariant {
 	return func(ctx context.Context) (string, bool) {
-        // Implement checks for balance-related invariants
+        // Triển khai kiểm tra cho các invariant liên quan đến số dư
     }
 }
 ```
 
-Additionally, module developers should generally implement an `AllInvariants` function that runs all the `Invariant`s functions of the module:
+Ngoài ra, nhà phát triển module thường nên triển khai một hàm `AllInvariants` chạy tất cả các hàm `Invariant` của module:
 
 ```go
-// AllInvariants runs all invariants of the module.
-// In this example, the module implements two Invariants: BalanceInvariants and DepositsInvariants
+// AllInvariants chạy tất cả invariants của module.
+// Trong ví dụ này, module triển khai hai Invariant: BalanceInvariants và DepositsInvariants
 
 func AllInvariants(k Keeper) sdk.Invariant {
 
@@ -55,36 +55,36 @@ func AllInvariants(k Keeper) sdk.Invariant {
 }
 ```
 
-Finally, module developers need to implement the `RegisterInvariants` method as part of the [`AppModule` interface](./01-module-manager.md#appmodule). Indeed, the `RegisterInvariants` method of the module, implemented in the `module/module.go` file, typically only defers the call to a `RegisterInvariants` method implemented in the `keeper/invariants.go` file. The `RegisterInvariants` method registers a route for each `Invariant` function in the [`InvariantRegistry`](#invariant-registry):
+Cuối cùng, nhà phát triển module cần triển khai phương thức `RegisterInvariants` như một phần của [`AppModule` interface](./01-module-manager.md#appmodule). Thật vậy, phương thức `RegisterInvariants` của module, được triển khai trong file `module/module.go`, thường chỉ ủy quyền lời gọi đến phương thức `RegisterInvariants` được triển khai trong file `keeper/invariants.go`. Phương thức `RegisterInvariants` đăng ký một route cho mỗi hàm `Invariant` trong [`InvariantRegistry`](#invariant-registry):
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/staking/keeper/invariants.go#L12-L22
 ```
 
-For more, see an example of [`Invariant`s implementation from the `staking` module](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/staking/keeper/invariants.go).
+Để biết thêm, xem ví dụ về [triển khai `Invariant` từ module `staking`](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/staking/keeper/invariants.go).
 
 ## Invariant Registry
 
-The `InvariantRegistry` is a registry where the `Invariant`s of all the modules of an application are registered. There is only one `InvariantRegistry` per **application**, meaning module developers need not implement their own `InvariantRegistry` when building a module. **All module developers need to do is to register their modules' invariants in the `InvariantRegistry`, as explained in the section above**. The rest of this section gives more information on the `InvariantRegistry` itself, and does not contain anything directly relevant to module developers.
+`InvariantRegistry` là một registry nơi các `Invariant` của tất cả module trong một ứng dụng được đăng ký. Chỉ có một `InvariantRegistry` cho mỗi **ứng dụng**, có nghĩa là nhà phát triển module không cần triển khai `InvariantRegistry` của riêng họ khi xây dựng module. **Tất cả những gì nhà phát triển module cần làm là đăng ký các invariant của module trong `InvariantRegistry`, như đã giải thích ở phần trên**. Phần còn lại của phần này cung cấp thêm thông tin về bản thân `InvariantRegistry`, và không chứa bất cứ điều gì trực tiếp liên quan đến nhà phát triển module.
 
-At its core, the `InvariantRegistry` is defined in the Cosmos SDK as an interface:
+Về cốt lõi, `InvariantRegistry` được định nghĩa trong Cosmos SDK như một interface:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/types/invariant.go#L14-L17
 ```
 
-Typically, this interface is implemented in the `keeper` of a specific module. The most used implementation of an `InvariantRegistry` can be found in the `crisis` module:
+Thông thường, interface này được triển khai trong `keeper` của một module cụ thể. Triển khai được sử dụng nhiều nhất của `InvariantRegistry` có thể tìm thấy trong module `crisis`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/crisis/keeper/keeper.go#L48-L50
 ```
 
-The `InvariantRegistry` is therefore typically instantiated by instantiating the `keeper` of the `crisis` module in the [application's constructor function](../../learn/beginner/00-app-anatomy.md#constructor-function).
+Do đó `InvariantRegistry` thường được khởi tạo bằng cách khởi tạo `keeper` của module `crisis` trong [hàm constructor của ứng dụng](../../learn/beginner/00-app-anatomy.md#constructor-function).
 
-`Invariant`s can be checked manually via [`message`s](./02-messages-and-queries.md), but most often they are checked automatically at the end of each block. Here is an example from the `crisis` module:
+Các `Invariant` có thể được kiểm tra thủ công qua [`message`](./02-messages-and-queries.md), nhưng thường xuyên nhất chúng được kiểm tra tự động vào cuối mỗi block. Đây là ví dụ từ module `crisis`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/crisis/abci.go#L13-L23
 ```
 
-In both cases, if one of the `Invariant`s returns false, the `InvariantRegistry` can trigger special logic (e.g. have the application panic and print the `Invariant`s message in the log).
+Trong cả hai trường hợp, nếu một trong các `Invariant` trả về false, `InvariantRegistry` có thể kích hoạt logic đặc biệt (ví dụ: làm cho ứng dụng panic và in thông điệp `Invariant` trong log).

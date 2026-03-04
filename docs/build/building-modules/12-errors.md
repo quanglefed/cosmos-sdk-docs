@@ -2,55 +2,43 @@
 sidebar_position: 1
 ---
 
-# Errors
+# Errors (Lỗi)
 
-:::note Synopsis
-This document outlines the recommended usage and APIs for error handling in Cosmos SDK modules.
+:::note Tóm tắt
+Tài liệu này trình bày cách sử dụng được khuyến nghị và các API để xử lý lỗi trong các Cosmos SDK module.
 :::
 
-Modules are encouraged to define and register their own errors to provide better
-context on failed message or handler execution. Typically, these errors should be
-common or general errors which can be further wrapped to provide additional specific
-execution context.
+Các module được khuyến khích định nghĩa và đăng ký các lỗi của riêng chúng để cung cấp ngữ cảnh tốt hơn về việc thực thi message hoặc handler thất bại. Thông thường, những lỗi này nên là các lỗi phổ biến hoặc tổng quát có thể được bọc thêm để cung cấp ngữ cảnh thực thi cụ thể hơn.
 
-## Registration
+## Đăng Ký (Registration)
 
-Modules should define and register their custom errors in `x/{module}/errors.go`.
-Registration of errors is handled via the [`errors` package](https://github.com/cosmos/cosmos-sdk/blob/main/errors/errors.go).
+Các module nên định nghĩa và đăng ký các lỗi tùy chỉnh của họ trong `x/{module}/errors.go`. Việc đăng ký lỗi được xử lý thông qua [`gói errors`](https://github.com/cosmos/cosmos-sdk/blob/main/errors/errors.go).
 
-Example:
+Ví dụ:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/distribution/types/errors.go
 ```
 
-Each custom module error must provide the codespace, which is typically the module name
-(e.g. "distribution") and is unique per module, and a uint32 code. Together, the codespace and code
-provide a globally unique Cosmos SDK error. Typically, the code is monotonically increasing but does not
-necessarily have to be. The only restrictions on error codes are the following:
+Mỗi lỗi module tùy chỉnh phải cung cấp codespace, thường là tên module (ví dụ: "distribution") và là duy nhất cho mỗi module, và một mã uint32. Cùng nhau, codespace và mã cung cấp một lỗi Cosmos SDK duy nhất trên toàn cầu. Thông thường, mã tăng đơn điệu nhưng không nhất thiết phải như vậy. Các hạn chế duy nhất đối với mã lỗi là:
 
-* Must be greater than one, as a code value of one is reserved for internal errors.
-* Must be unique within the module.
+* Phải lớn hơn một, vì giá trị mã bằng một được dành riêng cho các lỗi nội bộ.
+* Phải là duy nhất trong module.
 
-Note, the Cosmos SDK provides a core set of *common* errors. These errors are defined in [`types/errors/errors.go`](https://github.com/cosmos/cosmos-sdk/blob/main/types/errors/errors.go).
+Lưu ý, Cosmos SDK cung cấp một bộ lỗi *phổ biến* cốt lõi. Các lỗi này được định nghĩa trong [`types/errors/errors.go`](https://github.com/cosmos/cosmos-sdk/blob/main/types/errors/errors.go).
 
-## Wrapping
+## Bọc (Wrapping)
 
-The custom module errors can be returned as their concrete type as they already fulfill the `error`
-interface. However, module errors can be wrapped to provide further context and meaning to failed
-execution.
+Các lỗi module tùy chỉnh có thể được trả về như kiểu cụ thể của chúng vì chúng đã thỏa mãn interface `error`. Tuy nhiên, các lỗi module có thể được bọc để cung cấp thêm ngữ cảnh và ý nghĩa cho việc thực thi thất bại.
 
-Example:
+Ví dụ:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/bank/keeper/keeper.go#L141-L182
 ```
 
-Regardless if an error is wrapped or not, the Cosmos SDK's `errors` package provides a function to determine if
-an error is of a particular kind via `Is`.
+Bất kể lỗi có được bọc hay không, gói `errors` của Cosmos SDK cung cấp hàm để xác định xem một lỗi có thuộc một loại cụ thể hay không thông qua `Is`.
 
 ## ABCI
 
-If a module error is registered, the Cosmos SDK `errors` package allows ABCI information to be extracted
-through the `ABCIInfo` function. The package also provides `ResponseCheckTx` and `ResponseDeliverTx` as
-auxiliary functions to automatically get `CheckTx` and `DeliverTx` responses from an error.
+Nếu một lỗi module được đăng ký, gói `errors` của Cosmos SDK cho phép thông tin ABCI được trích xuất thông qua hàm `ABCIInfo`. Gói này cũng cung cấp `ResponseCheckTx` và `ResponseDeliverTx` như các hàm phụ trợ để tự động lấy phản hồi `CheckTx` và `DeliverTx` từ một lỗi.

@@ -4,22 +4,22 @@ sidebar_position: 1
 
 # Query Services
 
-:::note Synopsis
-A Protobuf Query service processes [`queries`](./02-messages-and-queries.md#queries). Query services are specific to the module in which they are defined, and only process `queries` defined within said module. They are called from `BaseApp`'s [`Query` method](../../learn/advanced/00-baseapp.md#query).
+:::note Tóm tắt
+Một Protobuf Query service xử lý các [`query`](./02-messages-and-queries.md#queries). Query service đặc thù cho module mà chúng được định nghĩa, và chỉ xử lý các `query` được định nghĩa trong module đó. Chúng được gọi từ [`phương thức Query`](../../learn/advanced/00-baseapp.md#query) của `BaseApp`.
 :::
 
-:::note Pre-requisite Readings
+:::note Yêu Cầu Đọc Trước
 
 * [Module Manager](./01-module-manager.md)
-* [Messages and Queries](./02-messages-and-queries.md)
+* [Messages và Queries](./02-messages-and-queries.md)
 
 :::
 
-## Implementation of a module query service
+## Triển Khai query service của module
 
 ### gRPC Service
 
-When defining a Protobuf `Query` service, a `QueryServer` interface is generated for each module with all the service methods:
+Khi định nghĩa một Protobuf `Query` service, một interface `QueryServer` được tạo ra cho mỗi module với tất cả các phương thức service:
 
 ```go
 type QueryServer interface {
@@ -28,30 +28,28 @@ type QueryServer interface {
 }
 ```
 
-These custom queries methods should be implemented by a module's keeper, typically in `./keeper/grpc_query.go`. The first parameter of these methods is a generic `context.Context`. Therefore, the Cosmos SDK provides a function `sdk.UnwrapSDKContext` to retrieve the `context.Context` from the provided
-`context.Context`.
+Các phương thức query tùy chỉnh này nên được triển khai bởi keeper của module, thường trong `./keeper/grpc_query.go`. Tham số đầu tiên của các phương thức này là `context.Context` chung. Do đó, Cosmos SDK cung cấp hàm `sdk.UnwrapSDKContext` để lấy `context.Context` từ `context.Context` được cung cấp.
 
-Here's an example implementation for the bank module:
+Dưới đây là ví dụ triển khai cho module bank:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/bank/keeper/grpc_query.go
 ```
 
-### Calling queries from the State Machine
+### Gọi Query từ State Machine
 
-The Cosmos SDK v0.47 introduces a new `cosmos.query.v1.module_query_safe` Protobuf annotation which is used to state that a query that is safe to be called from within the state machine, for example:
+Cosmos SDK v0.47 giới thiệu annotation Protobuf mới `cosmos.query.v1.module_query_safe`, được sử dụng để khai báo rằng một query an toàn khi được gọi từ bên trong state machine, ví dụ:
 
-* a Keeper's query function can be called from another module's Keeper,
-* ADR-033 intermodule query calls,
-* CosmWasm contracts can also directly interact with these queries.
+* Hàm query của một Keeper có thể được gọi từ Keeper của module khác,
+* Các lời gọi query liên module theo ADR-033,
+* Các contract CosmWasm cũng có thể tương tác trực tiếp với các query này.
 
-If the `module_query_safe` annotation set to `true`, it means:
+Nếu annotation `module_query_safe` được đặt thành `true`, có nghĩa là:
 
-* The query is deterministic: given a block height it will return the same response upon multiple calls, and doesn't introduce any state-machine breaking changes across SDK patch versions.
-* Gas consumption never fluctuates across calls and across patch versions.
+* Query có tính xác định (deterministic): cho một chiều cao block nhất định, nó sẽ trả về cùng phản hồi khi được gọi nhiều lần, và không tạo ra bất kỳ thay đổi state-machine-breaking nào giữa các phiên bản SDK patch.
+* Mức tiêu thụ gas không thay đổi giữa các lần gọi và giữa các phiên bản patch.
 
-If you are a module developer and want to use `module_query_safe` annotation for your own query, you have to ensure the following things:
+Nếu bạn là nhà phát triển module và muốn sử dụng annotation `module_query_safe` cho query của mình, bạn phải đảm bảo những điều sau:
 
-* the query is deterministic and won't introduce state-machine-breaking changes without coordinated upgrades
-* it has its gas tracked, to avoid the attack vector where no gas is accounted for
- on potentially high-computation queries.
+* Query có tính xác định và sẽ không tạo ra các thay đổi state-machine-breaking mà không có nâng cấp phối hợp
+* Gas của nó được theo dõi, để tránh vector tấn công nơi không có gas được tính cho các query có thể tốn nhiều tài nguyên tính toán.

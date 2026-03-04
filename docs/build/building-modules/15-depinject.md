@@ -2,123 +2,115 @@
 sidebar_position: 1
 ---
 
-# Modules depinject-ready
+# Modules sẵn sàng cho depinject
 
-:::note Pre-requisite Readings
+:::note Yêu Cầu Đọc Trước
 
-* [Depinject Documentation](../packages/01-depinject.md)
+* [Tài liệu Depinject](../packages/01-depinject.md)
 
 :::
 
-[`depinject`](../packages/01-depinject.md) is used to wire any module in `app.go`.
-All core modules are already configured to support dependency injection.
+[`depinject`](../packages/01-depinject.md) được sử dụng để kết nối bất kỳ module nào trong `app.go`. Tất cả các module core đã được cấu hình để hỗ trợ dependency injection.
 
-To work with `depinject` a module must define its configuration and requirements so that `depinject` can provide the right dependencies.
+Để hoạt động với `depinject`, một module phải định nghĩa cấu hình và yêu cầu của nó để `depinject` có thể cung cấp các phụ thuộc đúng.
 
-In brief, as a module developer, the following steps are required:
+Tóm lại, là nhà phát triển module, cần thực hiện các bước sau:
 
-1. Define the module configuration using Protobuf
-2. Define the module dependencies in `x/{moduleName}/module.go`
+1. Định nghĩa cấu hình module bằng Protobuf
+2. Định nghĩa các phụ thuộc module trong `x/{moduleName}/module.go`
 
-A chain developer can then use the module by following these two steps:
+Nhà phát triển chain sau đó có thể sử dụng module bằng cách thực hiện hai bước sau:
 
-1. Configure the module in `app_config.go` or `app.yaml`
-2. Inject the module in `app.go`
+1. Cấu hình module trong `app_config.go` hoặc `app.yaml`
+2. Inject module trong `app.go`
 
-## Module Configuration
+## Cấu Hình Module
 
-The module available configuration is defined in a Protobuf file, located at `{moduleName}/module/v1/module.proto`.
+Cấu hình khả dụng của module được định nghĩa trong file Protobuf, nằm tại `{moduleName}/module/v1/module.proto`.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/proto/cosmos/group/module/v1/module.proto
 ```
 
-* `go_import` must point to the Go package of the custom module.
-* Message fields define the module configuration.
-  That configuration can be set in the `app_config.go` / `app.yaml` file for a chain developer to configure the module.  
-  Taking `group` as an example, a chain developer is able to decide, thanks to `uint64 max_metadata_len`, what the maximum metadata length allowed for a group proposal is.
+* `go_import` phải trỏ đến gói Go của module tùy chỉnh.
+* Các trường message định nghĩa cấu hình module. Cấu hình đó có thể được đặt trong file `app_config.go` / `app.yaml` cho nhà phát triển chain để cấu hình module. Lấy `group` làm ví dụ, nhà phát triển chain có thể quyết định, nhờ vào `uint64 max_metadata_len`, độ dài metadata tối đa được phép cho một group proposal là bao nhiêu.
 
   ```go reference
   https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/simapp/app_config.go#L228-L234
   ```
 
-That message is generated using [`pulsar`](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/scripts/protocgen-pulsar.sh) (by running `make proto-gen`).
-In the case of the `group` module, this file is generated here: https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/api/cosmos/group/module/v1/module.pulsar.go.
+Message đó được tạo bằng cách sử dụng [`pulsar`](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/scripts/protocgen-pulsar.sh) (bằng cách chạy `make proto-gen`). Trong trường hợp module `group`, file này được tạo tại đây: https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/api/cosmos/group/module/v1/module.pulsar.go.
 
-The part that is relevant for the module configuration is:
+Phần liên quan đến cấu hình module là:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/api/cosmos/group/module/v1/module.pulsar.go#L515-L527
 ```
 
 :::note
-Pulsar is optional. The official [`protoc-gen-go`](https://developers.google.com/protocol-buffers/docs/reference/go-generated) can be used as well.
+Pulsar là tùy chọn. [`protoc-gen-go`](https://developers.google.com/protocol-buffers/docs/reference/go-generated) chính thức cũng có thể được sử dụng.
 :::
 
-## Dependency Definition
+## Định Nghĩa Phụ Thuộc
 
-Once the configuration proto is defined, the module's `module.go` must define what dependencies are required by the module.
-The boilerplate is similar for all modules.
+Khi proto cấu hình đã được định nghĩa, `module.go` của module phải định nghĩa các phụ thuộc mà module yêu cầu. Boilerplate tương tự nhau cho tất cả các module.
 
 :::warning
-All methods, structs and their fields must be public for `depinject`.
+Tất cả các phương thức, struct và các trường của chúng phải là public cho `depinject`.
 :::
 
-1. Import the module configuration generated package:
+1. Import gói được tạo từ cấu hình module:
 
     ```go reference
     https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/group/module/module.go#L12-L14
     ```
 
-    Define an `init()` function for defining the `providers` of the module configuration:  
-    This registers the module configuration message and the wiring of the module.
+    Định nghĩa hàm `init()` để định nghĩa `providers` của cấu hình module: Điều này đăng ký message cấu hình module và việc kết nối của module.
 
     ```go reference
     https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/group/module/module.go#L194-L199
     ```
 
-2. Ensure that the module implements the `appmodule.AppModule` interface:
+2. Đảm bảo rằng module triển khai interface `appmodule.AppModule`:
 
     ```go reference
     https://github.com/cosmos/cosmos-sdk/blob/v0.47.0/x/group/module/module.go#L58-L64
     ```
 
-3. Define a struct that inherits `depinject.In` and define the module inputs (i.e. module dependencies):
-   * `depinject` provides the right dependencies to the module.
-   * `depinject` also checks that all dependencies are provided.
+3. Định nghĩa một struct kế thừa `depinject.In` và định nghĩa các đầu vào của module (tức là các phụ thuộc của module):
+   * `depinject` cung cấp các phụ thuộc đúng cho module.
+   * `depinject` cũng kiểm tra rằng tất cả các phụ thuộc được cung cấp.
 
     :::tip
-    For making a dependency optional, add the `optional:"true"` struct tag.  
+    Để làm cho một phụ thuộc trở thành tùy chọn, thêm struct tag `optional:"true"`.
     :::
 
     ```go reference
     https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/group/module/module.go#L201-L211
     ```
 
-4. Define the module outputs with a public struct that inherits `depinject.Out`:
-   The module outputs are the dependencies that the module provides to other modules. It is usually the module itself and its keeper.
+4. Định nghĩa các đầu ra của module với một struct public kế thừa `depinject.Out`: Các đầu ra của module là các phụ thuộc mà module cung cấp cho các module khác. Thường là bản thân module và keeper của nó.
 
     ```go reference
     https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/group/module/module.go#L213-L218
     ```
 
-5. Create a function named `ProvideModule` (as called in 1.) and use the inputs for instantiating the module outputs.
+5. Tạo một hàm tên `ProvideModule` (như được gọi trong bước 1.) và sử dụng các đầu vào để khởi tạo các đầu ra của module.
 
   ```go reference
   https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/group/module/module.go#L220-L235
   ```
 
-The `ProvideModule` function should return an instance of `cosmossdk.io/core/appmodule.AppModule` which implements
-one or more app module extension interfaces for initializing the module.
+Hàm `ProvideModule` nên trả về một phiên bản của `cosmossdk.io/core/appmodule.AppModule` triển khai một hoặc nhiều extension interface của app module để khởi tạo module.
 
-Following is the complete app wiring configuration for `group`:
+Dưới đây là cấu hình app wiring hoàn chỉnh cho `group`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/group/module/module.go#L194-L235
 ```
 
-The module is now ready to be used with `depinject` by a chain developer.
+Module giờ đây đã sẵn sàng để được sử dụng với `depinject` bởi nhà phát triển chain.
 
-## Integrate in an application
+## Tích Hợp vào Ứng Dụng
 
-The App Wiring is done in `app_config.go` / `app.yaml` and `app_di.go` and is explained in detail in the [overview of `app_di.go`](../building-apps/01-app-go-di.md).
+App Wiring được thực hiện trong `app_config.go` / `app.yaml` và `app_di.go` và được giải thích chi tiết trong [tổng quan về `app_di.go`](../building-apps/01-app-go-di.md).

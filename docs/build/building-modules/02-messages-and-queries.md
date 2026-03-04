@@ -2,135 +2,134 @@
 sidebar_position: 1
 ---
 
-# Messages and Queries
+# Messages và Queries
 
-:::note Synopsis
-`Msg`s and `Queries` are the two primary objects handled by modules. Most of the core components defined in a module, like `Msg` services, `keeper`s and `Query` services, exist to process `message`s and `queries`.
+:::note Tóm tắt
+`Msg` và `Queries` là hai đối tượng chính được xử lý bởi các module. Hầu hết các thành phần core được định nghĩa trong một module, như `Msg` services, `keeper` và `Query` services, đều tồn tại để xử lý các `message` và `query`.
 :::
 
-:::note Pre-requisite Readings
+:::note Yêu Cầu Đọc Trước
 
-* [Introduction to Cosmos SDK Modules](./00-intro.md)
+* [Giới thiệu về Cosmos SDK Modules](./00-intro.md)
 
 :::
 
 ## Messages
 
-`Msg`s are objects whose end-goal is to trigger state-transitions. They are wrapped in [transactions](../../learn/advanced/01-transactions.md), which may contain one or more of them.
+`Msg` là các đối tượng có mục đích cuối cùng là kích hoạt các chuyển đổi trạng thái. Chúng được bọc trong các [giao dịch](../../learn/advanced/01-transactions.md), mỗi giao dịch có thể chứa một hoặc nhiều `Msg`.
 
-When a transaction is relayed from the underlying consensus engine to the Cosmos SDK application, it is first decoded by [`BaseApp`](../../learn/advanced/00-baseapp.md). Then, each message contained in the transaction is extracted and routed to the appropriate module via `BaseApp`'s `MsgServiceRouter` so that it can be processed by the module's [`Msg` service](./03-msg-services.md). For a more detailed explanation of the lifecycle of a transaction, click [here](../../learn/beginner/01-tx-lifecycle.md).
+Khi một giao dịch được chuyển tiếp từ consensus engine bên dưới đến ứng dụng Cosmos SDK, nó được giải mã trước tiên bởi [`BaseApp`](../../learn/advanced/00-baseapp.md). Sau đó, mỗi message chứa trong giao dịch được trích xuất và định tuyến đến module thích hợp thông qua `MsgServiceRouter` của `BaseApp` để có thể được xử lý bởi [`Msg` service](./03-msg-services.md) của module. Để giải thích chi tiết hơn về vòng đời của một giao dịch, nhấn vào [đây](../../learn/beginner/01-tx-lifecycle.md).
 
 ### `Msg` Services
 
-Defining Protobuf `Msg` services is the recommended way to handle messages. A Protobuf `Msg` service should be created for each module, typically in `tx.proto` (see more info about [conventions and naming](../../learn/advanced/05-encoding.md#faq)). It must have an RPC service method defined for each message in the module.
+Định nghĩa các Protobuf `Msg` service là cách được khuyến nghị để xử lý các message. Một Protobuf `Msg` service nên được tạo cho mỗi module, thường trong `tx.proto` (xem thêm về [quy ước và đặt tên](../../learn/advanced/05-encoding.md#faq)). Nó phải có một phương thức RPC service được định nghĩa cho mỗi message trong module.
 
-
-Each `Msg` service method must have exactly one argument, which must implement the `sdk.Msg` interface, and a Protobuf response. The naming convention is to call the RPC argument `Msg<service-rpc-name>` and the RPC response `Msg<service-rpc-name>Response`. For example:
+Mỗi phương thức `Msg` service phải có đúng một đối số, phải triển khai interface `sdk.Msg`, và một phản hồi Protobuf. Quy ước đặt tên là gọi đối số RPC là `Msg<service-rpc-name>` và phản hồi RPC là `Msg<service-rpc-name>Response`. Ví dụ:
 
 ```protobuf
   rpc Send(MsgSend) returns (MsgSendResponse);
 ```
 
-See an example of a `Msg` service definition from `x/bank` module:
+Xem ví dụ về định nghĩa `Msg` service từ module `x/bank`:
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/proto/cosmos/bank/v1beta1/tx.proto#L13-L36
 ```
 
-### `sdk.Msg` Interface
+### Interface `sdk.Msg`
 
-`sdk.Msg` is an alias of `proto.Message`. 
+`sdk.Msg` là một alias của `proto.Message`.
 
-To attach a `ValidateBasic()` method to a message then you must add methods to the type adhering to the `HasValidateBasic`.
+Để gắn phương thức `ValidateBasic()` vào một message, bạn phải thêm các phương thức vào kiểu tuân thủ `HasValidateBasic`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/9c1e8b247cd47b5d3decda6e86fbc3bc996ee5d7/types/tx_msg.go#L84-L88
 ```
 
-In 0.50+ signers from the `GetSigners()` call are automated via a protobuf annotation. 
+Trong phiên bản 0.50+, các signer từ lời gọi `GetSigners()` được tự động hóa qua annotation protobuf.
 
-Read more about the signer field [here](./05-protobuf-annotations.md).
+Đọc thêm về trường signer [tại đây](./05-protobuf-annotations.md).
 
 ```protobuf reference 
 https://github.com/cosmos/cosmos-sdk/blob/e6848d99b55a65d014375b295bdd7f9641aac95e/proto/cosmos/bank/v1beta1/tx.proto#L40
 ```
 
-If there is a need for custom signers then there is an alternative path which can be taken. A function which returns `signing.CustomGetSigner` for a specific message can be defined. 
+Nếu cần signer tùy chỉnh thì có một con đường thay thế có thể thực hiện. Có thể định nghĩa một hàm trả về `signing.CustomGetSigner` cho một message cụ thể.
 
 ```go
 func ProvideBankSendTransactionGetSigners() signing.CustomGetSigner {
 
-			// Extract the signer from the signature.
+			// Trích xuất signer từ chữ ký.
 			signer, err := coretypes.LatestSigner(Tx).Sender(ethTx)
       if err != nil {
 				return nil, err
 			}
 
-			// Return the signer in the required format.
+			// Trả về signer ở định dạng yêu cầu.
 			return [][]byte{signer.Bytes()}, nil
 }
 ```
 
-When using dependency injection (depinject) this can be provided to the application via the provide method.
+Khi sử dụng dependency injection (depinject), điều này có thể được cung cấp cho ứng dụng thông qua phương thức provide.
 
 ```go
 depinject.Provide(banktypes.ProvideBankSendTransactionGetSigners)
 ```
 
-The Cosmos SDK uses Protobuf definitions to generate client and server code:
+Cosmos SDK sử dụng các định nghĩa Protobuf để tạo mã client và server:
 
-* `MsgServer` interface defines the server API for the `Msg` service and its implementation is described as part of the [`Msg` services](./03-msg-services.md) documentation.
-* Structures are generated for all RPC request and response types.
+* Interface `MsgServer` định nghĩa API server cho `Msg` service và việc triển khai của nó được mô tả trong tài liệu [`Msg` services](./03-msg-services.md).
+* Các struct được tạo ra cho tất cả các loại yêu cầu và phản hồi RPC.
 
-A `RegisterMsgServer` method is also generated and should be used to register the module's `MsgServer` implementation in `RegisterServices` method from the [`AppModule` interface](./01-module-manager.md#appmodule).
+Một phương thức `RegisterMsgServer` cũng được tạo ra và nên được sử dụng để đăng ký triển khai `MsgServer` của module trong phương thức `RegisterServices` từ [`AppModule` interface](./01-module-manager.md#appmodule).
 
-In order for clients (CLI and grpc-gateway) to have these URLs registered, the Cosmos SDK provides the function `RegisterMsgServiceDesc(registry codectypes.InterfaceRegistry, sd *grpc.ServiceDesc)` that should be called inside module's [`RegisterInterfaces`](01-module-manager.md#appmodulebasic) method, using the proto-generated `&_Msg_serviceDesc` as `*grpc.ServiceDesc` argument.
+Để các client (CLI và grpc-gateway) có các URL này được đăng ký, Cosmos SDK cung cấp hàm `RegisterMsgServiceDesc(registry codectypes.InterfaceRegistry, sd *grpc.ServiceDesc)` nên được gọi bên trong phương thức [`RegisterInterfaces`](01-module-manager.md#appmodulebasic) của module, sử dụng `&_Msg_serviceDesc` được tạo từ proto làm đối số `*grpc.ServiceDesc`.
 
 
 ## Queries
 
-A `query` is a request for information made by end-users of applications through an interface and processed by a full-node. A `query` is received by a full-node through its consensus engine and relayed to the application via the ABCI. It is then routed to the appropriate module via `BaseApp`'s `QueryRouter` so that it can be processed by the module's query service (./04-query-services.md). For a deeper look at the lifecycle of a `query`, click [here](../../learn/beginner/02-query-lifecycle.md).
+`query` là một yêu cầu thông tin được thực hiện bởi người dùng cuối của ứng dụng thông qua một interface và được xử lý bởi một full-node. Một `query` được nhận bởi full-node thông qua consensus engine của nó và được chuyển tiếp đến ứng dụng qua ABCI. Sau đó nó được định tuyến đến module thích hợp thông qua `QueryRouter` của `BaseApp` để có thể được xử lý bởi query service của module (./04-query-services.md). Để xem chi tiết hơn về vòng đời của một `query`, nhấn vào [đây](../../learn/beginner/02-query-lifecycle.md).
 
 ### gRPC Queries
 
-Queries should be defined using [Protobuf services](https://developers.google.com/protocol-buffers/docs/proto#services). A `Query` service should be created per module in `query.proto`. This service lists endpoints starting with `rpc`.
+Các query nên được định nghĩa bằng cách sử dụng [Protobuf services](https://developers.google.com/protocol-buffers/docs/proto#services). Một `Query` service nên được tạo cho mỗi module trong `query.proto`. Service này liệt kê các endpoint bắt đầu bằng `rpc`.
 
-Here's an example of such a `Query` service definition:
+Dưới đây là ví dụ về định nghĩa `Query` service như vậy:
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/proto/cosmos/auth/v1beta1/query.proto#L14-L89
 ```
 
-As `proto.Message`s, generated `Response` types implement by default `String()` method of [`fmt.Stringer`](https://pkg.go.dev/fmt#Stringer).
+Là các `proto.Message`, các kiểu `Response` được tạo ra mặc định triển khai phương thức `String()` của [`fmt.Stringer`](https://pkg.go.dev/fmt#Stringer).
 
-A `RegisterQueryServer` method is also generated and should be used to register the module's query server in the `RegisterServices` method from the [`AppModule` interface](./01-module-manager.md#appmodule).
+Một phương thức `RegisterQueryServer` cũng được tạo ra và nên được sử dụng để đăng ký query server của module trong phương thức `RegisterServices` từ [`AppModule` interface](./01-module-manager.md#appmodule).
 
-### Legacy Queries
+### Legacy Queries (Queries Kế Thừa)
 
-Before the introduction of Protobuf and gRPC in the Cosmos SDK, there was usually no specific `query` object defined by module developers, contrary to `message`s. Instead, the Cosmos SDK took the simpler approach of using a simple `path` to define each `query`. The `path` contains the `query` type and all the arguments needed to process it. For most module queries, the `path` should look like the following:
+Trước khi Protobuf và gRPC được giới thiệu trong Cosmos SDK, thường không có đối tượng `query` cụ thể nào được định nghĩa bởi nhà phát triển module, trái ngược với `message`. Thay vào đó, Cosmos SDK áp dụng cách tiếp cận đơn giản hơn là sử dụng một `path` đơn giản để định nghĩa mỗi `query`. `path` chứa loại `query` và tất cả các đối số cần thiết để xử lý nó. Đối với hầu hết các query module, `path` nên có dạng như sau:
 
 ```text
 queryCategory/queryRoute/queryType/arg1/arg2/...
 ```
 
-where:
+trong đó:
 
-* `queryCategory` is the category of the `query`, typically `custom` for module queries. It is used to differentiate between different kinds of queries within `BaseApp`'s [`Query` method](../../learn/advanced/00-baseapp.md#query).
-* `queryRoute` is used by `BaseApp`'s [`queryRouter`](../../learn/advanced/00-baseapp.md#query-routing) to map the `query` to its module. Usually, `queryRoute` should be the name of the module.
-* `queryType` is used by the module's [`querier`](./04-query-services.md#legacy-queriers) to map the `query` to the appropriate `querier function` within the module.
-* `args` are the actual arguments needed to process the `query`. They are filled out by the end-user. Note that for bigger queries, you might prefer passing arguments in the `Data` field of the request `req` instead of the `path`.
+* `queryCategory` là danh mục của `query`, thường là `custom` cho các query module. Nó được dùng để phân biệt giữa các loại query khác nhau trong [`phương thức Query`](../../learn/advanced/00-baseapp.md#query) của `BaseApp`.
+* `queryRoute` được sử dụng bởi [`queryRouter`](../../learn/advanced/00-baseapp.md#query-routing) của `BaseApp` để ánh xạ `query` đến module của nó. Thường, `queryRoute` phải là tên của module.
+* `queryType` được sử dụng bởi [`querier`](./04-query-services.md#legacy-queriers) của module để ánh xạ `query` đến hàm querier thích hợp trong module.
+* `args` là các đối số thực tế cần thiết để xử lý `query`. Chúng được người dùng cuối điền vào. Lưu ý rằng đối với các query lớn hơn, bạn có thể muốn truyền đối số trong trường `Data` của yêu cầu `req` thay vì trong `path`.
 
-The `path` for each `query` must be defined by the module developer in the module's [command-line interface file](./09-module-interfaces.md#query-commands). Overall, there are 3 mains components module developers need to implement in order to make the subset of the state defined by their module queryable:
+`path` cho mỗi `query` phải được định nghĩa bởi nhà phát triển module trong [file giao diện dòng lệnh](./09-module-interfaces.md#query-commands) của module. Nhìn chung, có 3 thành phần chính mà nhà phát triển module cần triển khai để làm cho tập con trạng thái được định nghĩa bởi module của họ có thể query được:
 
-* A [`querier`](./04-query-services.md#legacy-queriers), to process the `query` once it has been [routed to the module](../../learn/advanced/00-baseapp.md#query-routing).
-* [Query commands](./09-module-interfaces.md#query-commands) in the module's CLI file, where the `path` for each `query` is specified.
-* `query` return types. Typically defined in a file `types/querier.go`, they specify the result type of each of the module's `queries`. These custom types must implement the `String()` method of [`fmt.Stringer`](https://pkg.go.dev/fmt#Stringer).
+* Một [`querier`](./04-query-services.md#legacy-queriers), để xử lý `query` sau khi nó đã được [định tuyến đến module](../../learn/advanced/00-baseapp.md#query-routing).
+* [Các lệnh query](./09-module-interfaces.md#query-commands) trong file CLI của module, nơi `path` cho mỗi `query` được chỉ định.
+* Các kiểu trả về của `query`. Thường được định nghĩa trong file `types/querier.go`, chúng chỉ định kiểu kết quả của mỗi `query` trong module. Các kiểu tùy chỉnh này phải triển khai phương thức `String()` của [`fmt.Stringer`](https://pkg.go.dev/fmt#Stringer).
 
 ### Store Queries
 
-Store queries access store keys directly. They use `clientCtx.QueryABCI(req abci.QueryRequest)` to return the full `abci.QueryResponse` with inclusion Merkle proofs.
+Store queries truy cập trực tiếp các store key. Chúng sử dụng `clientCtx.QueryABCI(req abci.QueryRequest)` để trả về `abci.QueryResponse` đầy đủ với Merkle proofs đi kèm.
 
-See following examples:
+Xem các ví dụ sau:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/baseapp/abci.go#L864-L894

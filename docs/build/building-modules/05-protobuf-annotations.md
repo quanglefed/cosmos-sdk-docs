@@ -2,15 +2,15 @@
 sidebar_position: 1
 ---
 
-# ProtocolBuffer Annotations
+# Các Annotation ProtocolBuffer
 
-This document explains the various protobuf scalars that have been added to make working with protobuf easier for Cosmos SDK application developers
+Tài liệu này giải thích các scalar protobuf khác nhau đã được thêm vào để giúp việc làm việc với protobuf trở nên dễ dàng hơn cho các nhà phát triển ứng dụng Cosmos SDK.
 
 ## Signer
 
-Signer specifies which field should be used to determine the signer of a message for the Cosmos SDK. This field can be used for clients as well to infer which field should be used to determine the signer of a message.
+Signer chỉ định trường nào nên được sử dụng để xác định signer của một message trong Cosmos SDK. Trường này cũng có thể được sử dụng cho các client để suy ra trường nào nên được dùng để xác định signer của một message.
 
-Read more about the signer field [here](./02-messages-and-queries.md).
+Đọc thêm về trường signer [tại đây](./02-messages-and-queries.md).
 
 ```protobuf reference 
 https://github.com/cosmos/cosmos-sdk/blob/e6848d99b55a65d014375b295bdd7f9641aac95e/proto/cosmos/bank/v1beta1/tx.proto#L40
@@ -22,51 +22,51 @@ option (cosmos.msg.v1.signer) = "from_address";
 
 ## Scalar
 
-The scalar type defines a way for clients to understand how to construct protobuf messages according to what is expected by the module and sdk.
+Kiểu scalar định nghĩa cách cho các client hiểu cách xây dựng các protobuf message theo những gì module và SDK mong đợi.
 
 ```proto
 (cosmos_proto.scalar) = "cosmos.AddressString"
 ```
 
-Example of account address string scalar:
+Ví dụ về scalar địa chỉ tài khoản dạng string:
 
 ```proto reference 
 https://github.com/cosmos/cosmos-sdk/blob/e6848d99b55a65d014375b295bdd7f9641aac95e/proto/cosmos/bank/v1beta1/tx.proto#L46
 ```
 
-Example of validator address string scalar: 
+Ví dụ về scalar địa chỉ validator dạng string:
 
 ```proto reference 
 https://github.com/cosmos/cosmos-sdk/blob/e8f28bf5db18b8d6b7e0d94b542ce4cf48fed9d6/proto/cosmos/distribution/v1beta1/query.proto#L87
 ```
 
-Example of Decimals scalar: 
+Ví dụ về scalar Decimals:
 
 ```proto reference
 https://github.com/cosmos/cosmos-sdk/blob/e8f28bf5db18b8d6b7e0d94b542ce4cf48fed9d6/proto/cosmos/distribution/v1beta1/distribution.proto#L26
 ```
 
-Example of Int scalar: 
+Ví dụ về scalar Int:
 
 ```proto reference
 https://github.com/cosmos/cosmos-sdk/blob/e8f28bf5db18b8d6b7e0d94b542ce4cf48fed9d6/proto/cosmos/gov/v1/gov.proto#L137
 ```
 
-There are a few options for what can be provided as a scalar: `cosmos.AddressString`, `cosmos.ValidatorAddressString`, `cosmos.ConsensusAddressString`, `cosmos.Int`, `cosmos.Dec`. 
+Có một vài tùy chọn có thể cung cấp làm scalar: `cosmos.AddressString`, `cosmos.ValidatorAddressString`, `cosmos.ConsensusAddressString`, `cosmos.Int`, `cosmos.Dec`.
 
 ## Implements_Interface
 
-`Implements_Interface` is used to provide information to client tooling like [telescope](https://github.com/cosmology-tech/telescope) on how to encode and decode protobuf messages. 
+`Implements_Interface` được sử dụng để cung cấp thông tin cho công cụ client như [telescope](https://github.com/cosmology-tech/telescope) về cách mã hóa và giải mã các protobuf message.
 
 ```proto
 option (cosmos_proto.implements_interface) = "cosmos.auth.v1beta1.AccountI";
 ```
 
-## Method,Field,Message Added In
+## Method, Field, Message Added In (Được Thêm Vào Trong Phiên Bản)
 
-`method_added_in`, `field_added_in` and `message_added_in` are annotations to denote to clients that a field has been supported in a later version. This is useful when new methods or fields are added in later versions and that the client needs to be aware of what it can call.
+`method_added_in`, `field_added_in` và `message_added_in` là các annotation để thông báo cho client rằng một trường đã được hỗ trợ trong phiên bản mới hơn. Điều này hữu ích khi các phương thức hoặc trường mới được thêm vào trong các phiên bản sau và client cần biết những gì có thể gọi.
 
-The annotation should be worded as follows:
+Annotation nên được viết như sau:
 
 ```proto
 option (cosmos_proto.method_added_in) = "cosmos-sdk v0.50.1";
@@ -76,15 +76,15 @@ option (cosmos_proto.method_added_in) = "simapp v24.0.0";
 
 ## Amino
 
-The amino codec was removed in `v0.50+`, this means there is no need to register `legacyAminoCodec`. To replace the amino codec, Amino protobuf annotations are used to provide information to the amino codec on how to encode and decode protobuf messages. 
+Amino codec đã bị xóa trong `v0.50+`, điều này có nghĩa là không cần đăng ký `legacyAminoCodec` nữa. Để thay thế amino codec, các annotation protobuf Amino được sử dụng để cung cấp thông tin cho amino codec về cách mã hóa và giải mã các protobuf message.
 
-Amino annotations are only used for backwards compatibility with amino. New modules are not required to use amino annotations.
+Các annotation Amino chỉ được sử dụng cho khả năng tương thích ngược với amino. Các module mới không bắt buộc phải sử dụng annotation amino.
 
-The below annotations are used to provide information to the amino codec on how to encode and decode protobuf messages in a backwards compatible manner. 
+Các annotation dưới đây được sử dụng để cung cấp thông tin cho amino codec về cách mã hóa và giải mã các protobuf message theo cách tương thích ngược.
 
 ### Name
 
-Name specifies the amino name that would show up for the user in order for them to see which message they are signing.
+Name chỉ định tên amino sẽ hiển thị cho người dùng để họ thấy message nào họ đang ký.
 
 ```proto
 option (amino.name) = "cosmos-sdk/BaseAccount";
@@ -96,7 +96,7 @@ https://github.com/cosmos/cosmos-sdk/blob/e8f28bf5db18b8d6b7e0d94b542ce4cf48fed9
 
 ### Field_Name
 
-Field name specifies the amino name that would show up for the user in order for them to see which field they are signing.
+Field name chỉ định tên amino sẽ hiển thị cho người dùng để họ thấy trường nào họ đang ký.
 
 ```proto
 uint64 height = 1 [(amino.field_name) = "public_key"];
@@ -106,9 +106,9 @@ uint64 height = 1 [(amino.field_name) = "public_key"];
 https://github.com/cosmos/cosmos-sdk/blob/e8f28bf5db18b8d6b7e0d94b542ce4cf48fed9d6/proto/cosmos/distribution/v1beta1/distribution.proto#L166
 ```
 
-### Dont_OmitEmpty 
+### Dont_OmitEmpty
 
-Dont omitempty specifies that the field should not be omitted when encoding to amino. 
+Dont omitempty chỉ định rằng trường không nên bị bỏ qua khi mã hóa sang amino.
 
 ```proto
 repeated cosmos.base.v1beta1.Coin amount = 3 [(amino.dont_omitempty)   = true];
@@ -118,9 +118,9 @@ repeated cosmos.base.v1beta1.Coin amount = 3 [(amino.dont_omitempty)   = true];
 https://github.com/cosmos/cosmos-sdk/blob/e8f28bf5db18b8d6b7e0d94b542ce4cf48fed9d6/proto/cosmos/bank/v1beta1/bank.proto#L56
 ```
 
-### Encoding 
+### Encoding
 
-Encoding instructs the amino json marshaler how to encode certain fields that may differ from the standard encoding behaviour. The most common example of this is how `repeated cosmos.base.v1beta1.Coin` is encoded when using the amino json encoding format. The `legacy_coins` option tells the json marshaler [how to encode a null slice](https://github.com/cosmos/cosmos-sdk/blob/e8f28bf5db18b8d6b7e0d94b542ce4cf48fed9d6/x/tx/signing/aminojson/json_marshal.go#L65) of `cosmos.base.v1beta1.Coin`.
+Encoding hướng dẫn amino json marshaler cách mã hóa một số trường nhất định có thể khác với hành vi mã hóa tiêu chuẩn. Ví dụ phổ biến nhất là cách `repeated cosmos.base.v1beta1.Coin` được mã hóa khi sử dụng định dạng mã hóa amino json. Tùy chọn `legacy_coins` cho json marshaler biết [cách mã hóa một slice null](https://github.com/cosmos/cosmos-sdk/blob/e8f28bf5db18b8d6b7e0d94b542ce4cf48fed9d6/x/tx/signing/aminojson/json_marshal.go#L65) của `cosmos.base.v1beta1.Coin`.
 
 ```proto
 (amino.encoding)         = "legacy_coins",

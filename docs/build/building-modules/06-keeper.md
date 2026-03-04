@@ -4,31 +4,31 @@ sidebar_position: 1
 
 # Keepers
 
-:::note Synopsis
-`Keeper`s refer to a Cosmos SDK abstraction whose role is to manage access to the subset of the state defined by various modules. `Keeper`s are module-specific, i.e. the subset of state defined by a module can only be accessed by a `keeper` defined in said module. If a module needs to access the subset of state defined by another module, a reference to the second module's internal `keeper` needs to be passed to the first one. This is done in `app.go` during the instantiation of module keepers.
+:::note Tóm tắt
+`Keeper` đề cập đến một abstraction của Cosmos SDK có vai trò quản lý quyền truy cập vào tập con trạng thái được định nghĩa bởi các module khác nhau. `Keeper` đặc thù cho từng module, tức là tập con trạng thái được định nghĩa bởi một module chỉ có thể được truy cập bởi `keeper` được định nghĩa trong module đó. Nếu một module cần truy cập tập con trạng thái được định nghĩa bởi module khác, cần truyền tham chiếu đến `keeper` nội bộ của module thứ hai cho module thứ nhất. Điều này được thực hiện trong `app.go` trong quá trình khởi tạo module keepers.
 :::
 
-:::note Pre-requisite Readings
+:::note Yêu Cầu Đọc Trước
 
-* [Introduction to Cosmos SDK Modules](./00-intro.md)
+* [Giới thiệu về Cosmos SDK Modules](./00-intro.md)
 
 :::
 
-## Motivation
+## Động Lực
 
-The Cosmos SDK is a framework that makes it easy for developers to build complex decentralized applications from scratch, mainly by composing modules together. As the ecosystem of open-source modules for the Cosmos SDK expands, it will become increasingly likely that some of these modules contain vulnerabilities, as a result of the negligence or malice of their developers.
+Cosmos SDK là một framework giúp các nhà phát triển dễ dàng xây dựng các ứng dụng phi tập trung phức tạp từ đầu, chủ yếu bằng cách kết hợp các module lại với nhau. Khi hệ sinh thái các module mã nguồn mở cho Cosmos SDK mở rộng, ngày càng có khả năng cao hơn là một số module này chứa các lỗ hổng, do sự cẩu thả hoặc ác ý của nhà phát triển.
 
-The Cosmos SDK adopts an [object-capabilities-based approach](../../docs/learn/advanced/10-ocap.md) to help developers better protect their application from unwanted inter-module interactions, and `keeper`s are at the core of this approach. A `keeper` can be considered quite literally to be the gatekeeper of a module's store(s). Each store (typically an [`IAVL` Store](../../learn/advanced/04-store.md#iavl-store)) defined within a module comes with a `storeKey`, which grants unlimited access to it. The module's `keeper` holds this `storeKey` (which should otherwise remain unexposed), and defines [methods](#implementing-methods) for reading and writing to the store(s).
+Cosmos SDK áp dụng [phương pháp dựa trên object-capabilities](../../docs/learn/advanced/10-ocap.md) để giúp nhà phát triển bảo vệ ứng dụng của họ khỏi các tương tác giữa module không mong muốn, và `keeper` là trọng tâm của phương pháp này. Một `keeper` có thể được coi theo nghĩa đen là người gác cổng của các store trong module. Mỗi store (thường là [`IAVL` Store](../../learn/advanced/04-store.md#iavl-store)) được định nghĩa trong một module đi kèm với một `storeKey`, cấp quyền truy cập không giới hạn vào nó. `Keeper` của module giữ `storeKey` này (vốn phải được giữ không tiết lộ), và định nghĩa [các phương thức](#implementing-methods) để đọc và ghi vào store.
 
-The core idea behind the object-capabilities approach is to only reveal what is necessary to get the work done. In practice, this means that instead of handling permissions of modules through access-control lists, module `keeper`s are passed a reference to the specific instance of the other modules' `keeper`s that they need to access (this is done in the [application's constructor function](../../learn/beginner/00-app-anatomy.md#constructor-function)). As a consequence, a module can only interact with the subset of state defined in another module via the methods exposed by the instance of the other module's `keeper`. This is a great way for developers to control the interactions that their own module can have with modules developed by external developers.
+Ý tưởng cốt lõi đằng sau phương pháp object-capabilities là chỉ tiết lộ những gì cần thiết để hoàn thành công việc. Trong thực tế, điều này có nghĩa là thay vì xử lý quyền của các module thông qua danh sách kiểm soát truy cập, các `keeper` của module được truyền tham chiếu đến phiên bản cụ thể của `keeper` của module khác mà chúng cần truy cập (điều này được thực hiện trong [hàm constructor của ứng dụng](../../learn/beginner/00-app-anatomy.md#constructor-function)). Kết quả là, một module chỉ có thể tương tác với tập con trạng thái được định nghĩa trong module khác thông qua các phương thức được hiển thị bởi phiên bản `keeper` của module khác đó. Đây là cách tuyệt vời để nhà phát triển kiểm soát các tương tác mà module của họ có thể có với các module do nhà phát triển bên ngoài phát triển.
 
-## Type Definition
+## Định Nghĩa Kiểu
 
-`keeper`s are generally implemented in a `/keeper/keeper.go` file located in the module's folder. By convention, the type `keeper` of a module is simply named `Keeper` and usually follows the following structure:
+`Keeper` thường được triển khai trong file `/keeper/keeper.go` nằm trong thư mục của module. Theo quy ước, kiểu `keeper` của một module được đặt tên đơn giản là `Keeper` và thường có cấu trúc sau:
 
 ```go
 type Keeper struct {
-    // External keepers, if any
+    // External keepers, nếu có
 
     // Store key(s)
 
@@ -38,54 +38,54 @@ type Keeper struct {
 }
 ```
 
-For example, here is the type definition of the `keeper` from the `staking` module:
+Ví dụ, đây là định nghĩa kiểu của `keeper` từ module `staking`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/staking/keeper/keeper.go#L23-L31
 ```
 
-Let us go through the different parameters:
+Hãy xem qua các tham số khác nhau:
 
-* An expected `keeper` is a `keeper` external to a module that is required by the internal `keeper` of said module. External `keeper`s are listed in the internal `keeper`'s type definition as interfaces. These interfaces are themselves defined in an `expected_keepers.go` file in the root of the module's folder. In this context, interfaces are used to reduce the number of dependencies, as well as to facilitate the maintenance of the module itself.
-* `storeKey`s grant access to the store(s) of the [multistore](../../learn/advanced/04-store.md) managed by the module. They should always remain unexposed to external modules.
-* `cdc` is the [codec](../../learn/advanced/05-encoding.md) used to marshall and unmarshall structs to/from `[]byte`. The `cdc` can be any of `codec.BinaryCodec`, `codec.JSONCodec` or `codec.Codec` based on your requirements. It can be either a proto or amino codec as long as they implement these interfaces.
-* The authority listed is a module account or user account that has the right to change module level parameters. Previously this was handled by the param module, which has been deprecated.
+* Một `keeper` mong đợi (expected keeper) là một `keeper` bên ngoài module được yêu cầu bởi `keeper` nội bộ của module đó. Các `keeper` bên ngoài được liệt kê trong định nghĩa kiểu của `keeper` nội bộ dưới dạng các interface. Các interface này được định nghĩa trong file `expected_keepers.go` ở thư mục gốc của module. Trong ngữ cảnh này, các interface được sử dụng để giảm số lượng phụ thuộc, cũng như tạo điều kiện bảo trì module.
+* `storeKey` cấp quyền truy cập vào các store của [multistore](../../learn/advanced/04-store.md) được quản lý bởi module. Chúng phải luôn được giữ không tiết lộ cho các module bên ngoài.
+* `cdc` là [codec](../../learn/advanced/05-encoding.md) được sử dụng để marshal và unmarshal các struct sang/từ `[]byte`. `cdc` có thể là bất kỳ `codec.BinaryCodec`, `codec.JSONCodec` hoặc `codec.Codec` nào dựa trên yêu cầu của bạn. Nó có thể là codec proto hoặc amino miễn là chúng triển khai các interface này.
+* Authority được liệt kê là một tài khoản module hoặc tài khoản người dùng có quyền thay đổi các tham số ở cấp module. Trước đây điều này được xử lý bởi module param, vốn đã bị loại bỏ.
 
-Of course, it is possible to define different types of internal `keeper`s for the same module (e.g. a read-only `keeper`). Each type of `keeper` comes with its own constructor function, which is called from the [application's constructor function](../../learn/beginner/00-app-anatomy.md). This is where `keeper`s are instantiated, and where developers make sure to pass correct instances of modules' `keeper`s to other modules that require them.
+Tất nhiên, có thể định nghĩa các loại `keeper` nội bộ khác nhau cho cùng một module (ví dụ: một `keeper` chỉ đọc). Mỗi loại `keeper` có hàm constructor riêng, được gọi từ [hàm constructor của ứng dụng](../../learn/beginner/00-app-anatomy.md). Đây là nơi các `keeper` được khởi tạo, và nơi nhà phát triển đảm bảo truyền đúng phiên bản các `keeper` của modules cho các module khác yêu cầu chúng.
 
-## Implementing Methods
+## Triển Khai Các Phương Thức
 
-`Keeper`s primarily expose getter and setter methods for the store(s) managed by their module. These methods should remain as simple as possible and strictly be limited to getting or setting the requested value, as validity checks should have already been performed by the [`Msg` server](./03-msg-services.md) when `keeper`s' methods are called.
+`Keeper` chủ yếu hiển thị các phương thức getter và setter cho các store được quản lý bởi module của chúng. Các phương thức này phải đơn giản nhất có thể và chỉ giới hạn trong việc lấy hoặc đặt giá trị được yêu cầu, vì các kiểm tra hợp lệ đã được thực hiện bởi [`Msg` server](./03-msg-services.md) khi các phương thức của `keeper` được gọi.
 
-Typically, a *getter* method will have the following signature
+Thông thường, một phương thức *getter* sẽ có chữ ký sau:
 
 ```go
 func (k Keeper) Get(ctx context.Context, key string) returnType
 ```
 
-and the method will go through the following steps:
+và phương thức sẽ thực hiện các bước sau:
 
-1. Retrieve the appropriate store from the `ctx` using the `storeKey`. This is done through the `KVStore(storeKey sdk.StoreKey)` method of the `ctx`. Then it's preferred to use the `prefix.Store` to access only the desired limited subset of the store for convenience and safety.
-2. If it exists, get the `[]byte` value stored at location `[]byte(key)` using the `Get(key []byte)` method of the store.
-3. Unmarshall the retrieved value from `[]byte` to `returnType` using the codec `cdc`. Return the value.
+1. Lấy store thích hợp từ `ctx` bằng cách sử dụng `storeKey`. Điều này được thực hiện thông qua phương thức `KVStore(storeKey sdk.StoreKey)` của `ctx`. Sau đó ưu tiên sử dụng `prefix.Store` để chỉ truy cập tập con giới hạn mong muốn của store cho tiện lợi và an toàn.
+2. Nếu tồn tại, lấy giá trị `[]byte` được lưu trữ tại vị trí `[]byte(key)` bằng cách sử dụng phương thức `Get(key []byte)` của store.
+3. Unmarshal giá trị đã lấy từ `[]byte` sang `returnType` bằng cách sử dụng codec `cdc`. Trả về giá trị.
 
-Similarly, a *setter* method will have the following signature
+Tương tự, một phương thức *setter* sẽ có chữ ký sau:
 
 ```go
 func (k Keeper) Set(ctx context.Context, key string, value valueType)
 ```
 
-and the method will go through the following steps:
+và phương thức sẽ thực hiện các bước sau:
 
-1. Retrieve the appropriate store from the `ctx` using the `storeKey`. This is done through the `KVStore(storeKey sdk.StoreKey)` method of the `ctx`. It's preferred to use the `prefix.Store` to access only the desired limited subset of the store for convenience and safety.
-2. Marshal `value` to `[]byte` using the codec `cdc`.
-3. Set the encoded value in the store at location `key` using the `Set(key []byte, value []byte)` method of the store.
+1. Lấy store thích hợp từ `ctx` bằng cách sử dụng `storeKey`. Ưu tiên sử dụng `prefix.Store` để chỉ truy cập tập con giới hạn mong muốn của store cho tiện lợi và an toàn.
+2. Marshal `value` sang `[]byte` bằng cách sử dụng codec `cdc`.
+3. Đặt giá trị được mã hóa vào store tại vị trí `key` bằng cách sử dụng phương thức `Set(key []byte, value []byte)` của store.
 
-For more, see an example of `keeper`'s [methods implementation from the `staking` module](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/staking/keeper/keeper.go).
+Để biết thêm, xem ví dụ về [triển khai các phương thức của `keeper` từ module `staking`](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/staking/keeper/keeper.go).
 
-The [module `KVStore`](../../learn/advanced/04-store.md#kvstore-and-commitkvstore-interfaces) also provides an `Iterator()` method which returns an `Iterator` object to iterate over a domain of keys.
+[`KVStore` của module](../../learn/advanced/04-store.md#kvstore-and-commitkvstore-interfaces) cũng cung cấp phương thức `Iterator()` trả về một đối tượng `Iterator` để duyệt qua một miền khóa.
 
-This is an example from the `auth` module to iterate accounts:
+Đây là ví dụ từ module `auth` để duyệt qua các tài khoản:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/auth/keeper/account.go

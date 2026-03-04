@@ -4,71 +4,71 @@ sidebar_position: 1
 
 # Module Manager
 
-:::note Synopsis
-Cosmos SDK modules need to implement the [`AppModule` interfaces](#application-module-interfaces), in order to be managed by the application's [module manager](#module-manager). The module manager plays an important role in [`message` and `query` routing](../../learn/advanced/00-baseapp.md#routing), and allows application developers to set the order of execution of a variety of functions like [`PreBlocker`](../../learn/beginner/00-app-anatomy.md#preblocker) and [`BeginBlocker` and `EndBlocker`](../../learn/beginner/00-app-anatomy.md#beginblocker-and-endblocker).
+:::note Tóm tắt
+Các Cosmos SDK module cần triển khai [`AppModule` interfaces](#application-module-interfaces) để được quản lý bởi [module manager](#module-manager) của ứng dụng. Module manager đóng vai trò quan trọng trong [định tuyến `message` và `query`](../../learn/advanced/00-baseapp.md#routing), và cho phép nhà phát triển ứng dụng thiết lập thứ tự thực thi của các hàm như [`PreBlocker`](../../learn/beginner/00-app-anatomy.md#preblocker) và [`BeginBlocker` và `EndBlocker`](../../learn/beginner/00-app-anatomy.md#beginblocker-and-endblocker).
 :::
 
-:::note Pre-requisite Readings
+:::note Yêu Cầu Đọc Trước
 
-* [Introduction to Cosmos SDK Modules](./00-intro.md)
+* [Giới thiệu về Cosmos SDK Modules](./00-intro.md)
 
 :::
 
-## Application Module Interfaces
+## Các Interface của Application Module
 
-Application module interfaces exist to facilitate the composition of modules together to form a functional Cosmos SDK application.
+Các interface của application module tồn tại để tạo điều kiện kết hợp các module lại với nhau để tạo thành một ứng dụng Cosmos SDK có chức năng.
 
 :::note
 
-It is recommended to implement interfaces from the [Core API](https://docs.cosmos.network/main/architecture/adr-063-core-module-api) `appmodule` package. This makes modules less dependent on the SDK.
-For legacy reason modules can still implement interfaces from the SDK `module` package.
+Khuyến nghị triển khai các interface từ gói `appmodule` của [Core API](https://docs.cosmos.network/main/architecture/adr-063-core-module-api). Điều này làm cho các module ít phụ thuộc hơn vào SDK.
+Vì lý do kế thừa, các module vẫn có thể triển khai các interface từ gói `module` của SDK.
 :::
 
-There are 2 main application module interfaces:
+Có 2 interface application module chính:
 
-* [`appmodule.AppModule` / `module.AppModule`](#appmodule) for inter-dependent module functionalities (except genesis-related functionalities).
-* (legacy) [`module.AppModuleBasic`](#appmodulebasic) for independent module functionalities. New modules can use `module.CoreAppModuleBasicAdaptor` instead.
+* [`appmodule.AppModule` / `module.AppModule`](#appmodule) cho các chức năng module phụ thuộc lẫn nhau (ngoại trừ các chức năng liên quan đến genesis).
+* (kế thừa) [`module.AppModuleBasic`](#appmodulebasic) cho các chức năng module độc lập. Các module mới có thể sử dụng `module.CoreAppModuleBasicAdaptor` thay thế.
 
-The above interfaces are mostly embedding smaller interfaces (extension interfaces), that define specific functionalities:
+Các interface trên chủ yếu nhúng các interface nhỏ hơn (extension interface), định nghĩa các chức năng cụ thể:
 
-* (legacy) `module.HasName`: Allows the module to provide its own name for legacy purposes.
-* (legacy) [`module.HasGenesisBasics`](#modulehasgenesisbasics): The legacy interface for stateless genesis methods.
-* [`module.HasGenesis`](#modulehasgenesis) for inter-dependent genesis-related module functionalities.
-* [`module.HasABCIGenesis`](#modulehasabcigenesis) for inter-dependent genesis-related module functionalities.
-* [`appmodule.HasGenesis` / `module.HasGenesis`](#appmodulehasgenesis): The extension interface for stateful genesis methods.
-* [`appmodule.HasPreBlocker`](#haspreblocker): The extension interface that contains information about the `AppModule` and `PreBlock`.
-* [`appmodule.HasBeginBlocker`](#hasbeginblocker): The extension interface that contains information about the `AppModule` and `BeginBlock`.
-* [`appmodule.HasEndBlocker`](#hasendblocker): The extension interface that contains information about the `AppModule` and `EndBlock`.
-* [`appmodule.HasPrecommit`](#hasprecommit): The extension interface that contains information about the `AppModule` and `Precommit`.
-* [`appmodule.HasPrepareCheckState`](#haspreparecheckstate): The extension interface that contains information about the `AppModule` and `PrepareCheckState`.
-* [`appmodule.HasService` / `module.HasServices`](#hasservices): The extension interface for modules to register services.
-* [`module.HasABCIEndBlock`](#hasabciendblock): The extension interface that contains information about the `AppModule`, `EndBlock` and returns an updated validator set.
-* (legacy) [`module.HasInvariants`](#hasinvariants): The extension interface for registering invariants.
-* (legacy) [`module.HasConsensusVersion`](#hasconsensusversion): The extension interface for declaring a module consensus version.
+* (kế thừa) `module.HasName`: Cho phép module cung cấp tên của chính nó cho mục đích kế thừa.
+* (kế thừa) [`module.HasGenesisBasics`](#modulehasgenesisbasics): Interface kế thừa cho các phương thức genesis không trạng thái.
+* [`module.HasGenesis`](#modulehasgenesis) cho các chức năng module liên quan đến genesis phụ thuộc lẫn nhau.
+* [`module.HasABCIGenesis`](#modulehasabcigenesis) cho các chức năng module liên quan đến genesis phụ thuộc lẫn nhau.
+* [`appmodule.HasGenesis` / `module.HasGenesis`](#appmodulehasgenesis): Extension interface cho các phương thức genesis có trạng thái.
+* [`appmodule.HasPreBlocker`](#haspreblocker): Extension interface chứa thông tin về `AppModule` và `PreBlock`.
+* [`appmodule.HasBeginBlocker`](#hasbeginblocker): Extension interface chứa thông tin về `AppModule` và `BeginBlock`.
+* [`appmodule.HasEndBlocker`](#hasendblocker): Extension interface chứa thông tin về `AppModule` và `EndBlock`.
+* [`appmodule.HasPrecommit`](#hasprecommit): Extension interface chứa thông tin về `AppModule` và `Precommit`.
+* [`appmodule.HasPrepareCheckState`](#haspreparecheckstate): Extension interface chứa thông tin về `AppModule` và `PrepareCheckState`.
+* [`appmodule.HasService` / `module.HasServices`](#hasservices): Extension interface cho các module đăng ký services.
+* [`module.HasABCIEndBlock`](#hasabciendblock): Extension interface chứa thông tin về `AppModule`, `EndBlock` và trả về bộ validator đã cập nhật.
+* (kế thừa) [`module.HasInvariants`](#hasinvariants): Extension interface để đăng ký invariants.
+* (kế thừa) [`module.HasConsensusVersion`](#hasconsensusversion): Extension interface để khai báo phiên bản consensus của module.
 
-The `AppModuleBasic` interface exists to define independent methods of the module, i.e. those that do not depend on other modules in the application. This allows for the construction of the basic application structure early in the application definition, generally in the `init()` function of the [main application file](../../learn/beginner/00-app-anatomy.md#core-application-file).
+Interface `AppModuleBasic` tồn tại để định nghĩa các phương thức độc lập của module, tức là những phương thức không phụ thuộc vào các module khác trong ứng dụng. Điều này cho phép xây dựng cấu trúc ứng dụng cơ bản từ sớm trong định nghĩa ứng dụng, thường trong hàm `init()` của [file ứng dụng chính](../../learn/beginner/00-app-anatomy.md#core-application-file).
 
-The `AppModule` interface exists to define inter-dependent module methods. Many modules need to interact with other modules, typically through [`keeper`s](./06-keeper.md), which means there is a need for an interface where modules list their `keeper`s and other methods that require a reference to another module's object. `AppModule` interface extension, such as `HasBeginBlocker` and `HasEndBlocker`, also enables the module manager to set the order of execution between module's methods like `BeginBlock` and `EndBlock`, which is important in cases where the order of execution between modules matters in the context of the application.
+Interface `AppModule` tồn tại để định nghĩa các phương thức module phụ thuộc lẫn nhau. Nhiều module cần tương tác với các module khác, thường thông qua [`keeper`](./06-keeper.md), có nghĩa là cần một interface nơi các module liệt kê các `keeper` và các phương thức khác yêu cầu tham chiếu đến đối tượng của module khác. Extension interface của `AppModule`, như `HasBeginBlocker` và `HasEndBlocker`, cũng cho phép module manager thiết lập thứ tự thực thi giữa các phương thức của module như `BeginBlock` và `EndBlock`, điều này quan trọng trong các trường hợp thứ tự thực thi giữa các module có ý nghĩa trong ngữ cảnh của ứng dụng.
 
-The usage of extension interfaces allows modules to define only the functionalities they need. For example, a module that does not need an `EndBlock` does not need to define the `HasEndBlocker` interface and thus the `EndBlock` method. `AppModule` and `AppModuleGenesis` are voluntarily small interfaces, that can take advantage of the `Module` patterns without having to define many placeholder functions.
+Việc sử dụng extension interface cho phép các module chỉ định nghĩa các chức năng họ cần. Ví dụ, một module không cần `EndBlock` thì không cần định nghĩa interface `HasEndBlocker` và do đó không cần phương thức `EndBlock`. `AppModule` và `AppModuleGenesis` là các interface cố tình được giữ nhỏ gọn, có thể tận dụng các mẫu `Module` mà không phải định nghĩa nhiều hàm giữ chỗ.
 
 ### `AppModuleBasic`
 
 :::note
-Use `module.CoreAppModuleBasicAdaptor` instead for creating an `AppModuleBasic` from an `appmodule.AppModule`.
+Sử dụng `module.CoreAppModuleBasicAdaptor` thay thế để tạo một `AppModuleBasic` từ một `appmodule.AppModule`.
 :::
 
-The `AppModuleBasic` interface defines the independent methods modules need to implement.
+Interface `AppModuleBasic` định nghĩa các phương thức độc lập mà các module cần triển khai.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/types/module/module.go#L56-L61
 ```
 
-* `RegisterLegacyAminoCodec(*codec.LegacyAmino)`: Registers the `amino` codec for the module, which is used to marshal and unmarshal structs to/from `[]byte` in order to persist them in the module's `KVStore`.
-* `RegisterInterfaces(codectypes.InterfaceRegistry)`: Registers a module's interface types and their concrete implementations as `proto.Message`.
-* `RegisterGRPCGatewayRoutes(client.Context, *runtime.ServeMux)`: Registers gRPC routes for the module.
+* `RegisterLegacyAminoCodec(*codec.LegacyAmino)`: Đăng ký `amino` codec cho module, dùng để marshal và unmarshal các struct sang/từ `[]byte` để lưu trữ trong `KVStore` của module.
+* `RegisterInterfaces(codectypes.InterfaceRegistry)`: Đăng ký các loại interface của module và các triển khai cụ thể của chúng dưới dạng `proto.Message`.
+* `RegisterGRPCGatewayRoutes(client.Context, *runtime.ServeMux)`: Đăng ký các route gRPC cho module.
 
-All the `AppModuleBasic` of an application are managed by the [`BasicManager`](#basicmanager).
+Tất cả `AppModuleBasic` của một ứng dụng được quản lý bởi [`BasicManager`](#basicmanager).
 
 ### `HasName`
 
@@ -76,12 +76,12 @@ All the `AppModuleBasic` of an application are managed by the [`BasicManager`](#
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/types/module/module.go#L66-L68
 ```
 
-* `HasName` is an interface that has a method `Name()`. This method returns the name of the module as a `string`.
+* `HasName` là một interface có phương thức `Name()`. Phương thức này trả về tên của module dưới dạng `string`.
 
 ### Genesis
 
 :::tip
-For easily creating an `AppModule` that only has genesis functionalities, use `module.GenesisOnlyAppModule`.
+Để dễ dàng tạo một `AppModule` chỉ có chức năng genesis, sử dụng `module.GenesisOnlyAppModule`.
 :::
 
 #### `module.HasGenesisBasics`
@@ -90,14 +90,14 @@ For easily creating an `AppModule` that only has genesis functionalities, use `m
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/types/module/module.go#L71-L74
 ```
 
-Let us go through the methods:
+Hãy xem qua các phương thức:
 
-* `DefaultGenesis(codec.JSONCodec)`: Returns a default [`GenesisState`](./08-genesis.md#genesisstate) for the module, marshalled to `json.RawMessage`. The default `GenesisState` need to be defined by the module developer and is primarily used for testing.
-* `ValidateGenesis(codec.JSONCodec, client.TxEncodingConfig, json.RawMessage)`: Used to validate the `GenesisState` defined by a module, given in its `json.RawMessage` form. It will usually unmarshall the `json` before running a custom [`ValidateGenesis`](./08-genesis.md#validategenesis) function defined by the module developer.
+* `DefaultGenesis(codec.JSONCodec)`: Trả về một [`GenesisState`](./08-genesis.md#genesisstate) mặc định cho module, được marshal sang `json.RawMessage`. `GenesisState` mặc định cần được định nghĩa bởi nhà phát triển module và chủ yếu được sử dụng cho mục đích kiểm thử.
+* `ValidateGenesis(codec.JSONCodec, client.TxEncodingConfig, json.RawMessage)`: Dùng để xác thực `GenesisState` được định nghĩa bởi một module, được cung cấp ở dạng `json.RawMessage`. Thường sẽ unmarshal `json` trước khi chạy hàm [`ValidateGenesis`](./08-genesis.md#validategenesis) tùy chỉnh do nhà phát triển module định nghĩa.
 
 #### `module.HasGenesis`
 
-`HasGenesis` is an extension interface for allowing modules to implement genesis functionalities.
+`HasGenesis` là extension interface cho phép các module triển khai các chức năng genesis.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/6ce2505/types/module/module.go#L184-L189
@@ -105,7 +105,7 @@ https://github.com/cosmos/cosmos-sdk/blob/6ce2505/types/module/module.go#L184-L1
 
 #### `module.HasABCIGenesis`
 
-`HasABCIGenesis` is an extension interface for allowing modules to implement genesis functionalities and returns validator set updates.
+`HasABCIGenesis` là extension interface cho phép các module triển khai các chức năng genesis và trả về các bản cập nhật bộ validator.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/6ce2505/types/module/module.go#L191-L196
@@ -114,7 +114,7 @@ https://github.com/cosmos/cosmos-sdk/blob/6ce2505/types/module/module.go#L191-L1
 #### `appmodule.HasGenesis`
 
 :::warning
-`appmodule.HasGenesis` is experimental and should be considered unstable, it is recommended to not use this interface at this time.
+`appmodule.HasGenesis` đang trong giai đoạn thử nghiệm và nên được coi là không ổn định, khuyến nghị không sử dụng interface này vào lúc này.
 :::
 
 ```go reference
@@ -123,8 +123,7 @@ https://github.com/cosmos/cosmos-sdk/blob/6ce2505/core/appmodule/genesis.go#L8-L
 
 ### `AppModule`
 
-The `AppModule` interface defines a module. Modules can declare their functionalities by implementing extensions interfaces.
-`AppModule`s are managed by the [module manager](#manager), which checks which extension interfaces are implemented by the module.
+Interface `AppModule` định nghĩa một module. Các module có thể khai báo chức năng của chúng bằng cách triển khai các extension interface. Các `AppModule` được quản lý bởi [module manager](#manager), kiểm tra xem module triển khai những extension interface nào.
 
 #### `appmodule.AppModule`
 
@@ -134,8 +133,8 @@ https://github.com/cosmos/cosmos-sdk/blob/6afece6/core/appmodule/module.go#L11-L
 
 #### `module.AppModule`
 
-:::note 
-Previously the `module.AppModule` interface was containing all the methods that are defined in the extensions interfaces. This was leading to much boilerplate for modules that did not need all the functionalities.
+:::note
+Trước đây interface `module.AppModule` chứa tất cả các phương thức được định nghĩa trong các extension interface. Điều này dẫn đến nhiều boilerplate cho các module không cần tất cả các chức năng.
 :::
 
 ```go reference
@@ -144,17 +143,17 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/types/module/module.go#L199-L2
 
 ### `HasInvariants`
 
-This interface defines one method. It allows checking if a module can register invariants.
+Interface này định nghĩa một phương thức. Nó cho phép kiểm tra xem một module có thể đăng ký invariants hay không.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/types/module/module.go#L211-L214
 ```
 
-* `RegisterInvariants(sdk.InvariantRegistry)`: Registers the [`invariants`](./07-invariants.md) of the module. If an invariant deviates from its predicted value, the [`InvariantRegistry`](./07-invariants.md#registry) triggers appropriate logic (most often the chain will be halted).
+* `RegisterInvariants(sdk.InvariantRegistry)`: Đăng ký các [`invariant`](./07-invariants.md) của module. Nếu một invariant lệch khỏi giá trị dự đoán, [`InvariantRegistry`](./07-invariants.md#registry) sẽ kích hoạt logic thích hợp (thường xuyên nhất là chain sẽ bị dừng).
 
 ### `HasServices`
 
-This interface defines one method. It allows checking if a module can register services.
+Interface này định nghĩa một phương thức. Nó cho phép kiểm tra xem một module có thể đăng ký services hay không.
 
 #### `appmodule.HasService`
 
@@ -168,89 +167,89 @@ https://github.com/cosmos/cosmos-sdk/blob/6afece6/core/appmodule/module.go#L22-L
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/types/module/module.go#L217-L220
 ```
 
-* `RegisterServices(Configurator)`: Allows a module to register services.
+* `RegisterServices(Configurator)`: Cho phép một module đăng ký services.
 
 ### `HasConsensusVersion`
 
-This interface defines one method for checking a module consensus version.
+Interface này định nghĩa một phương thức để kiểm tra phiên bản consensus của module.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/types/module/module.go#L223-L229
 ```
 
-* `ConsensusVersion() uint64`: Returns the consensus version of the module.
+* `ConsensusVersion() uint64`: Trả về phiên bản consensus của module.
 
 ### `HasPreBlocker`
 
-The `HasPreBlocker` is an extension interface from `appmodule.AppModule`. All modules that have an `PreBlock` method implement this interface.
+`HasPreBlocker` là extension interface từ `appmodule.AppModule`. Tất cả các module có phương thức `PreBlock` đều triển khai interface này.
 
 ### `HasBeginBlocker`
 
-The `HasBeginBlocker` is an extension interface from `appmodule.AppModule`. All modules that have an `BeginBlock` method implement this interface.
+`HasBeginBlocker` là extension interface từ `appmodule.AppModule`. Tất cả các module có phương thức `BeginBlock` đều triển khai interface này.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/core/appmodule/module.go#L73-L80
 ```
 
-* `BeginBlock(context.Context) error`: This method gives module developers the option to implement logic that is automatically triggered at the beginning of each block.
+* `BeginBlock(context.Context) error`: Phương thức này cho nhà phát triển module tùy chọn triển khai logic được tự động kích hoạt vào đầu mỗi block.
 
 ### `HasEndBlocker`
 
-The `HasEndBlocker` is an extension interface from `appmodule.AppModule`. All modules that have an `EndBlock` method implement this interface. If a module needs to return validator set updates (staking), they can use `HasABCIEndBlock`
+`HasEndBlocker` là extension interface từ `appmodule.AppModule`. Tất cả các module có phương thức `EndBlock` đều triển khai interface này. Nếu một module cần trả về các bản cập nhật bộ validator (staking), họ có thể sử dụng `HasABCIEndBlock`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/core/appmodule/module.go#L83-L89
 ```
 
-* `EndBlock(context.Context) error`: This method gives module developers the option to implement logic that is automatically triggered at the end of each block.
+* `EndBlock(context.Context) error`: Phương thức này cho nhà phát triển module tùy chọn triển khai logic được tự động kích hoạt vào cuối mỗi block.
 
 ### `HasABCIEndBlock`
 
-The `HasABCIEndBlock` is an extension interface from `module.AppModule`. All modules that have an `EndBlock` which return validator set updates implement this interface.
+`HasABCIEndBlock` là extension interface từ `module.AppModule`. Tất cả các module có `EndBlock` trả về các bản cập nhật bộ validator đều triển khai interface này.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/types/module/module.go#L236-L239
 ```
 
-* `EndBlock(context.Context) ([]abci.ValidatorUpdate, error)`: This method gives module developers the option to inform the underlying consensus engine of validator set changes (e.g. the `staking` module).
+* `EndBlock(context.Context) ([]abci.ValidatorUpdate, error)`: Phương thức này cho nhà phát triển module tùy chọn thông báo cho consensus engine bên dưới về các thay đổi bộ validator (ví dụ: module `staking`).
 
 ### `HasPrecommit`
 
-`HasPrecommit` is an extension interface from `appmodule.AppModule`. All modules that have a `Precommit` method implement this interface.
+`HasPrecommit` là extension interface từ `appmodule.AppModule`. Tất cả các module có phương thức `Precommit` đều triển khai interface này.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/core/appmodule/module.go#L50-L53
 ```
 
-* `Precommit(context.Context)`: This method gives module developers the option to implement logic that is automatically triggered during [`Commit'](../../learn/advanced/00-baseapp.md#commit) of each block using the [`finalizeblockstate`](../../learn/advanced/00-baseapp.md#state-updates) of the block to be committed. Implement empty if no logic needs to be triggered during `Commit` of each block for this module.
+* `Precommit(context.Context)`: Phương thức này cho nhà phát triển module tùy chọn triển khai logic được tự động kích hoạt trong [`Commit`](../../learn/advanced/00-baseapp.md#commit) của mỗi block bằng cách sử dụng [`finalizeblockstate`](../../learn/advanced/00-baseapp.md#state-updates) của block sắp được commit. Triển khai rỗng nếu không cần kích hoạt logic nào trong `Commit` của mỗi block cho module này.
 
 ### `HasPrepareCheckState`
 
-`HasPrepareCheckState` is an extension interface from `appmodule.AppModule`. All modules that have a `PrepareCheckState` method implement this interface.
+`HasPrepareCheckState` là extension interface từ `appmodule.AppModule`. Tất cả các module có phương thức `PrepareCheckState` đều triển khai interface này.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/core/appmodule/module.go#L44-L47
 ```
 
-* `PrepareCheckState(context.Context)`: This method gives module developers the option to implement logic that is automatically triggered during [`Commit'](../../learn/advanced/00-baseapp.md#commit) of each block using the [`checkState`](../../learn/advanced/00-baseapp.md#state-updates) of the next block. Implement empty if no logic needs to be triggered during `Commit` of each block for this module.
+* `PrepareCheckState(context.Context)`: Phương thức này cho nhà phát triển module tùy chọn triển khai logic được tự động kích hoạt trong [`Commit`](../../learn/advanced/00-baseapp.md#commit) của mỗi block bằng cách sử dụng [`checkState`](../../learn/advanced/00-baseapp.md#state-updates) của block tiếp theo. Các ghi vào trạng thái này sẽ có mặt trong [`checkState`](../../learn/advanced/00-baseapp.md#state-updates) của block tiếp theo, và do đó phương thức này có thể được sử dụng để chuẩn bị `checkState` cho block tiếp theo.
 
-### Implementing the Application Module Interfaces
+### Triển Khai Các Interface của Application Module
 
-Typically, the various application module interfaces are implemented in a file called `module.go`, located in the module's folder (e.g. `./x/module/module.go`).
+Thông thường, các interface của application module được triển khai trong một file gọi là `module.go`, nằm trong thư mục của module (ví dụ: `./x/module/module.go`).
 
-Almost every module needs to implement the `AppModuleBasic` and `AppModule` interfaces. If the module is only used for genesis, it will implement `AppModuleGenesis` instead of `AppModule`. The concrete type that implements the interface can add parameters that are required for the implementation of the various methods of the interface. For example, the `Route()` function often calls a `NewMsgServerImpl(k keeper)` function defined in `keeper/msg_server.go` and therefore needs to pass the module's [`keeper`](./06-keeper.md) as a parameter.
+Hầu hết mọi module cần triển khai các interface `AppModuleBasic` và `AppModule`. Nếu module chỉ được sử dụng cho genesis, nó sẽ triển khai `AppModuleGenesis` thay vì `AppModule`. Kiểu cụ thể triển khai interface có thể thêm các tham số cần thiết cho việc triển khai các phương thức khác nhau của interface. Ví dụ, hàm `Route()` thường gọi hàm `NewMsgServerImpl(k keeper)` được định nghĩa trong `keeper/msg_server.go` và do đó cần truyền [`keeper`](./06-keeper.md) của module làm tham số.
 
 ```go
-// example
+// ví dụ
 type AppModule struct {
-	AppModuleBasic
-	keeper       Keeper
+    AppModuleBasic
+    keeper       Keeper
 }
 ```
 
-In the example above, you can see that the `AppModule` concrete type references an `AppModuleBasic`, and not an `AppModuleGenesis`. That is because `AppModuleGenesis` only needs to be implemented in modules that focus on genesis-related functionalities. In most modules, the concrete `AppModule` type will have a reference to an `AppModuleBasic` and implement the two added methods of `AppModuleGenesis` directly in the `AppModule` type.
+Trong ví dụ trên, bạn có thể thấy rằng kiểu cụ thể `AppModule` tham chiếu đến một `AppModuleBasic`, chứ không phải `AppModuleGenesis`. Đó là vì `AppModuleGenesis` chỉ cần được triển khai trong các module tập trung vào các chức năng liên quan đến genesis. Trong hầu hết các module, kiểu cụ thể `AppModule` sẽ có tham chiếu đến `AppModuleBasic` và triển khai trực tiếp hai phương thức bổ sung của `AppModuleGenesis` trong kiểu `AppModule`.
 
-If no parameter is required (which is often the case for `AppModuleBasic`), just declare an empty concrete type like so:
+Nếu không cần tham số (thường là trường hợp với `AppModuleBasic`), chỉ cần khai báo một kiểu cụ thể rỗng như sau:
 
 ```go
 type AppModuleBasic struct{}
@@ -258,66 +257,65 @@ type AppModuleBasic struct{}
 
 ## Module Managers
 
-Module managers are used to manage collections of `AppModuleBasic` and `AppModule`.
+Module managers được sử dụng để quản lý các tập hợp `AppModuleBasic` và `AppModule`.
 
 ### `BasicManager`
 
-The `BasicManager` is a structure that lists all the `AppModuleBasic` of an application:
+`BasicManager` là một cấu trúc liệt kê tất cả `AppModuleBasic` của một ứng dụng:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/types/module/module.go#L77
 ```
 
-It implements the following methods:
+Nó triển khai các phương thức sau:
 
-* `NewBasicManager(modules ...AppModuleBasic)`: Constructor function. It takes a list of the application's `AppModuleBasic` and builds a new `BasicManager`. This function is generally called in the `init()` function of [`app.go`](../../learn/beginner/00-app-anatomy.md#core-application-file) to quickly initialize the independent elements of the application's modules (click [here](https://github.com/cosmos/gaia/blob/main/app/app.go#L59-L74) to see an example).
-* `NewBasicManagerFromManager(manager *Manager, customModuleBasics map[string]AppModuleBasic)`: Constructor function. It creates a new `BasicManager` from a `Manager`. The `BasicManager` will contain all `AppModuleBasic` from the `AppModule` manager using `CoreAppModuleBasicAdaptor` whenever possible. Module's `AppModuleBasic` can be overridden by passing a custom AppModuleBasic map
-* `RegisterLegacyAminoCodec(cdc *codec.LegacyAmino)`: Registers the [`codec.LegacyAmino`s](../../learn/advanced/05-encoding.md#amino) of each of the application's `AppModuleBasic`. This function is usually called early on in the [application's construction](../../learn/beginner/00-app-anatomy.md#constructor).
-* `RegisterInterfaces(registry codectypes.InterfaceRegistry)`: Registers interface types and implementations of each of the application's `AppModuleBasic`.
-* `DefaultGenesis(cdc codec.JSONCodec)`: Provides default genesis information for modules in the application by calling the [`DefaultGenesis(cdc codec.JSONCodec)`](./08-genesis.md#defaultgenesis) function of each module. It only calls the modules that implements the `HasGenesisBasics` interfaces.
-* `ValidateGenesis(cdc codec.JSONCodec, txEncCfg client.TxEncodingConfig, genesis map[string]json.RawMessage)`: Validates the genesis information modules by calling the [`ValidateGenesis(codec.JSONCodec, client.TxEncodingConfig, json.RawMessage)`](./08-genesis.md#validategenesis) function of modules implementing the `HasGenesisBasics` interface.
-* `RegisterGRPCGatewayRoutes(clientCtx client.Context, rtr *runtime.ServeMux)`: Registers gRPC routes for modules.
-* `AddTxCommands(rootTxCmd *cobra.Command)`: Adds modules' transaction commands (defined as `GetTxCmd() *cobra.Command`) to the application's [`rootTxCommand`](../../learn/advanced/07-cli.md#transaction-commands). This function is usually called function from the `main.go` function of the [application's command-line interface](../../learn/advanced/07-cli.md).
-* `AddQueryCommands(rootQueryCmd *cobra.Command)`: Adds modules' query commands (defined as `GetQueryCmd() *cobra.Command`) to the application's [`rootQueryCommand`](../../learn/advanced/07-cli.md#query-commands). This function is usually called function from the `main.go` function of the [application's command-line interface](../../learn/advanced/07-cli.md).
+* `NewBasicManager(modules ...AppModuleBasic)`: Hàm constructor. Nhận một danh sách `AppModuleBasic` của ứng dụng và xây dựng một `BasicManager` mới. Hàm này thường được gọi trong hàm `init()` của [`app.go`](../../learn/beginner/00-app-anatomy.md#core-application-file) để nhanh chóng khởi tạo các phần tử độc lập của các module của ứng dụng.
+* `NewBasicManagerFromManager(manager *Manager, customModuleBasics map[string]AppModuleBasic)`: Hàm constructor. Tạo một `BasicManager` mới từ một `Manager`. `BasicManager` sẽ chứa tất cả `AppModuleBasic` từ `AppModule` manager bằng cách sử dụng `CoreAppModuleBasicAdaptor` bất cứ khi nào có thể. `AppModuleBasic` của module có thể được ghi đè bằng cách truyền một map AppModuleBasic tùy chỉnh.
+* `RegisterLegacyAminoCodec(cdc *codec.LegacyAmino)`: Đăng ký các [`codec.LegacyAmino`](../../learn/advanced/05-encoding.md#amino) của từng `AppModuleBasic` của ứng dụng. Hàm này thường được gọi sớm trong quá trình [xây dựng ứng dụng](../../learn/beginner/00-app-anatomy.md#constructor).
+* `RegisterInterfaces(registry codectypes.InterfaceRegistry)`: Đăng ký các loại interface và triển khai của từng `AppModuleBasic` của ứng dụng.
+* `DefaultGenesis(cdc codec.JSONCodec)`: Cung cấp thông tin genesis mặc định cho các module trong ứng dụng bằng cách gọi hàm [`DefaultGenesis(cdc codec.JSONCodec)`](./08-genesis.md#defaultgenesis) của từng module. Chỉ gọi các module triển khai interface `HasGenesisBasics`.
+* `ValidateGenesis(cdc codec.JSONCodec, txEncCfg client.TxEncodingConfig, genesis map[string]json.RawMessage)`: Xác thực thông tin genesis của các module bằng cách gọi hàm [`ValidateGenesis(codec.JSONCodec, client.TxEncodingConfig, json.RawMessage)`](./08-genesis.md#validategenesis) của các module triển khai interface `HasGenesisBasics`.
+* `RegisterGRPCGatewayRoutes(clientCtx client.Context, rtr *runtime.ServeMux)`: Đăng ký các route gRPC cho các module.
+* `AddTxCommands(rootTxCmd *cobra.Command)`: Thêm các lệnh giao dịch của modules (được định nghĩa là `GetTxCmd() *cobra.Command`) vào [`rootTxCommand`](../../learn/advanced/07-cli.md#transaction-commands) của ứng dụng.
+* `AddQueryCommands(rootQueryCmd *cobra.Command)`: Thêm các lệnh query của modules (được định nghĩa là `GetQueryCmd() *cobra.Command`) vào [`rootQueryCommand`](../../learn/advanced/07-cli.md#query-commands) của ứng dụng.
 
 ### `Manager`
 
-The `Manager` is a structure that holds all the `AppModule` of an application, and defines the order of execution between several key components of these modules:
+`Manager` là một cấu trúc chứa tất cả `AppModule` của một ứng dụng, và định nghĩa thứ tự thực thi giữa một số thành phần chính của các module này:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/types/module/module.go#L278-L288
 ```
 
-The module manager is used throughout the application whenever an action on a collection of modules is required. It implements the following methods:
+Module manager được sử dụng xuyên suốt ứng dụng bất cứ khi nào cần thực hiện một hành động trên tập hợp các module. Nó triển khai các phương thức sau:
 
-* `NewManager(modules ...AppModule)`: Constructor function. It takes a list of the application's `AppModule`s and builds a new `Manager`. It is generally called from the application's main [constructor function](../../learn/beginner/00-app-anatomy.md#constructor-function).
-* `SetOrderInitGenesis(moduleNames ...string)`: Sets the order in which the [`InitGenesis`](./08-genesis.md#initgenesis) function of each module will be called when the application is first started. This function is generally called from the application's main [constructor function](../../learn/beginner/00-app-anatomy.md#constructor-function).
-  To initialize modules successfully, module dependencies should be considered. For example, the `genutil` module must occur after `staking` module so that the pools are properly initialized with tokens from genesis accounts, the `genutils` module must also occur after `auth` so that it can access the params from auth, IBC's `capability` module should be initialized before all other modules so that it can initialize any capabilities.
-* `SetOrderExportGenesis(moduleNames ...string)`: Sets the order in which the [`ExportGenesis`](./08-genesis.md#exportgenesis) function of each module will be called in case of an export. This function is generally called from the application's main [constructor function](../../learn/beginner/00-app-anatomy.md#constructor-function).
-* `SetOrderPreBlockers(moduleNames ...string)`: Sets the order in which the `PreBlock()` function of each module will be called before `BeginBlock()` of all modules. This function is generally called from the application's main [constructor function](../../learn/beginner/00-app-anatomy.md#constructor-function).
-* `SetOrderBeginBlockers(moduleNames ...string)`: Sets the order in which the `BeginBlock()` function of each module will be called at the beginning of each block. This function is generally called from the application's main [constructor function](../../learn/beginner/00-app-anatomy.md#constructor-function).
-* `SetOrderEndBlockers(moduleNames ...string)`: Sets the order in which the `EndBlock()` function of each module will be called at the end of each block. This function is generally called from the application's main [constructor function](../../learn/beginner/00-app-anatomy.md#constructor-function).
-* `SetOrderPrecommiters(moduleNames ...string)`: Sets the order in which the `Precommit()` function of each module will be called during commit of each block. This function is generally called from the application's main [constructor function](../../learn/beginner/00-app-anatomy.md#constructor-function).
-* `SetOrderPrepareCheckStaters(moduleNames ...string)`: Sets the order in which the `PrepareCheckState()` function of each module will be called during commit of each block. This function is generally called from the application's main [constructor function](../../learn/beginner/00-app-anatomy.md#constructor-function).
-* `SetOrderMigrations(moduleNames ...string)`: Sets the order of migrations to be run. If not set then migrations will be run with an order defined in `DefaultMigrationsOrder`.
-* `RegisterInvariants(ir sdk.InvariantRegistry)`: Registers the [invariants](./07-invariants.md) of module implementing the `HasInvariants` interface.
-* `RegisterServices(cfg Configurator)`: Registers the services of modules implementing the `HasServices` interface.
-* `InitGenesis(ctx context.Context, cdc codec.JSONCodec, genesisData map[string]json.RawMessage)`: Calls the [`InitGenesis`](./08-genesis.md#initgenesis) function of each module when the application is first started, in the order defined in `OrderInitGenesis`. Returns an `abci.InitChainResponse` to the underlying consensus engine, which can contain validator updates.
-* `ExportGenesis(ctx context.Context, cdc codec.JSONCodec)`: Calls the [`ExportGenesis`](./08-genesis.md#exportgenesis) function of each module, in the order defined in `OrderExportGenesis`. The export constructs a genesis file from a previously existing state, and is mainly used when a hard-fork upgrade of the chain is required.
-* `ExportGenesisForModules(ctx context.Context, cdc codec.JSONCodec, modulesToExport []string)`: Behaves the same as `ExportGenesis`, except takes a list of modules to export.
-* `BeginBlock(ctx context.Context) error`: At the beginning of each block, this function is called from [`BaseApp`](../../learn/advanced/00-baseapp.md#beginblock) and, in turn, calls the [`BeginBlock`](./06-beginblock-endblock.md) function of each modules implementing the `appmodule.HasBeginBlocker` interface, in the order defined in `OrderBeginBlockers`. It creates a child [context](../../learn/advanced/02-context.md) with an event manager to aggregate [events](../../learn/advanced/08-events.md) emitted from each modules.
-* `EndBlock(ctx context.Context) error`: At the end of each block, this function is called from [`BaseApp`](../../learn/advanced/00-baseapp.md#endblock) and, in turn, calls the [`EndBlock`](./06-beginblock-endblock.md) function of each modules implementing the `appmodule.HasEndBlocker` interface, in the order defined in `OrderEndBlockers`. It creates a child [context](../../learn/advanced/02-context.md) with an event manager to aggregate [events](../../learn/advanced/08-events.md) emitted from all modules. The function returns an `abci` which contains the aforementioned events, as well as validator set updates (if any).
-* `EndBlock(context.Context) ([]abci.ValidatorUpdate, error)`: At the end of each block, this function is called from [`BaseApp`](../../learn/advanced/00-baseapp.md#endblock) and, in turn, calls the [`EndBlock`](./06-beginblock-endblock.md) function of each modules implementing the `module.HasABCIEndBlock` interface, in the order defined in `OrderEndBlockers`. It creates a child [context](../../learn/advanced/02-context.md) with an event manager to aggregate [events](../../learn/advanced/08-events.md) emitted from all modules. The function returns an `abci` which contains the aforementioned events, as well as validator set updates (if any).
-* `Precommit(ctx context.Context)`: During [`Commit`](../../learn/advanced/00-baseapp.md#commit), this function is called from `BaseApp` immediately before the [`deliverState`](../../learn/advanced/00-baseapp.md#state-updates) is written to the underlying [`rootMultiStore`](../../learn/advanced/04-store.md#commitmultistore) and, in turn calls the `Precommit` function of each modules implementing the `HasPrecommit` interface, in the order defined in `OrderPrecommiters`. It creates a child [context](../../learn/advanced/02-context.md) where the underlying `CacheMultiStore` is that of the newly committed block's [`finalizeblockstate`](../../learn/advanced/00-baseapp.md#state-updates).
-* `PrepareCheckState(ctx context.Context)`: During [`Commit`](../../learn/advanced/00-baseapp.md#commit), this function is called from `BaseApp` immediately after the [`deliverState`](../../learn/advanced/00-baseapp.md#state-updates) is written to the underlying [`rootMultiStore`](../../learn/advanced/04-store.md#commitmultistore) and, in turn calls the `PrepareCheckState` function of each module implementing the `HasPrepareCheckState` interface, in the order defined in `OrderPrepareCheckStaters`. It creates a child [context](../../learn/advanced/02-context.md) where the underlying `CacheMultiStore` is that of the next block's [`checkState`](../../learn/advanced/00-baseapp.md#state-updates). Writes to this state will be present in the [`checkState`](../../learn/advanced/00-baseapp.md#state-updates) of the next block, and therefore this method can be used to prepare the `checkState` for the next block.
+* `NewManager(modules ...AppModule)`: Hàm constructor. Nhận một danh sách các `AppModule` của ứng dụng và xây dựng một `Manager` mới. Thường được gọi từ hàm [constructor chính](../../learn/beginner/00-app-anatomy.md#constructor-function) của ứng dụng.
+* `SetOrderInitGenesis(moduleNames ...string)`: Thiết lập thứ tự mà hàm [`InitGenesis`](./08-genesis.md#initgenesis) của mỗi module sẽ được gọi khi ứng dụng khởi động lần đầu. Để khởi tạo modules thành công, cần xem xét các phụ thuộc giữa module. Ví dụ, module `genutil` phải xảy ra sau module `staking` để các pool được khởi tạo đúng cách với token từ các tài khoản genesis.
+* `SetOrderExportGenesis(moduleNames ...string)`: Thiết lập thứ tự mà hàm [`ExportGenesis`](./08-genesis.md#exportgenesis) của mỗi module sẽ được gọi trong trường hợp export.
+* `SetOrderPreBlockers(moduleNames ...string)`: Thiết lập thứ tự mà hàm `PreBlock()` của mỗi module sẽ được gọi trước `BeginBlock()` của tất cả các module.
+* `SetOrderBeginBlockers(moduleNames ...string)`: Thiết lập thứ tự mà hàm `BeginBlock()` của mỗi module sẽ được gọi vào đầu mỗi block.
+* `SetOrderEndBlockers(moduleNames ...string)`: Thiết lập thứ tự mà hàm `EndBlock()` của mỗi module sẽ được gọi vào cuối mỗi block.
+* `SetOrderPrecommiters(moduleNames ...string)`: Thiết lập thứ tự mà hàm `Precommit()` của mỗi module sẽ được gọi trong quá trình commit của mỗi block.
+* `SetOrderPrepareCheckStaters(moduleNames ...string)`: Thiết lập thứ tự mà hàm `PrepareCheckState()` của mỗi module sẽ được gọi trong quá trình commit của mỗi block.
+* `SetOrderMigrations(moduleNames ...string)`: Thiết lập thứ tự các migration cần chạy. Nếu không được đặt thì migration sẽ chạy theo thứ tự được định nghĩa trong `DefaultMigrationsOrder`.
+* `RegisterInvariants(ir sdk.InvariantRegistry)`: Đăng ký các [invariant](./07-invariants.md) của module triển khai interface `HasInvariants`.
+* `RegisterServices(cfg Configurator)`: Đăng ký các service của các module triển khai interface `HasServices`.
+* `InitGenesis(ctx context.Context, cdc codec.JSONCodec, genesisData map[string]json.RawMessage)`: Gọi hàm [`InitGenesis`](./08-genesis.md#initgenesis) của mỗi module khi ứng dụng khởi động lần đầu, theo thứ tự được định nghĩa trong `OrderInitGenesis`. Trả về một `abci.InitChainResponse` cho consensus engine bên dưới, có thể chứa các bản cập nhật validator.
+* `ExportGenesis(ctx context.Context, cdc codec.JSONCodec)`: Gọi hàm [`ExportGenesis`](./08-genesis.md#exportgenesis) của mỗi module theo thứ tự được định nghĩa trong `OrderExportGenesis`. Export tạo ra một file genesis từ trạng thái đã tồn tại trước đó, chủ yếu được sử dụng khi cần nâng cấp hard-fork của chain.
+* `ExportGenesisForModules(ctx context.Context, cdc codec.JSONCodec, modulesToExport []string)`: Hoạt động giống như `ExportGenesis`, ngoại trừ nhận một danh sách các module cần export.
+* `BeginBlock(ctx context.Context) error`: Vào đầu mỗi block, hàm này được gọi từ [`BaseApp`](../../learn/advanced/00-baseapp.md#beginblock) và lần lượt gọi hàm [`BeginBlock`](./06-beginblock-endblock.md) của mỗi module triển khai interface `appmodule.HasBeginBlocker`, theo thứ tự được định nghĩa trong `OrderBeginBlockers`.
+* `EndBlock(ctx context.Context) error`: Vào cuối mỗi block, hàm này được gọi từ [`BaseApp`](../../learn/advanced/00-baseapp.md#endblock) và lần lượt gọi hàm [`EndBlock`](./06-beginblock-endblock.md) của mỗi module triển khai interface `appmodule.HasEndBlocker`, theo thứ tự được định nghĩa trong `OrderEndBlockers`.
+* `EndBlock(context.Context) ([]abci.ValidatorUpdate, error)`: Vào cuối mỗi block, hàm này được gọi từ [`BaseApp`](../../learn/advanced/00-baseapp.md#endblock) và lần lượt gọi hàm [`EndBlock`](./06-beginblock-endblock.md) của mỗi module triển khai interface `module.HasABCIEndBlock`, theo thứ tự được định nghĩa trong `OrderEndBlockers`. Hàm trả về một `abci` chứa các sự kiện đã đề cập, cũng như các bản cập nhật bộ validator (nếu có).
+* `Precommit(ctx context.Context)`: Trong [`Commit`](../../learn/advanced/00-baseapp.md#commit), hàm này được gọi từ `BaseApp` ngay trước khi [`deliverState`](../../learn/advanced/00-baseapp.md#state-updates) được ghi vào [`rootMultiStore`](../../learn/advanced/04-store.md#commitmultistore) bên dưới, và lần lượt gọi hàm `Precommit` của mỗi module triển khai interface `HasPrecommit`, theo thứ tự được định nghĩa trong `OrderPrecommiters`.
+* `PrepareCheckState(ctx context.Context)`: Trong [`Commit`](../../learn/advanced/00-baseapp.md#commit), hàm này được gọi từ `BaseApp` ngay sau khi [`deliverState`](../../learn/advanced/00-baseapp.md#state-updates) được ghi vào [`rootMultiStore`](../../learn/advanced/04-store.md#commitmultistore) bên dưới, và lần lượt gọi hàm `PrepareCheckState` của mỗi module triển khai interface `HasPrepareCheckState`, theo thứ tự được định nghĩa trong `OrderPrepareCheckStaters`.
 
-Here's an example of a concrete integration within an `simapp`:
+Dưới đây là ví dụ về tích hợp cụ thể trong `simapp`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/app.go#L510-L533
 ```
 
-This is the same example from `runtime` (the package that powers app di):
+Đây là ví dụ tương tự từ `runtime` (gói cung cấp sức mạnh cho app di):
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/runtime/module.go#L63

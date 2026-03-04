@@ -2,62 +2,62 @@
 sidebar_position: 1
 ---
 
-# Upgrading Modules
+# Nâng Cấp Modules
 
-:::note Synopsis
-[In-Place Store Migrations](../../learn/advanced/15-upgrade.md) allow your modules to upgrade to new versions that include breaking changes. This document outlines how to build modules to take advantage of this functionality.
+:::note Tóm tắt
+[In-Place Store Migrations](../../learn/advanced/15-upgrade.md) cho phép các module của bạn nâng cấp lên các phiên bản mới có các thay đổi phá vỡ (breaking changes). Tài liệu này trình bày cách xây dựng các module để tận dụng chức năng này.
 :::
 
-:::note Pre-requisite Readings
+:::note Yêu Cầu Đọc Trước
 
 * [In-Place Store Migration](../../learn/advanced/15-upgrade.md)
 
 :::
 
-## Consensus Version
+## Consensus Version (Phiên Bản Đồng Thuận)
 
-Successful upgrades of existing modules require each `AppModule` to implement the function `ConsensusVersion() uint64`.
+Nâng cấp thành công các module hiện có yêu cầu mỗi `AppModule` phải triển khai hàm `ConsensusVersion() uint64`.
 
-* The versions must be hard-coded by the module developer.
-* The initial version **must** be set to 1.
+* Các phiên bản phải được hard-code bởi nhà phát triển module.
+* Phiên bản ban đầu **phải** được đặt thành 1.
 
-Consensus versions serve as state-breaking versions of app modules and must be incremented when the module introduces breaking changes.
+Consensus version đóng vai trò là phiên bản state-breaking của các app module và phải được tăng lên khi module giới thiệu các thay đổi phá vỡ.
 
-## Registering Migrations
+## Đăng Ký Migration
 
-To register the functionality that takes place during a module upgrade, you must register which migrations you want to take place.
+Để đăng ký chức năng diễn ra trong quá trình nâng cấp module, bạn phải đăng ký migration nào bạn muốn thực hiện.
 
-Migration registration takes place in the `Configurator` using the `RegisterMigration` method. The `AppModule` reference to the configurator is in the `RegisterServices` method.
+Đăng ký migration diễn ra trong `Configurator` bằng cách sử dụng phương thức `RegisterMigration`. Tham chiếu `AppModule` đến configurator nằm trong phương thức `RegisterServices`.
 
-You can register one or more migrations. If you register more than one migration script, list the migrations in increasing order and ensure there are enough migrations that lead to the desired consensus version. For example, to migrate to version 3 of a module, register separate migrations for version 1 and version 2 as shown in the following example:
+Bạn có thể đăng ký một hoặc nhiều migration. Nếu bạn đăng ký nhiều hơn một migration script, liệt kê các migration theo thứ tự tăng dần và đảm bảo có đủ migration dẫn đến consensus version mong muốn. Ví dụ, để migrate đến phiên bản 3 của một module, đăng ký các migration riêng biệt cho phiên bản 1 và 2 như trong ví dụ sau:
 
 ```go
 func (am AppModule) RegisterServices(cfg module.Configurator) {
     // --snip--
     cfg.RegisterMigration(types.ModuleName, 1, func(ctx sdk.Context) error {
-        // Perform in-place store migrations from ConsensusVersion 1 to 2.
+        // Thực hiện in-place store migrations từ ConsensusVersion 1 sang 2.
     })
      cfg.RegisterMigration(types.ModuleName, 2, func(ctx sdk.Context) error {
-        // Perform in-place store migrations from ConsensusVersion 2 to 3.
+        // Thực hiện in-place store migrations từ ConsensusVersion 2 sang 3.
     })
 }
 ```
 
-Since these migrations are functions that need access to a Keeper's store, use a wrapper around the keepers called `Migrator` as shown in this example:
+Vì các migration này là các hàm cần truy cập store của Keeper, hãy sử dụng một wrapper xung quanh các keeper gọi là `Migrator` như trong ví dụ này:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/bank/keeper/migrations.go
 ```
 
-## Writing Migration Scripts
+## Viết Migration Scripts
 
-To define the functionality that takes place during an upgrade, write a migration script and place the functions in a `migrations/` directory. For example, to write migration scripts for the bank module, place the functions in `x/bank/migrations/`. Use the recommended naming convention for these functions. For example, `v2bank` is the script that migrates the package `x/bank/migrations/v2`:
+Để định nghĩa chức năng diễn ra trong quá trình nâng cấp, hãy viết migration script và đặt các hàm vào thư mục `migrations/`. Ví dụ, để viết migration script cho module bank, đặt các hàm trong `x/bank/migrations/`. Sử dụng quy ước đặt tên được khuyến nghị cho các hàm này. Ví dụ, `v2bank` là script migrate gói `x/bank/migrations/v2`:
 
 ```go
-// Migrating bank module from version 1 to 2
+// Migrating bank module từ phiên bản 1 sang 2
 func (m Migrator) Migrate1to2(ctx sdk.Context) error {
-	return v2bank.MigrateStore(ctx, m.keeper.storeKey) // v2bank is package `x/bank/migrations/v2`.
+	return v2bank.MigrateStore(ctx, m.keeper.storeKey) // v2bank là gói `x/bank/migrations/v2`.
 }
 ```
 
-To see example code of changes that were implemented in a migration of balance keys, check out [migrateBalanceKeys](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/bank/migrations/v2/store.go#L55-L76). For context, this code introduced migrations of the bank store that updated addresses to be prefixed by their length in bytes as outlined in [ADR-028](../../../architecture/adr-028-public-key-addresses.md).
+Để xem mã ví dụ về các thay đổi được triển khai trong một migration của các balance keys, hãy xem [migrateBalanceKeys](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/bank/migrations/v2/store.go#L55-L76). Để biết ngữ cảnh, mã này giới thiệu các migration của bank store cập nhật các địa chỉ được tiền tố bởi độ dài của chúng theo byte như được trình bày trong [ADR-028](../../../architecture/adr-028-public-key-addresses.md).
