@@ -1,42 +1,42 @@
-# Collections
+# Collections (Bộ Sưu Tập)
 
-Collections is a library meant to simplify the experience with respect to module state handling.
+Collections là một thư viện nhằm đơn giản hóa trải nghiệm liên quan đến việc xử lý trạng thái module.
 
-Cosmos SDK modules handle their state using the `KVStore` interface. The problem with working with
-`KVStore` is that it forces you to think of state as a bytes KV pairings when in reality the majority of
-state comes from complex concrete golang objects (strings, ints, structs, etc.).
+Các Cosmos SDK module xử lý trạng thái của chúng bằng interface `KVStore`. Vấn đề khi làm việc với
+`KVStore` là nó buộc bạn phải nghĩ về trạng thái như các cặp KV bytes trong khi thực tế phần lớn
+trạng thái đến từ các đối tượng golang cụ thể phức tạp (string, int, struct, v.v.).
 
-Collections allows you to work with state as if they were normal golang objects and removes the need
-for you to think of your state as raw bytes in your code.
+Collections cho phép bạn làm việc với trạng thái như thể chúng là các đối tượng golang bình thường và loại bỏ
+nhu cầu nghĩ về trạng thái của bạn như các raw bytes trong code.
 
-It also allows you to migrate your existing state without causing any state breakage that forces you into
-tedious and complex chain state migrations.
+Nó cũng cho phép bạn migrate trạng thái hiện có mà không gây ra bất kỳ state breakage nào buộc bạn vào
+các chain state migration phức tạp và tốn công.
 
-## Installation
+## Cài Đặt
 
-To install collections in your cosmos-sdk chain project, run the following command:
+Để cài đặt collections trong dự án cosmos-sdk chain của bạn, chạy lệnh sau:
 
 ```shell
 go get cosmossdk.io/collections
 ```
 
-## Core types
+## Các Kiểu Core
 
-Collections offers 5 different APIs to work with state, which will be explored in the next sections, these APIs are:
+Collections cung cấp 5 API khác nhau để làm việc với trạng thái, sẽ được khám phá trong các phần tiếp theo, các API này là:
 
-* ``Map``: to work with typed arbitrary KV pairings.
-* ``KeySet``: to work with just typed keys
-* ``Item``: to work with just one typed value
-* ``Sequence``: which is a monotonically increasing number.
-* ``IndexedMap``: which combines ``Map`` and `KeySet` to provide a `Map` with indexing capabilities.
+* ``Map``: để làm việc với các cặp KV tùy ý có kiểu.
+* ``KeySet``: để làm việc chỉ với các key có kiểu
+* ``Item``: để làm việc chỉ với một giá trị có kiểu
+* ``Sequence``: là một số tăng đơn điệu.
+* ``IndexedMap``: kết hợp ``Map`` và `KeySet` để cung cấp `Map` với khả năng lập chỉ mục.
 
-## Preliminary components
+## Các Thành Phần Sơ Bộ
 
-Before exploring the different collections types and their capability it is necessary to introduce
-the three components that every collection shares. In fact when instantiating a collection type by doing, for example,
-```collections.NewMap/collections.NewItem/...``` you will find yourself having to pass them some common arguments.
+Trước khi khám phá các kiểu collections khác nhau và khả năng của chúng, cần giới thiệu
+ba thành phần mà mọi collection đều dùng chung. Thực tế khi khởi tạo một kiểu collection bằng cách làm, ví dụ,
+```collections.NewMap/collections.NewItem/...``` bạn sẽ phải truyền cho chúng một số đối số chung.
 
-For example, in code:
+Ví dụ, trong code:
 
 ```go
 package collections
@@ -64,104 +64,102 @@ func NewKeeper(storeKey *storetypes.KVStoreKey) Keeper {
 
 ```
 
-Let's analyse the shared arguments, what they do, and why we need them.
+Hãy phân tích các đối số dùng chung, chúng làm gì và tại sao chúng ta cần chúng.
 
 ### SchemaBuilder
 
-The first argument passed is the ``SchemaBuilder``
+Đối số đầu tiên được truyền là ``SchemaBuilder``
 
-`SchemaBuilder` is a structure that keeps track of all the state of a module, it is not required by the collections
- to deal with state but it offers a dynamic and reflective way for clients to explore a module's state.
+`SchemaBuilder` là một cấu trúc theo dõi toàn bộ trạng thái của một module, nó không được yêu cầu bởi collections
+để xử lý trạng thái nhưng nó cung cấp một cách động và phản chiếu để clients khám phá trạng thái của module.
 
-We instantiate a ``SchemaBuilder`` by passing it a function that given the modules store key returns the module's specific store.
+Chúng ta khởi tạo một ``SchemaBuilder`` bằng cách truyền cho nó một hàm mà với store key của module trả về store cụ thể của module.
 
-We then need to pass the schema builder to every collection type we instantiate in our keeper, in our case the `AllowList`.
+Sau đó chúng ta cần truyền schema builder cho mọi kiểu collection mà chúng ta khởi tạo trong keeper của mình, trong trường hợp này là `AllowList`.
 
 ### Prefix
 
-The second argument passed to our ``KeySet`` is a `collections.Prefix`, a prefix represents a partition of the module's `KVStore`
-where all the state of a specific collection will be saved. 
+Đối số thứ hai được truyền cho ``KeySet`` của chúng ta là `collections.Prefix`, một prefix đại diện cho một phân vùng của `KVStore` của module
+nơi tất cả trạng thái của một collection cụ thể sẽ được lưu.
 
-Since a module can have multiple collections, the following is expected:
+Vì một module có thể có nhiều collection, điều sau được mong đợi:
 
-* module params will become a `collections.Item`
-* the `AllowList` is a `collections.KeySet`
+* module params sẽ trở thành `collections.Item`
+* `AllowList` là `collections.KeySet`
 
-We don't want a collection to write over the state of the other collection so we pass it a prefix, which defines a storage
-partition owned by the collection.
+Chúng ta không muốn một collection ghi đè trạng thái của collection khác nên chúng ta truyền cho nó một prefix, định nghĩa phân vùng storage thuộc về collection.
 
-If you already built modules, the prefix translates to the items you were creating in your ``types/keys.go`` file, example: https://github.com/cosmos/cosmos-sdk/blob/v0.52.0-rc.1/x/feegrant/key.go#L16~L22
+Nếu bạn đã build modules, prefix tương ứng với các items bạn đang tạo trong file ``types/keys.go``, ví dụ: https://github.com/cosmos/cosmos-sdk/blob/v0.52.0-rc.1/x/feegrant/key.go#L16~L22
 
-your old:
+Cũ của bạn:
 
 ```go
 var (
-	// FeeAllowanceKeyPrefix is the set of the kvstore for fee allowance data
+	// FeeAllowanceKeyPrefix là tập hợp kvstore cho fee allowance data
 	// - 0x00<allowance_key_bytes>: allowance
 	FeeAllowanceKeyPrefix = []byte{0x00}
 
-	// FeeAllowanceQueueKeyPrefix is the set of the kvstore for fee allowance keys data
+	// FeeAllowanceQueueKeyPrefix là tập hợp kvstore cho fee allowance keys data
 	// - 0x01<allowance_prefix_queue_key_bytes>: <empty value>
 	FeeAllowanceQueueKeyPrefix = []byte{0x01}
 )
 ```
 
-becomes:
+trở thành:
 
 ```go
 var (
-	// FeeAllowanceKeyPrefix is the set of the kvstore for fee allowance data
+	// FeeAllowanceKeyPrefix là tập hợp kvstore cho fee allowance data
 	// - 0x00<allowance_key_bytes>: allowance
 	FeeAllowanceKeyPrefix = collections.NewPrefix(0)
 
-	// FeeAllowanceQueueKeyPrefix is the set of the kvstore for fee allowance keys data
+	// FeeAllowanceQueueKeyPrefix là tập hợp kvstore cho fee allowance keys data
 	// - 0x01<allowance_prefix_queue_key_bytes>: <empty value>
 	FeeAllowanceQueueKeyPrefix = collections.NewPrefix(1)
 )
 ```
 
-#### Rules
+#### Quy Tắc
 
-``collections.NewPrefix`` accepts either `uint8`, `string` or `[]bytes` it's good practice to use an always increasing `uint8`for disk space efficiency.
+``collections.NewPrefix`` chấp nhận `uint8`, `string` hoặc `[]bytes`. Nên dùng `uint8` luôn tăng để tiết kiệm dung lượng đĩa.
 
-A collection **MUST NOT** share the same prefix as another collection in the same module, and a collection prefix **MUST NEVER** start with the same prefix as another, examples:
+Một collection **KHÔNG ĐƯỢC** chia sẻ cùng prefix với collection khác trong cùng module, và prefix của collection **KHÔNG BAO GIỜ** được bắt đầu bằng cùng prefix với collection khác, ví dụ:
 
 ```go
 prefix1 := collections.NewPrefix("prefix")
-prefix2 := collections.NewPrefix("prefix") // THIS IS BAD!
+prefix2 := collections.NewPrefix("prefix") // ĐÂY LÀ XẤU!
 ```
 
 ```go
 prefix1 := collections.NewPrefix("a")
-prefix2 := collections.NewPrefix("aa") // prefix2 starts with the same as prefix1: BAD!!!
+prefix2 := collections.NewPrefix("aa") // prefix2 bắt đầu giống prefix1: XẤU!!!
 ```
 
-### Human-Readable Name
+### Tên Dễ Đọc (Human-Readable Name)
 
-The third parameter we pass to a collection is a string, which is a human-readable name.
-It is needed to make the role of a collection understandable by clients who have no clue about
-what a module is storing in state.
+Tham số thứ ba chúng ta truyền cho một collection là một string, là tên dễ đọc.
+Nó cần thiết để làm cho vai trò của một collection có thể hiểu được bởi các client không biết gì về
+những gì một module đang lưu trữ trong state.
 
-#### Rules
+#### Quy Tắc
 
-Each collection in a module **MUST** have a unique humanised name.
+Mỗi collection trong một module **PHẢI** có một tên dễ đọc duy nhất.
 
-## Key and Value Codecs
+## Key và Value Codecs
 
-A collection is generic over the type you can use as keys or values.
-This makes collections dumb, but also means that hypothetically we can store everything
-that can be a go type into a collection. We are not bounded to any type of encoding (be it proto, json or whatever)
+Một collection là generic trên kiểu bạn có thể sử dụng làm key hoặc value.
+Điều này làm cho collections "ngu ngốc" nhưng cũng có nghĩa là về mặt lý thuyết chúng ta có thể lưu trữ mọi thứ
+có thể là một kiểu go vào một collection. Chúng ta không bị giới hạn với bất kỳ loại encoding nào (dù là proto, json hay bất kỳ thứ gì khác)
 
-So a collection needs to be given a way to understand how to convert your keys and values to bytes.
-This is achieved through ``KeyCodec`` and `ValueCodec`, which are arguments that you pass to your
-collections when you're instantiating them using the ```collections.NewMap/collections.NewItem/...```
-instantiation functions.
+Vì vậy, một collection cần được cung cấp một cách để hiểu cách chuyển đổi keys và values của bạn sang bytes.
+Điều này được thực hiện thông qua ``KeyCodec`` và `ValueCodec`, là các đối số bạn truyền cho
+collections khi khởi tạo chúng bằng các hàm khởi tạo ```collections.NewMap/collections.NewItem/...```.
 
-NOTE: Generally speaking you will never be required to implement your own ``Key/ValueCodec`` as
-the SDK and collections libraries already come with default, safe and fast implementation of those.
-You might need to implement them only if you're migrating to collections and there are state layout incompatibilities.
+LƯU Ý: Nhìn chung bạn sẽ không bao giờ được yêu cầu triển khai ``Key/ValueCodec`` của riêng mình vì
+SDK và thư viện collections đã đi kèm với triển khai mặc định, an toàn và nhanh của chúng.
+Bạn có thể cần triển khai chúng chỉ khi bạn đang migrate sang collections và có sự không tương thích layout trạng thái.
 
-Let's explore an example:
+Hãy khám phá một ví dụ:
 
 ```go
 package collections
@@ -188,17 +186,17 @@ func NewKeeper(storeKey *storetypes.KVStoreKey) Keeper {
 }
 ```
 
-We're now instantiating a map where the key is string and the value is `uint64`.
-We already know the first three arguments of the ``NewMap`` function.
+Chúng ta đang khởi tạo một map trong đó key là string và value là `uint64`.
+Chúng ta đã biết ba đối số đầu tiên của hàm ``NewMap``.
 
-The fourth parameter is our `KeyCodec`, we know that the ``Map`` has `string` as key so we pass it a `KeyCodec` that handles strings as keys.
+Tham số thứ tư là `KeyCodec` của chúng ta, chúng ta biết rằng ``Map`` có `string` làm key nên chúng ta truyền cho nó một `KeyCodec` xử lý strings làm keys.
 
-The fifth parameter is our `ValueCodec`, we know that the `Map` has a `uint64` as value so we pass it a `ValueCodec` that handles uint64.
+Tham số thứ năm là `ValueCodec` của chúng ta, chúng ta biết rằng `Map` có `uint64` làm value nên chúng ta truyền cho nó một `ValueCodec` xử lý uint64.
 
-Collections already comes with all the required implementations for golang primitive types.
+Collections đã đi kèm với tất cả các triển khai cần thiết cho các kiểu primitive của golang.
 
-Let's make another example, this falls closer to what we build using cosmos SDK, let's say we want
-to create a `collections.Map` that maps account addresses to their base account. So we want to map an `sdk.AccAddress` to an `auth.BaseAccount` (which is a proto):
+Hãy xem một ví dụ khác, cái này gần hơn với những gì chúng ta build bằng cosmos SDK, giả sử chúng ta muốn
+tạo `collections.Map` ánh xạ các địa chỉ tài khoản với base account của chúng. Vì vậy chúng ta muốn ánh xạ `sdk.AccAddress` sang `auth.BaseAccount` (là proto):
 
 ```go
 package collections
@@ -227,26 +225,26 @@ func NewKeeper(storeKey *storetypes.KVStoreKey, cdc codec.BinaryCodec) Keeper {
 }
 ```
 
-As we can see here since our `collections.Map` maps `sdk.AccAddress` to `authtypes.BaseAccount`,
-we use the `sdk.AccAddressKey` which is the `KeyCodec` implementation for `AccAddress` and we use `codec.CollValue` to
-encode our proto type `BaseAccount`.
+Như chúng ta có thể thấy ở đây vì `collections.Map` của chúng ta ánh xạ `sdk.AccAddress` sang `authtypes.BaseAccount`,
+chúng ta sử dụng `sdk.AccAddressKey` là triển khai `KeyCodec` cho `AccAddress` và chúng ta sử dụng `codec.CollValue` để
+encode kiểu proto `BaseAccount` của chúng ta.
 
-Generally speaking you will always find the respective key and value codecs for types in the `go.mod` path you're using
-to import that type. If you want to encode proto values refer to the codec `codec.CollValue` function, which allows you
-to encode any type implement the `proto.Message` interface.
+Nhìn chung bạn sẽ luôn tìm thấy key và value codec tương ứng cho các kiểu trong đường dẫn `go.mod` bạn đang sử dụng
+để import kiểu đó. Nếu bạn muốn encode proto values, tham khảo hàm `codec.CollValue` của codec, cho phép bạn
+encode bất kỳ kiểu nào triển khai interface `proto.Message`.
 
 ## Map
 
-We analyse the first and most important collection type, the ``collections.Map``.
-This is the type that everything else builds on top of.
+Chúng ta phân tích kiểu collection đầu tiên và quan trọng nhất, ``collections.Map``.
+Đây là kiểu mà mọi thứ khác xây dựng trên đó.
 
-### Use case
+### Trường Hợp Sử Dụng
 
-A `collections.Map` is used to map arbitrary keys with arbitrary values.
+`collections.Map` được sử dụng để ánh xạ các key tùy ý với các value tùy ý.
 
-### Example
+### Ví Dụ
 
-It's easier to explain a `collections.Map` capabilities through an example:
+Dễ giải thích khả năng của `collections.Map` thông qua một ví dụ:
 
 ```go
 package collections
@@ -309,43 +307,43 @@ func (k Keeper) RemoveAccount(ctx sdk.Context, addr sdk.AccAddress) error {
 }
 ```
 
-#### Set method
+#### Phương Thức Set
 
-Set maps with the provided `AccAddress` (the key) to the `auth.BaseAccount` (the value).
+Set ánh xạ với `AccAddress` được cung cấp (key) sang `auth.BaseAccount` (value).
 
-Under the hood the `collections.Map` will convert the key and value to bytes using the [key and value codec](README.md#key-and-value-codecs).
-It will prepend to our bytes key the [prefix](README.md#prefix) and store it in the KVStore of the module.
+Bên dưới, `collections.Map` sẽ chuyển đổi key và value sang bytes bằng cách sử dụng [key và value codec](README.md#key-and-value-codecs).
+Nó sẽ thêm tiền tố [prefix](README.md#prefix) vào bytes key của chúng ta và lưu trữ nó trong KVStore của module.
 
-#### Has method
+#### Phương Thức Has
 
-The has method reports if the provided key exists in the store.
+Phương thức has báo cáo xem key được cung cấp có tồn tại trong store hay không.
 
-#### Get method
+#### Phương Thức Get
 
-The get method accepts the `AccAddress` and returns the associated `auth.BaseAccount` if it exists, otherwise it errors.
+Phương thức get chấp nhận `AccAddress` và trả về `auth.BaseAccount` liên quan nếu tồn tại, nếu không nó báo lỗi.
 
-#### Remove method
+#### Phương Thức Remove
 
-The remove method accepts the `AccAddress` and removes it from the store. It won't report errors
-if it does not exist, to check for existence before removal use the ``Has`` method.
+Phương thức remove chấp nhận `AccAddress` và xóa nó khỏi store. Nó sẽ không báo lỗi
+nếu không tồn tại, để kiểm tra sự tồn tại trước khi xóa hãy sử dụng phương thức ``Has``.
 
-#### Iteration
+#### Iteration (Duyệt Qua)
 
-Iteration has a separate section.
+Iteration có phần riêng.
 
 ## KeySet
 
-The second type of collection is `collections.KeySet`, as the word suggests it maintains
-only a set of keys without values.
+Kiểu collection thứ hai là `collections.KeySet`, như từ gợi ý nó duy trì
+chỉ một tập hợp các key mà không có values.
 
-#### Implementation curiosity
+#### Sự Tò Mò Về Triển Khai
 
-A `collections.KeySet` is just a `collections.Map` with a `key` but no value.
-The value internally is always the same and is represented as an empty byte slice ```[]byte{}```.
+`collections.KeySet` chỉ là `collections.Map` với một `key` nhưng không có value.
+Value bên trong luôn giống nhau và được biểu diễn là byte slice rỗng ```[]byte{}```.
 
-### Example
+### Ví Dụ
 
-As always we explore the collection type through an example:
+Như thường lệ chúng ta khám phá kiểu collection thông qua một ví dụ:
 
 ```go
 package collections
@@ -397,38 +395,37 @@ func (k Keeper) RemoveValidator(ctx sdk.Context, validator sdk.ValAddress) error
 }
 ```
 
-The first difference we notice is that `KeySet` needs use to specify only one type parameter: the key (`sdk.ValAddress` in this case).
-The second difference we notice is that `KeySet` in its `NewKeySet` function does not require
-us to specify a `ValueCodec` but only a `KeyCodec`. This is because a `KeySet` only saves keys and not values.
+Sự khác biệt đầu tiên chúng ta nhận thấy là `KeySet` cần chúng ta chỉ định một tham số kiểu: key (`sdk.ValAddress` trong trường hợp này).
+Sự khác biệt thứ hai chúng ta nhận thấy là `KeySet` trong hàm `NewKeySet` của nó không yêu cầu
+chúng ta chỉ định `ValueCodec` mà chỉ cần `KeyCodec`. Điều này là vì `KeySet` chỉ lưu keys chứ không lưu values.
 
-Let's explore the methods.
+Hãy khám phá các phương thức.
 
-#### Has method
+#### Phương Thức Has
 
-Has allows us to understand if a key is present in the `collections.KeySet` or not, functions in the same way as `collections.Map.Has
-`
+Has cho phép chúng ta hiểu xem một key có hiện diện trong `collections.KeySet` hay không, hoạt động giống như `collections.Map.Has`
 
-#### Set method
+#### Phương Thức Set
 
-Set inserts the provided key in the `KeySet`.
+Set chèn key được cung cấp vào `KeySet`.
 
-#### Remove method
+#### Phương Thức Remove
 
-Remove removes the provided key from the `KeySet`, it does not error if the key does not exist,
-if existence check before removal is required it needs to be coupled with the `Has` method.
+Remove xóa key được cung cấp khỏi `KeySet`, nó không báo lỗi nếu key không tồn tại,
+nếu cần kiểm tra sự tồn tại trước khi xóa nó cần được kết hợp với phương thức `Has`.
 
 ## Item
 
-The third type of collection is the `collections.Item`.
-It stores only one single item, it's useful for example for parameters, there's only one instance
-of parameters in state always.
+Kiểu collection thứ ba là `collections.Item`.
+Nó chỉ lưu một item đơn lẻ, hữu ích ví dụ cho parameters, luôn chỉ có một instance
+của parameters trong state.
 
-### implementation curiosity
+### Sự Tò Mò Về Triển Khai
 
-A `collections.Item` is just a `collections.Map` with no key but just a value.
-The key is the prefix of the collection!
+`collections.Item` chỉ là `collections.Map` không có key mà chỉ có value.
+Key là prefix của collection!
 
-### Example
+### Ví Dụ
 
 ```go
 package collections
@@ -468,37 +465,37 @@ func (k Keeper) GetParams(ctx sdk.Context) (stakingtypes.Params, error) {
 }
 ```
 
-The first key difference we notice is that we specify only one type parameter, which is the value we're storing.
-The second key difference is that we don't specify the `KeyCodec`, since we store only one item we already know the key
-and the fact that it is constant.
+Sự khác biệt quan trọng đầu tiên chúng ta nhận thấy là chúng ta chỉ định một tham số kiểu, là value chúng ta đang lưu trữ.
+Sự khác biệt quan trọng thứ hai là chúng ta không chỉ định `KeyCodec`, vì chúng ta chỉ lưu một item chúng ta đã biết key
+và thực tế là nó là hằng số.
 
-## Iteration
+## Iteration (Duyệt Qua)
 
-One of the key features of the ``KVStore`` is iterating over keys.
+Một trong những tính năng chính của ``KVStore`` là duyệt qua các key.
 
-Collections which deal with keys (so `Map`, `KeySet` and `IndexedMap`) allow you to iterate
-over keys in a safe and typed way. They all share the same API, the only difference being
-that ``KeySet`` returns a different type of `Iterator` because `KeySet` only deals with keys.
+Các collection xử lý keys (vậy là `Map`, `KeySet` và `IndexedMap`) cho phép bạn duyệt qua
+các key theo cách an toàn và có kiểu. Tất cả đều dùng chung API, sự khác biệt duy nhất là
+``KeySet`` trả về kiểu `Iterator` khác vì `KeySet` chỉ xử lý keys.
 
 :::note
 
-Every collection shares the same `Iterator` semantics.
+Mọi collection đều dùng chung ngữ nghĩa `Iterator` giống nhau.
 
 :::
 
-Let's have a look at the `Map.Iterate` method:
+Hãy xem phương thức `Map.Iterate`:
 
 ```go
 func (m Map[K, V]) Iterate(ctx context.Context, ranger Ranger[K]) (Iterator[K, V], error) 
 ```
 
-It accepts a `collections.Ranger[K]`, which is an API that instructs map on how to iterate over keys.
-As always we don't need to implement anything here as `collections` already provides some generic `Ranger` implementers
-that expose all you need to work with ranges.
+Nó chấp nhận `collections.Ranger[K]`, là một API hướng dẫn map cách duyệt qua các key.
+Như thường lệ chúng ta không cần triển khai bất cứ thứ gì ở đây vì `collections` đã cung cấp một số triển khai `Ranger` generic
+hiển thị tất cả những gì bạn cần để làm việc với các range.
 
-### Example
+### Ví Dụ
 
-We have a `collections.Map` that maps accounts using `uint64` IDs.
+Chúng ta có một `collections.Map` ánh xạ các tài khoản bằng ID `uint64`.
 
 ```go
 package collections
@@ -526,7 +523,7 @@ func NewKeeper(storeKey *storetypes.KVStoreKey, cdc codec.BinaryCodec) Keeper {
 }
 
 func (k Keeper) GetAllAccounts(ctx sdk.Context) ([]authtypes.BaseAccount, error) {
-	// passing a nil Ranger equals to: iterate over every possible key
+	// truyền nil Ranger có nghĩa là: duyệt qua mọi key có thể
 	iter, err := k.Accounts.Iterate(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -540,8 +537,8 @@ func (k Keeper) GetAllAccounts(ctx sdk.Context) ([]authtypes.BaseAccount, error)
 }
 
 func (k Keeper) IterateAccountsBetween(ctx sdk.Context, start, end uint64) ([]authtypes.BaseAccount, error) {
-	// The collections.Range API offers a lot of capabilities
-	// like defining where the iteration starts or ends.
+	// API collections.Range cung cấp nhiều khả năng
+	// như định nghĩa nơi iteration bắt đầu hoặc kết thúc.
 	rng := new(collections.Range[uint64]).
 		StartInclusive(start).
 		EndExclusive(end).
@@ -580,78 +577,78 @@ func (k Keeper) IterateAccounts(ctx sdk.Context, do func(id uint64, acc authtype
 }
 ```
 
-Let's analyse each method in the example and how it makes use of the `Iterate` and the returned `Iterator` API.
+Hãy phân tích từng phương thức trong ví dụ và cách nó sử dụng API `Iterate` và `Iterator` được trả về.
 
 #### GetAllAccounts
 
-In `GetAllAccounts` we pass to our `Iterate` a nil `Ranger`. This means that the returned `Iterator` will include
-all the existing keys within the collection.
+Trong `GetAllAccounts` chúng ta truyền cho `Iterate` một `Ranger` nil. Điều này có nghĩa là `Iterator` được trả về sẽ bao gồm
+tất cả các key hiện có trong collection.
 
-Then we use the `Values` method from the returned `Iterator` API to collect all the values into a slice.
+Sau đó chúng ta sử dụng phương thức `Values` từ API `Iterator` được trả về để thu thập tất cả các value vào một slice.
 
-`Iterator` offers other methods such as `Keys()` to collect only the keys and not the values and `KeyValues` to collect
-all the keys and values.
+`Iterator` cung cấp các phương thức khác như `Keys()` để chỉ thu thập các key chứ không phải các value và `KeyValues` để thu thập
+tất cả các key và value.
 
 
 #### IterateAccountsBetween
 
-Here we make use of the `collections.Range` helper to specialise our range.
-We make it start in a point through `StartInclusive` and end in the other with `EndExclusive`, then
-we instruct it to report us results in reverse order through `Descending`
+Ở đây chúng ta sử dụng helper `collections.Range` để chuyên biệt hóa range của mình.
+Chúng ta làm cho nó bắt đầu ở một điểm thông qua `StartInclusive` và kết thúc ở điểm khác với `EndExclusive`, sau đó
+chúng ta hướng dẫn nó báo cáo kết quả theo thứ tự ngược qua `Descending`
 
-Then we pass the range instruction to `Iterate` and get an `Iterator`, which will contain only the results
-we specified in the range.
+Sau đó chúng ta truyền hướng dẫn range cho `Iterate` và nhận một `Iterator`, sẽ chỉ chứa các kết quả
+chúng ta đã chỉ định trong range.
 
-Then we use again the `Values` method of the `Iterator` to collect all the results.
+Sau đó chúng ta lại sử dụng phương thức `Values` của `Iterator` để thu thập tất cả kết quả.
 
-`collections.Range` also offers a `Prefix` API which is not applicable to all keys types,
-for example uint64 cannot be prefix because it is of constant size, but a `string` key
-can be prefixed.
+`collections.Range` cũng cung cấp API `Prefix` không áp dụng cho tất cả các kiểu key,
+ví dụ uint64 không thể được prefix vì nó có kích thước cố định, nhưng một key `string`
+có thể được prefix.
 
 #### IterateAccounts
 
-Here we showcase how to lazily collect values from an Iterator. 
+Ở đây chúng ta trình bày cách thu thập value từ Iterator một cách lười biếng.
 
 :::note
 
-`Keys/Values/KeyValues` fully consume and close the `Iterator`, here we need to explicitly do a `defer iterator.Close()` call.
+`Keys/Values/KeyValues` tiêu thụ và đóng `Iterator` hoàn toàn, ở đây chúng ta cần thực hiện lời gọi `defer iterator.Close()` tường minh.
 
 :::
 
-`Iterator` also exposes a `Value` and `Key` method to collect only the current value or key, if collecting both is not needed.
+`Iterator` cũng hiển thị phương thức `Value` và `Key` để chỉ thu thập value hoặc key hiện tại, nếu không cần thu thập cả hai.
 
 :::note
 
-For this `callback` pattern, collections expose a `Walk` API.
+Đối với pattern `callback` này, collections hiển thị API `Walk`.
 
 :::
 
-## Composite keys
+## Composite Keys (Khóa Tổng Hợp)
 
-So far we've worked only with simple keys, like `uint64`, the account address, etc.
-There are some more complex cases in, which we need to deal with composite keys.
+Cho đến nay chúng ta chỉ làm việc với các key đơn giản, như `uint64`, địa chỉ tài khoản, v.v.
+Có một số trường hợp phức tạp hơn, trong đó chúng ta cần xử lý composite keys.
 
-A key is composite when it is composed of multiple keys, for example bank balances as stored as the composite key
-`(AccAddress, string)` where the first part is the address holding the coins and the second part is the denom.
+Một key là composite khi nó được tạo thành từ nhiều key, ví dụ bank balances được lưu trữ như composite key
+`(AccAddress, string)` trong đó phần đầu tiên là địa chỉ giữ coins và phần thứ hai là denom.
 
-Example, let's say address `BOB` holds `10atom,15osmo`, this is how it is stored in state:
+Ví dụ, giả sử địa chỉ `BOB` giữ `10atom,15osmo`, đây là cách nó được lưu trữ trong state:
 
 ```
 (bob, atom) => 10
 (bob, osmos) => 15
 ```
 
-Now this allows to efficiently get a specific denom balance of an address, by simply `getting` `(address, denom)`, or getting all the balances
-of an address by prefixing over `(address)`.
+Bây giờ điều này cho phép lấy hiệu quả số dư denom cụ thể của một địa chỉ, đơn giản bằng cách `get` `(address, denom)`, hoặc lấy tất cả số dư
+của một địa chỉ bằng cách prefix trên `(address)`.
 
-Let's see now how we can work with composite keys using collections.
+Hãy xem bây giờ chúng ta có thể làm việc với composite keys bằng cách sử dụng collections như thế nào.
 
-### Example
+### Ví Dụ
 
-In our example we will show-case how we can use collections when we are dealing with balances, similar to bank,
-a balance is a mapping between `(address, denom) => math.Int` the composite key in our case is `(address, denom)`.
+Trong ví dụ của chúng ta, chúng ta sẽ trình bày cách chúng ta có thể sử dụng collections khi xử lý balances, tương tự bank,
+một balance là một mapping giữa `(address, denom) => math.Int`, composite key trong trường hợp của chúng ta là `(address, denom)`.
 
-## Instantiation of a composite key collection
+## Khởi Tạo Collection Composite Key
 
 ```go
 package collections
@@ -683,28 +680,28 @@ func NewKeeper(storeKey *storetypes.KVStoreKey) Keeper {
 }
 ```
 
-### The Map Key definition
+### Định Nghĩa Map Key
 
-First of all we can see that in order to define a composite key of two elements we use the `collections.Pair` type:
+Đầu tiên chúng ta có thể thấy rằng để định nghĩa một composite key gồm hai phần tử chúng ta sử dụng kiểu `collections.Pair`:
 
 ```go
 collections.Map[collections.Pair[sdk.AccAddress, string], math.Int]
 ```
 
-`collections.Pair` defines a key composed of two other keys, in our case the first part is `sdk.AccAddress`, the second
-part is `string`.
+`collections.Pair` định nghĩa một key được tạo thành từ hai key khác, trong trường hợp của chúng ta phần đầu tiên là `sdk.AccAddress`, phần thứ hai
+là `string`.
 
-#### The Key Codec instantiation
+#### Khởi Tạo Key Codec
 
-The arguments to instantiate are always the same, the only thing that changes is how we instantiate
-the ``KeyCodec``, since this key is composed of two keys we use `collections.PairKeyCodec`, which generates
-a `KeyCodec` composed of two key codecs. The first one will encode the first part of the key, the second one will
-encode the second part of the key.
+Các đối số để khởi tạo luôn giống nhau, điều duy nhất thay đổi là cách chúng ta khởi tạo
+``KeyCodec``, vì key này được tạo thành từ hai key chúng ta sử dụng `collections.PairKeyCodec`, tạo ra
+một `KeyCodec` được tạo thành từ hai key codec. Cái đầu tiên sẽ encode phần đầu tiên của key, cái thứ hai sẽ
+encode phần thứ hai của key.
 
 
-### Working with composite key collections
+### Làm Việc Với Collection Composite Key
 
-Let's expand on the example we used before:
+Hãy mở rộng ví dụ chúng ta đã sử dụng trước đó:
 
 ```go
 var BalancesPrefix = collections.NewPrefix(1)
@@ -770,46 +767,45 @@ func (k Keeper) GetAllAddressBalancesBetween(ctx sdk.Context, address sdk.AccAdd
 
 #### SetBalance
 
-As we can see here we're setting the balance of an address for a specific denom.
-We use the `collections.Join` function to generate the composite key.
-`collections.Join` returns a `collections.Pair` (which is the key of our `collections.Map`)
+Như chúng ta có thể thấy ở đây chúng ta đang đặt số dư của một địa chỉ cho một denom cụ thể.
+Chúng ta sử dụng hàm `collections.Join` để tạo composite key.
+`collections.Join` trả về một `collections.Pair` (là key của `collections.Map` của chúng ta)
 
-`collections.Pair` contains the two keys we have joined, it also exposes two methods: `K1` to fetch the 1st part of the
-key and `K2` to fetch the second part.
+`collections.Pair` chứa hai key chúng ta đã nối, nó cũng hiển thị hai phương thức: `K1` để lấy phần đầu tiên của key và `K2` để lấy phần thứ hai.
 
-As always, we use the `collections.Map.Set` method to map the composite key to our value (`math.Int` in this case)
+Như thường lệ, chúng ta sử dụng phương thức `collections.Map.Set` để ánh xạ composite key sang value của chúng ta (`math.Int` trong trường hợp này)
 
 #### GetBalance
 
-To get a value in composite key collection, we simply use `collections.Join` to compose the key.
+Để lấy một value trong collection composite key, chúng ta đơn giản sử dụng `collections.Join` để tạo key.
 
 #### GetAllAddressBalances
 
-We use `collections.PrefixedPairRange` to iterate over all the keys starting with the provided address.
-Concretely the iteration will report all the balances belonging to the provided address.
+Chúng ta sử dụng `collections.PrefixedPairRange` để duyệt qua tất cả các key bắt đầu bằng địa chỉ được cung cấp.
+Cụ thể iteration sẽ báo cáo tất cả các số dư thuộc về địa chỉ được cung cấp.
 
-The first part is that we instantiate a `PrefixedPairRange`, which is a `Ranger` implementer aimed to help
-in `Pair` keys iterations.
+Phần đầu tiên là chúng ta khởi tạo `PrefixedPairRange`, là một triển khai `Ranger` nhằm giúp
+duyệt qua các `Pair` key.
 
 ```go
 	rng := collections.NewPrefixedPairRange[sdk.AccAddress, string](address)
 ```
 
-As we can see here we're passing the type parameters of the `collections.Pair` because golang type inference
-with respect to generics is not as permissive as other languages, so we need to explicitly say what are the types of the pair key.
+Như chúng ta có thể thấy ở đây chúng ta đang truyền các tham số kiểu của `collections.Pair` vì suy luận kiểu golang
+đối với generics không linh hoạt như các ngôn ngữ khác, vì vậy chúng ta cần chỉ định rõ ràng các kiểu của pair key là gì.
 
 #### GetAllAddressesBalancesBetween
 
-This showcases how we can further specialise our range to limit the results further, by specifying
-the range between the second part of the key (in our case the denoms, which are strings).
+Điều này trình bày cách chúng ta có thể chuyên biệt hóa thêm range để giới hạn kết quả hơn nữa, bằng cách chỉ định
+range giữa phần thứ hai của key (trong trường hợp của chúng ta là các denom, là strings).
 
 ## IndexedMap
 
-`collections.IndexedMap` is a collection that uses under the hood a `collections.Map`, and has a struct, which contains the indexes that we need to define.
+`collections.IndexedMap` là một collection sử dụng bên dưới `collections.Map`, và có một struct chứa các index mà chúng ta cần định nghĩa.
 
-### Example
+### Ví Dụ
 
-Let's say we have an `auth.BaseAccount` struct which looks like the following:
+Giả sử chúng ta có một struct `auth.BaseAccount` trông như sau:
 
 ```go
 type BaseAccount struct {
@@ -818,17 +814,17 @@ type BaseAccount struct {
 }
 ```
 
-First of all, when we save our accounts in state we map them using a primary key `sdk.AccAddress`.
-If it were to be a `collections.Map` it would be `collections.Map[sdk.AccAddress, authtypes.BaseAccount]`.
+Đầu tiên, khi chúng ta lưu các tài khoản trong state chúng ta ánh xạ chúng bằng primary key `sdk.AccAddress`.
+Nếu là `collections.Map`, nó sẽ là `collections.Map[sdk.AccAddress, authtypes.BaseAccount]`.
 
-Then we also want to be able to get an account not only by its `sdk.AccAddress`, but also by its `AccountNumber`.
+Sau đó chúng ta cũng muốn có thể lấy một tài khoản không chỉ bằng `sdk.AccAddress`, mà còn bằng `AccountNumber`.
 
-So we can say we want to create an `Index` that maps our `BaseAccount` to its `AccountNumber`.
+Vì vậy chúng ta có thể nói chúng ta muốn tạo một `Index` ánh xạ `BaseAccount` sang `AccountNumber` của nó.
 
-We also know that this `Index` is unique. Unique means that there can only be one `BaseAccount` that maps to a specific
-`AccountNumber`.
+Chúng ta cũng biết rằng `Index` này là unique. Unique có nghĩa là chỉ có thể có một `BaseAccount` ánh xạ đến một
+`AccountNumber` cụ thể.
 
-First of all, we start by defining the object that contains our index:
+Đầu tiên, chúng ta bắt đầu bằng cách định nghĩa đối tượng chứa index của chúng ta:
 
 ```go
 var AccountsNumberIndexPrefix = collections.NewPrefix(1)
@@ -850,29 +846,29 @@ func NewAccountIndexes(sb *collections.SchemaBuilder) AccountsIndexes {
 }
 ```
 
-We create an `AccountIndexes` struct which contains a field: `Number`. This field represents our `AccountNumber` index.
-`AccountNumber` is a field of `authtypes.BaseAccount` and it's a `uint64`.
+Chúng ta tạo một struct `AccountIndexes` chứa một trường: `Number`. Trường này đại diện cho index `AccountNumber` của chúng ta.
+`AccountNumber` là một trường của `authtypes.BaseAccount` và nó là `uint64`.
 
-Then we can see in our `AccountIndexes` struct the `Number` field is defined as:
+Sau đó chúng ta có thể thấy trong struct `AccountIndexes` của chúng ta trường `Number` được định nghĩa là:
 
 ```go
 *indexes.Unique[uint64, sdk.AccAddress, authtypes.BaseAccount]
 ```
 
-Where the first type parameter is `uint64`, which is the field type of our index.
-The second type parameter is the primary key `sdk.AccAddress`.
-And the third type parameter is the actual object we're storing `authtypes.BaseAccount`.
+Trong đó tham số kiểu đầu tiên là `uint64`, là kiểu trường của index của chúng ta.
+Tham số kiểu thứ hai là primary key `sdk.AccAddress`.
+Và tham số kiểu thứ ba là đối tượng thực tế chúng ta đang lưu trữ `authtypes.BaseAccount`.
 
-Then we create a `NewAccountIndexes` function that instantiates and returns the `AccountsIndexes` struct.
+Sau đó chúng ta tạo hàm `NewAccountIndexes` khởi tạo và trả về struct `AccountsIndexes`.
 
-The function takes a `SchemaBuilder`. Then we instantiate our `indexes.Unique`, let's analyse the arguments we pass to
+Hàm nhận một `SchemaBuilder`. Sau đó chúng ta khởi tạo `indexes.Unique`, hãy phân tích các đối số chúng ta truyền cho
 `indexes.NewUnique`.
 
-#### NOTE: indexes list
+#### LƯU Ý: danh sách index
 
-The `AccountsIndexes` struct contains the indexes, the `NewIndexedMap` function will infer the indexes form that struct
-using reflection, this happens only at init and is not computationally expensive. In case you want to explicitly declare
-indexes: implement the `Indexes` interface in the `AccountsIndexes` struct:
+Struct `AccountsIndexes` chứa các index, hàm `NewIndexedMap` sẽ suy ra các index từ struct đó
+bằng cách sử dụng reflection, điều này chỉ xảy ra khi init và không tốn kém về mặt tính toán. Trong trường hợp bạn muốn khai báo rõ ràng
+các index: triển khai interface `Indexes` trong struct `AccountsIndexes`:
 
 ```go
 func (a AccountsIndexes) IndexesList() []collections.Index[sdk.AccAddress, authtypes.BaseAccount] {
@@ -880,18 +876,18 @@ func (a AccountsIndexes) IndexesList() []collections.Index[sdk.AccAddress, autht
 }
 ```
 
-#### Instantiating a `indexes.Unique`
+#### Khởi Tạo `indexes.Unique`
 
-The first three arguments, we already know them, they are: `SchemaBuilder`, `Prefix` which is our index prefix (the partition
-where index keys relationship for the `Number` index will be maintained), and the human name for the `Number` index.
+Ba đối số đầu tiên chúng ta đã biết, chúng là: `SchemaBuilder`, `Prefix` là prefix index của chúng ta (phân vùng
+nơi mối quan hệ index keys cho `Number` index sẽ được duy trì), và tên dễ đọc cho `Number` index.
 
-The second argument is a `collections.Uint64Key` which is a key codec to deal with `uint64` keys, we pass that because
-the key we're trying to index is a `uint64` key (the account number), and then we pass as fifth argument the primary key codec,
-which in our case is `sdk.AccAddress` (remember: we're mapping `sdk.AccAddress` => `BaseAccount`).
+Đối số thứ hai là `collections.Uint64Key` là key codec để xử lý `uint64` key, chúng ta truyền điều đó vì
+key chúng ta đang cố index là `uint64` key (account number), và sau đó chúng ta truyền đối số thứ năm là primary key codec,
+trong trường hợp của chúng ta là `sdk.AccAddress` (hãy nhớ: chúng ta ánh xạ `sdk.AccAddress` => `BaseAccount`).
 
-Then as last parameter we pass a function that: given the `BaseAccount` returns its `AccountNumber`.
+Sau đó là tham số cuối cùng chúng ta truyền một hàm: cho `BaseAccount` trả về `AccountNumber` của nó.
 
-After this we can proceed instantiating our `IndexedMap`.
+Sau đó chúng ta có thể tiến hành khởi tạo `IndexedMap`.
 
 ```go
 var AccountsPrefix = collections.NewPrefix(0)
@@ -913,13 +909,13 @@ func NewKeeper(storeKey *storetypes.KVStoreKey, cdc codec.BinaryCodec) Keeper {
 }
 ```
 
-As we can see here what we do, for now, is the same thing as we did for `collections.Map`.
-We pass it the `SchemaBuilder`, the `Prefix` where we plan to store the mapping between `sdk.AccAddress` and `authtypes.BaseAccount`,
-the human name and the respective `sdk.AccAddress` key codec and `authtypes.BaseAccount` value codec.
+Như chúng ta có thể thấy ở đây những gì chúng ta làm, hiện tại, giống như những gì chúng ta đã làm cho `collections.Map`.
+Chúng ta truyền cho nó `SchemaBuilder`, `Prefix` nơi chúng ta dự định lưu trữ mapping giữa `sdk.AccAddress` và `authtypes.BaseAccount`,
+tên dễ đọc và key codec `sdk.AccAddress` và value codec `authtypes.BaseAccount` tương ứng.
 
-Then we pass the instantiation of our `AccountIndexes` through `NewAccountIndexes`.
+Sau đó chúng ta truyền khởi tạo của `AccountIndexes` qua `NewAccountIndexes`.
 
-Full example:
+Ví dụ đầy đủ:
 
 ```go
 package docs
@@ -974,11 +970,11 @@ func NewKeeper(storeKey *storetypes.KVStoreKey, cdc codec.BinaryCodec) Keeper {
 }
 ```
 
-### Working with IndexedMaps
+### Làm Việc Với IndexedMaps
 
-Whilst instantiating `collections.IndexedMap` is tedious, working with them is extremely smooth.
+Trong khi khởi tạo `collections.IndexedMap` khá tẻ nhạt, làm việc với chúng lại cực kỳ mượt mà.
 
-Let's take the full example, and expand it with some use-cases.
+Hãy lấy ví dụ đầy đủ và mở rộng nó với một số trường hợp sử dụng.
 
 ```go
 package docs
@@ -1076,18 +1072,18 @@ func (k Keeper) getNextAccountNumber() uint64 {
 }
 ```
 
-## Collections with interfaces as values
+## Collections Với Interface Làm Values
 
-Although cosmos-sdk is shifting away from the usage of interface registry, there are still some places where it is used.
-In order to support old code, we have to support collections with interface values.
+Mặc dù cosmos-sdk đang chuyển hướng khỏi việc sử dụng interface registry, vẫn còn một số nơi nó được sử dụng.
+Để hỗ trợ code cũ, chúng ta phải hỗ trợ collections với interface values.
 
-The generic `codec.CollValue` is not able to handle interface values, so we need to use a special type `codec.CollValueInterface`.
-`codec.CollValueInterface` takes a `codec.BinaryCodec` as an argument, and uses it to marshal and unmarshal values as interfaces.
-The `codec.CollValueInterface` lives in the `codec` package, whose import path is `github.com/cosmos/cosmos-sdk/codec`.
+`codec.CollValue` generic không thể xử lý interface values, vì vậy chúng ta cần sử dụng kiểu đặc biệt `codec.CollValueInterface`.
+`codec.CollValueInterface` nhận `codec.BinaryCodec` làm đối số và sử dụng nó để marshal và unmarshal các value như interface.
+`codec.CollValueInterface` nằm trong package `codec`, đường dẫn import là `github.com/cosmos/cosmos-sdk/codec`.
 
-### Instantiating Collections with interface values
+### Khởi Tạo Collections Với Interface Values
 
-In order to instantiate a collection with interface values, we need to use `codec.CollValueInterface` instead of `codec.CollValue`.
+Để khởi tạo collection với interface values, chúng ta cần sử dụng `codec.CollValueInterface` thay vì `codec.CollValue`.
 
 ```go
 package example
@@ -1130,11 +1126,11 @@ func (k Keeper) GetAccount(ctx sdk.context, addr sdk.AccAddress) (sdk.AccountI, 
 }
 ```
 
-## Triple key
+## Triple Key (Khóa Ba)
 
-The `collections.Triple` is a special type of key composed of three keys, it's identical to `collections.Pair`.
+`collections.Triple` là một kiểu key đặc biệt được tạo thành từ ba key, giống hệt `collections.Pair`.
 
-Let's see an example.
+Hãy xem một ví dụ.
 
 ```go
 package example
@@ -1151,8 +1147,8 @@ type AccAddress = string
 type ValAddress = string
 
 type Keeper struct {
- // let's simulate we have redelegations which are stored as a triple key composed of
- // the delegator, the source validator and the destination validator.
+ // giả sử chúng ta có các redelegation được lưu trữ như một triple key bao gồm
+ // người ủy thác, validator nguồn và validator đích.
  Redelegations collections.KeySet[collections.Triple[AccAddress, ValAddress, ValAddress]]
 }
 
@@ -1163,8 +1159,8 @@ func NewKeeper(storeKey *storetypes.KVStoreKey) Keeper {
  }
 }
 
-// RedelegationsByDelegator iterates over all the redelegations of a given delegator and calls onResult providing
-// each redelegation from source validator towards the destination validator.
+// RedelegationsByDelegator duyệt qua tất cả các redelegation của một người ủy thác và gọi onResult cung cấp
+// mỗi redelegation từ source validator đến destination validator.
 func (k Keeper) RedelegationsByDelegator(ctx context.Context, delegator AccAddress, onResult func(src, dst ValAddress) (stop bool, err error)) error {
  rng := collections.NewPrefixedTripleRange[AccAddress, ValAddress, ValAddress](delegator)
  return k.Redelegations.Walk(ctx, rng, func(key collections.Triple[AccAddress, ValAddress, ValAddress]) (stop bool, err error) {
@@ -1172,7 +1168,7 @@ func (k Keeper) RedelegationsByDelegator(ctx context.Context, delegator AccAddre
  })
 }
 
-// RedelegationsByDelegatorAndValidator iterates over all the redelegations of a given delegator and its source validator and calls onResult for each
+// RedelegationsByDelegatorAndValidator duyệt qua tất cả các redelegation của một người ủy thác và source validator của nó và gọi onResult cho mỗi
 // destination validator.
 func (k Keeper) RedelegationsByDelegatorAndValidator(ctx context.Context, delegator AccAddress, validator ValAddress, onResult func(dst ValAddress) (stop bool, err error)) error {
  rng := collections.NewSuperPrefixedTripleRange[AccAddress, ValAddress, ValAddress](delegator, validator)
@@ -1182,16 +1178,16 @@ func (k Keeper) RedelegationsByDelegatorAndValidator(ctx context.Context, delega
 }
 ```
 
-## Advanced Usages
+## Sử Dụng Nâng Cao
 
-### Alternative Value Codec
+### Alternative Value Codec (Codec Value Thay Thế)
 
-The `codec.AltValueCodec` allows a collection to decode values using a different codec than the one used to encode them.
-Basically it enables to decode two different byte representations of the same concrete value.
-It can be used to lazily migrate values from one bytes representation to another, as long as the new representation is
-not able to decode the old one.
+`codec.AltValueCodec` cho phép một collection decode các value bằng cách sử dụng codec khác với codec được sử dụng để encode chúng.
+Về cơ bản nó cho phép decode hai biểu diễn bytes khác nhau của cùng một value cụ thể.
+Nó có thể được sử dụng để migrate lazily các value từ một biểu diễn bytes sang biểu diễn khác, miễn là biểu diễn mới
+không thể decode biểu diễn cũ.
 
-A concrete example can be found in `x/bank` where the balance was initially stored as `Coin` and then migrated to `Int`.
+Một ví dụ cụ thể có thể tìm thấy trong `x/bank` nơi số dư ban đầu được lưu trữ là `Coin` và sau đó được migrate sang `Int`.
 
 ```go
 
@@ -1205,6 +1201,6 @@ var BankBalanceValueCodec = codec.NewAltValueCodec(sdk.IntValue, func(b []byte) 
 })
 ```
 
-The above example shows how to create an `AltValueCodec` that can decode both `sdk.Int` and `sdk.Coin` values. The provided 
-decoder function will be used as a fallback in case the default decoder fails. When the value will be encoded back into state
-it will use the default encoder. This allows to lazily migrate values to a new bytes representation.
+Ví dụ trên cho thấy cách tạo `AltValueCodec` có thể decode cả giá trị `sdk.Int` và `sdk.Coin`. Hàm decoder được cung cấp
+sẽ được sử dụng làm fallback trong trường hợp decoder mặc định thất bại. Khi value được encode trở lại vào state
+nó sẽ sử dụng encoder mặc định. Điều này cho phép migrate lazily các value sang biểu diễn bytes mới.

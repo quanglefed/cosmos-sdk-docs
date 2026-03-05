@@ -1,43 +1,43 @@
-# Upgrade Guide
+# Hướng Dẫn Nâng Cấp
 
-This document provides a full guide for upgrading a Cosmos SDK chain from `v0.50.x` to `v0.53.x`.
+Tài liệu này cung cấp hướng dẫn đầy đủ để nâng cấp một Cosmos SDK chain từ `v0.50.x` lên `v0.53.x`.
 
-This guide includes one **required** change and three **optional** features.
+Hướng dẫn này bao gồm một thay đổi **bắt buộc** và ba tính năng **tùy chọn**.
 
-After completing this guide, applications will have:
+Sau khi hoàn thành hướng dẫn này, các ứng dụng sẽ có:
 
-* The `x/protocolpool` module
-* The `x/epochs` module
-* Unordered Transaction support
+* Module `x/protocolpool`
+* Module `x/epochs`
+* Hỗ trợ Unordered Transaction
 
-## Table of Contents
+## Mục Lục
 
-* [App Wiring Changes (REQUIRED)](#app-wiring-changes-required)
-* [Adding ProtocolPool Module (OPTIONAL)](#adding-protocolpool-module-optional)
+* [App Wiring Changes (BẮT BUỘC)](#app-wiring-changes-required)
+* [Thêm Module ProtocolPool (TÙY CHỌN)](#adding-protocolpool-module-optional)
     * [ProtocolPool Manual Wiring](#protocolpool-manual-wiring)
     * [ProtocolPool DI Wiring](#protocolpool-di-wiring)
-* [Adding Epochs Module (OPTIONAL)](#adding-epochs-module-optional)
+* [Thêm Module Epochs (TÙY CHỌN)](#adding-epochs-module-optional)
     * [Epochs Manual Wiring](#epochs-manual-wiring)
     * [Epochs DI Wiring](#epochs-di-wiring)
-* [Enable Unordered Transactions (OPTIONAL)](#enable-unordered-transactions-optional)
+* [Bật Unordered Transactions (TÙY CHỌN)](#enable-unordered-transactions-optional)
 * [Upgrade Handler](#upgrade-handler)
 
-## App Wiring Changes **REQUIRED**
+## App Wiring Changes **BẮT BUỘC**
 
-The `x/auth` module now contains a `PreBlocker` that _must_ be set in the module manager's `SetOrderPreBlockers` method.
+Module `x/auth` hiện chứa một `PreBlocker` _phải_ được đặt trong phương thức `SetOrderPreBlockers` của module manager.
 
 ```go
 app.ModuleManager.SetOrderPreBlockers(
     upgradetypes.ModuleName,
-    authtypes.ModuleName, // NEW
+    authtypes.ModuleName, // MỚI
 )
 ```
 
-## Adding ProtocolPool Module **OPTIONAL**
+## Thêm Module ProtocolPool **TÙY CHỌN**
 
 :::warning
 
-Using an external community pool such as `x/protocolpool` will cause the following `x/distribution` handlers to return an error:
+Sử dụng community pool bên ngoài như `x/protocolpool` sẽ khiến các handler `x/distribution` sau trả về lỗi:
 
 **QueryService**
 
@@ -48,13 +48,13 @@ Using an external community pool such as `x/protocolpool` will cause the followi
 * `CommunityPoolSpend`
 * `FundCommunityPool`
 
-If your services depend on this functionality from `x/distribution`, please update them to use either `x/protocolpool` or your custom external community pool alternatives.
+Nếu các dịch vụ của bạn phụ thuộc vào chức năng này từ `x/distribution`, vui lòng cập nhật chúng để sử dụng `x/protocolpool` hoặc các giải pháp thay thế community pool bên ngoài tùy chỉnh của bạn.
 
 :::
 
 ### Manual Wiring
 
-Import the following:
+Import các phần sau:
 
 ```go
 import (
@@ -65,7 +65,7 @@ import (
 )
 ```
 
-Set the module account permissions.
+Đặt quyền tài khoản module.
 
 ```go
 maccPerms = map[string][]string{
@@ -75,13 +75,13 @@ maccPerms = map[string][]string{
 }
 ```
 
-Add the protocol pool keeper to your application struct.
+Thêm protocol pool keeper vào struct ứng dụng của bạn.
 
 ```go
 ProtocolPoolKeeper protocolpoolkeeper.Keeper
 ```
 
-Add the store key:
+Thêm store key:
 
 ```go
 keys := storetypes.NewKVStoreKeys(
@@ -90,9 +90,9 @@ keys := storetypes.NewKVStoreKeys(
 )
 ```
 
-Instantiate the keeper.
+Khởi tạo keeper.
 
-Make sure to do this before the distribution module instantiation, as you will pass the keeper there next.
+Đảm bảo thực hiện điều này trước khi khởi tạo module distribution, vì bạn sẽ truyền keeper vào đó tiếp theo.
 
 ```go
 app.ProtocolPoolKeeper = protocolpoolkeeper.NewKeeper(
@@ -104,7 +104,7 @@ app.ProtocolPoolKeeper = protocolpoolkeeper.NewKeeper(
 )
 ```
 
-Pass the protocolpool keeper to the distribution keeper:
+Truyền protocolpool keeper vào distribution keeper:
 
 ```go
 app.DistrKeeper = distrkeeper.NewKeeper(
@@ -115,11 +115,11 @@ app.DistrKeeper = distrkeeper.NewKeeper(
     app.StakingKeeper,
     authtypes.FeeCollectorName,
     authtypes.NewModuleAddress(govtypes.ModuleName).String(),
-    distrkeeper.WithExternalCommunityPool(app.ProtocolPoolKeeper), // NEW
+    distrkeeper.WithExternalCommunityPool(app.ProtocolPoolKeeper), // MỚI
 )
 ```
 
-Add the protocolpool module to the module manager:
+Thêm module protocolpool vào module manager:
 
 ```go
 app.ModuleManager = module.NewManager(
@@ -128,11 +128,11 @@ app.ModuleManager = module.NewManager(
 )
 ```
 
-Add an entry for SetOrderBeginBlockers, SetOrderEndBlockers, SetOrderInitGenesis, and SetOrderExportGenesis.
+Thêm entry cho SetOrderBeginBlockers, SetOrderEndBlockers, SetOrderInitGenesis và SetOrderExportGenesis.
 
 ```go
 app.ModuleManager.SetOrderBeginBlockers(
-    // must come AFTER distribution.
+    // phải đến SAU distribution.
     distrtypes.ModuleName,
     protocolpooltypes.ModuleName,
 )
@@ -140,44 +140,44 @@ app.ModuleManager.SetOrderBeginBlockers(
 
 ```go
 app.ModuleManager.SetOrderEndBlockers(
-    // order does not matter.
+    // thứ tự không quan trọng.
     protocolpooltypes.ModuleName,
 )
 ```
 
 ```go
 app.ModuleManager.SetOrderInitGenesis(
-    // order does not matter.
+    // thứ tự không quan trọng.
     protocolpooltypes.ModuleName,   
 )
 ```
 
 ```go
 app.ModuleManager.SetOrderInitGenesis(
-    protocolpooltypes.ModuleName, // must be exported before bank.
+    protocolpooltypes.ModuleName, // phải được export trước bank.
     banktypes.ModuleName,
 )
 ```
 
 ### DI Wiring
 
-Note: _as long as an external community pool keeper (here, `x/protocolpool`) is wired in DI configs, `x/distribution` will automatically use it for its external pool._
+Lưu ý: _miễn là một external community pool keeper (ở đây là `x/protocolpool`) được kết nối trong DI configs, `x/distribution` sẽ tự động sử dụng nó cho external pool của nó._
 
-First, set up the keeper for the application.
+Đầu tiên, thiết lập keeper cho ứng dụng.
 
-Import the protocolpool keeper:
+Import protocolpool keeper:
 
 ```go
 protocolpoolkeeper "github.com/cosmos/cosmos-sdk/x/protocolpool/keeper"
 ```
 
-Add the keeper to your application struct:
+Thêm keeper vào struct ứng dụng của bạn:
 
 ```go
 ProtocolPoolKeeper protocolpoolkeeper.Keeper
 ```
 
-Add the keeper to the depinject system:
+Thêm keeper vào hệ thống depinject:
 
 ```go
 depinject.Inject(
@@ -188,13 +188,13 @@ depinject.Inject(
     &app.txConfig,
     &app.interfaceRegistry,
     // ... other modules
-    &app.ProtocolPoolKeeper, // NEW MODULE!
+    &app.ProtocolPoolKeeper, // MODULE MỚI!
 )
 ```
 
-Next, set up configuration for the module.
+Tiếp theo, thiết lập cấu hình cho module.
 
-Import the following:
+Import các phần sau:
 
 ```go
 import (
@@ -205,7 +205,7 @@ import (
 )
 ```
 
-The protocolpool module has module accounts that handle funds. Add them to the module account permission configuration:
+Module protocolpool có các tài khoản module xử lý quỹ. Thêm chúng vào cấu hình quyền tài khoản module:
 
 ```go
 moduleAccPerms = []*authmodulev1.ModuleAccountPermission{
@@ -215,12 +215,12 @@ moduleAccPerms = []*authmodulev1.ModuleAccountPermission{
 }
 ```
 
-Next, add an entry for BeginBlockers, EndBlockers, InitGenesis, and ExportGenesis.
+Tiếp theo, thêm entry cho BeginBlockers, EndBlockers, InitGenesis và ExportGenesis.
 
 ```go
 BeginBlockers: []string{
     // ...
-    // must be AFTER distribution.
+    // phải đến SAU distribution.
     distrtypes.ModuleName,
     protocolpooltypes.ModuleName,
 },
@@ -229,14 +229,14 @@ BeginBlockers: []string{
 ```go
 EndBlockers: []string{
     // ...
-    // order for protocolpool does not matter.
+    // thứ tự của protocolpool không quan trọng.
     protocolpooltypes.ModuleName,
 },
 ```
 
 ```go
 InitGenesis: []string{
-    // ... must be AFTER distribution.
+    // ... phải đến SAU distribution.
     distrtypes.ModuleName,
     protocolpooltypes.ModuleName,
 },
@@ -245,13 +245,13 @@ InitGenesis: []string{
 ```go
 ExportGenesis: []string{
     // ...
-    // Must be exported before x/bank.
+    // Phải được export trước x/bank.
     protocolpooltypes.ModuleName, 
     banktypes.ModuleName,
 },
 ```
 
-Lastly, add an entry for protocolpool in the ModuleConfig.
+Cuối cùng, thêm entry cho protocolpool trong ModuleConfig.
 
 ```go
 {
@@ -260,11 +260,11 @@ Lastly, add an entry for protocolpool in the ModuleConfig.
 },
 ```
 
-## Adding Epochs Module **OPTIONAL**
+## Thêm Module Epochs **TÙY CHỌN**
 
 ### Manual Wiring
 
-Import the following:
+Import các phần sau:
 
 ```go
 import (
@@ -275,13 +275,13 @@ import (
 )
 ```
 
-Add the epochs keeper to your application struct:
+Thêm epochs keeper vào struct ứng dụng của bạn:
 
 ```go
 EpochsKeeper epochskeeper.Keeper
 ```
 
-Add the store key:
+Thêm store key:
 
 ```go
 keys := storetypes.NewKVStoreKeys(
@@ -290,7 +290,7 @@ keys := storetypes.NewKVStoreKeys(
 )
 ```
 
-Instantiate the keeper:
+Khởi tạo keeper:
 
 ```go
 app.EpochsKeeper = epochskeeper.NewKeeper(
@@ -299,20 +299,20 @@ app.EpochsKeeper = epochskeeper.NewKeeper(
 )
 ```
 
-Set up hooks for the epochs keeper:
+Thiết lập hooks cho epochs keeper:
 
-To learn how to write hooks for the epoch keeper, see the [x/epoch README](https://github.com/cosmos/cosmos-sdk/blob/main/x/epochs/README.md)
+Để tìm hiểu cách viết hooks cho epoch keeper, xem [x/epoch README](https://github.com/cosmos/cosmos-sdk/blob/main/x/epochs/README.md)
 
 ```go
 app.EpochsKeeper.SetHooks(
     epochstypes.NewMultiEpochHooks(
-        // insert epoch hooks receivers here
+        // chèn epoch hooks receivers tại đây
         app.SomeOtherModule
     ),
 )
 ```
 
-Add the epochs module to the module manager:
+Thêm module epochs vào module manager:
 
 ```go
 app.ModuleManager = module.NewManager(
@@ -321,7 +321,7 @@ app.ModuleManager = module.NewManager(
 )
 ```
 
-Add entries for SetOrderBeginBlockers and SetOrderInitGenesis:
+Thêm entries cho SetOrderBeginBlockers và SetOrderInitGenesis:
 
 ```go
 app.ModuleManager.SetOrderBeginBlockers(
@@ -339,21 +339,21 @@ app.ModuleManager.SetOrderInitGenesis(
 
 ### DI Wiring
 
-First, set up the keeper for the application.
+Đầu tiên, thiết lập keeper cho ứng dụng.
 
-Import the epochs keeper:
+Import epochs keeper:
 
 ```go
 epochskeeper "github.com/cosmos/cosmos-sdk/x/epochs/keeper"
 ```
 
-Add the keeper to your application struct:
+Thêm keeper vào struct ứng dụng của bạn:
 
 ```go
 EpochsKeeper epochskeeper.Keeper
 ```
 
-Add the keeper to the depinject system:
+Thêm keeper vào hệ thống depinject:
 
 ```go
 depinject.Inject(
@@ -364,13 +364,13 @@ depinject.Inject(
     &app.txConfig,
     &app.interfaceRegistry,
     // ... other modules
-    &app.EpochsKeeper, // NEW MODULE!
+    &app.EpochsKeeper, // MODULE MỚI!
 )
 ```
 
-Next, set up configuration for the module.
+Tiếp theo, thiết lập cấu hình cho module.
 
-Import the following:
+Import các phần sau:
 
 ```go
 import (
@@ -381,7 +381,7 @@ import (
 )
 ```
 
-Add an entry for BeginBlockers and InitGenesis:
+Thêm entry cho BeginBlockers và InitGenesis:
 
 ```go
 BeginBlockers: []string{
@@ -397,7 +397,7 @@ InitGenesis: []string{
 },
 ```
 
-Lastly, add an entry for epochs in the ModuleConfig:
+Cuối cùng, thêm entry cho epochs trong ModuleConfig:
 
 ```go
 {
@@ -406,14 +406,14 @@ Lastly, add an entry for epochs in the ModuleConfig:
 },
 ```
 
-## Enable Unordered Transactions **OPTIONAL**
+## Bật Unordered Transactions **TÙY CHỌN**
 
-To enable unordered transaction support on an application, the `x/auth` keeper must be supplied with the `WithUnorderedTransactions` option.
+Để bật hỗ trợ unordered transaction trên ứng dụng, `x/auth` keeper phải được cung cấp tùy chọn `WithUnorderedTransactions`.
 
-Note that unordered transactions require sequence values to be zero, and will **FAIL** if a non-zero sequence value is set.
-Please ensure no sequence value is set when submitting an unordered transaction.
-Services that rely on prior assumptions about sequence values should be updated to handle unordered transactions.
-Services should be aware that when the transaction is unordered, the transaction sequence will always be zero.
+Lưu ý rằng unordered transactions yêu cầu giá trị sequence bằng không, và sẽ **THẤT BẠI** nếu giá trị sequence khác không được đặt.
+Hãy đảm bảo không có giá trị sequence nào được đặt khi gửi unordered transaction.
+Các dịch vụ phụ thuộc vào các giả định trước đây về giá trị sequence nên được cập nhật để xử lý unordered transactions.
+Các dịch vụ cần biết rằng khi transaction là unordered, sequence của transaction sẽ luôn bằng không.
 
 ```go
 	app.AccountKeeper = authkeeper.NewAccountKeeper(
@@ -424,11 +424,11 @@ Services should be aware that when the transaction is unordered, the transaction
 		authcodec.NewBech32Codec(sdk.Bech32MainPrefix),
 		sdk.Bech32MainPrefix,
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
-		authkeeper.WithUnorderedTransactions(true), // new option!
+		authkeeper.WithUnorderedTransactions(true), // tùy chọn mới!
 	)
 ```
 
-If using dependency injection, update the auth module config.
+Nếu sử dụng dependency injection, hãy cập nhật cấu hình module auth.
 
 ```go
 		{
@@ -436,18 +436,18 @@ If using dependency injection, update the auth module config.
 			Config: appconfig.WrapAny(&authmodulev1.Module{
 				Bech32Prefix:             "cosmos",
 				ModuleAccountPermissions: moduleAccPerms,
-				EnableUnorderedTransactions: true, // remove this line if you do not want unordered transactions.
+				EnableUnorderedTransactions: true, // xóa dòng này nếu bạn không muốn unordered transactions.
 			}),
 		},
 ```
 
-By default, unordered transactions use a transaction timeout duration of 10 minutes and a default gas charge of 2240 gas units.
-To modify these default values, pass in the corresponding options to the new `SigVerifyOptions` field in `x/auth's` `ante.HandlerOptions`.
+Theo mặc định, unordered transactions sử dụng thời gian timeout của transaction là 10 phút và phí gas mặc định là 2240 gas units.
+Để thay đổi các giá trị mặc định này, truyền các tùy chọn tương ứng vào trường `SigVerifyOptions` mới trong `HandlerOptions` của `x/auth`.
 
 ```go
 options := ante.HandlerOptions{
     SigVerifyOptions: []ante.SigVerificationDecoratorOption{
-        // change below as needed.
+        // thay đổi bên dưới theo nhu cầu.
         ante.WithUnorderedTxGasCost(ante.DefaultUnorderedTxGasCost),
         ante.WithMaxUnorderedTxTimeoutDuration(ante.DefaultMaxTimeoutDuration),
     },
@@ -457,22 +457,22 @@ options := ante.HandlerOptions{
 ```go
 anteDecorators := []sdk.AnteDecorator{
 	// ... other decorators ...
-    ante.NewSigVerificationDecorator(options.AccountKeeper, options.SignModeHandler, options.SigVerifyOptions...), // supply new options
+    ante.NewSigVerificationDecorator(options.AccountKeeper, options.SignModeHandler, options.SigVerifyOptions...), // cung cấp tùy chọn mới
 }
 ```
 
 ## Upgrade Handler
 
-The upgrade handler only requires adding the store upgrades for the modules added above.
-If your application is not adding `x/protocolpool` or `x/epochs`, you do not need to add the store upgrade.
+Upgrade handler chỉ yêu cầu thêm các store upgrades cho các module được thêm ở trên.
+Nếu ứng dụng của bạn không thêm `x/protocolpool` hoặc `x/epochs`, bạn không cần thêm store upgrade.
 
 ```go
-// UpgradeName defines the on-chain upgrade name for the sample SimApp upgrade
-// from v050 to v053.
+// UpgradeName định nghĩa tên nâng cấp on-chain cho SimApp upgrade mẫu
+// từ v050 lên v053.
 //
-// NOTE: This upgrade defines a reference implementation of what an upgrade
-// could look like when an application is migrating from Cosmos SDK version
-// v0.50.x to v0.53.x.
+// LƯU Ý: Upgrade này định nghĩa triển khai tham chiếu về những gì một upgrade
+// có thể trông như thế nào khi ứng dụng đang di chuyển từ Cosmos SDK phiên bản
+// v0.50.x lên v0.53.x.
 const UpgradeName = "v050-to-v053"
 
 func (app SimApp) RegisterUpgradeHandlers() {
@@ -491,12 +491,12 @@ func (app SimApp) RegisterUpgradeHandlers() {
     if upgradeInfo.Name == UpgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) {
         storeUpgrades := storetypes.StoreUpgrades{
             Added: []string{
-                epochstypes.ModuleName, // if not adding x/epochs to your chain, remove this line.
-                protocolpooltypes.ModuleName, // if not adding x/protocolpool to your chain, remove this line.
+                epochstypes.ModuleName, // nếu không thêm x/epochs vào chain, xóa dòng này.
+                protocolpooltypes.ModuleName, // nếu không thêm x/protocolpool vào chain, xóa dòng này.
             },
         }
 
-        // configure store loader that checks if version == upgradeHeight and applies store upgrades
+        // cấu hình store loader kiểm tra nếu version == upgradeHeight và áp dụng store upgrades
         app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
     }
 }

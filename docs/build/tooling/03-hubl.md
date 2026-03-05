@@ -4,48 +4,48 @@ sidebar_position: 1
 
 # Hubl
 
-`Hubl` is a tool that allows you to query any Cosmos SDK based blockchain.
-It takes advantage of the new [AutoCLI](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/client/v2@v2.0.0-20220916140313-c5245716b516/cli) feature <!-- TODO replace with AutoCLI docs --> of the Cosmos SDK.
+`Hubl` là một công cụ cho phép bạn truy vấn bất kỳ blockchain nào dựa trên Cosmos SDK.
+Nó tận dụng tính năng [AutoCLI](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/client/v2@v2.0.0-20220916140313-c5245716b516/cli) mới <!-- TODO thay thế bằng tài liệu AutoCLI --> của Cosmos SDK.
 
-## Installation
+## Cài Đặt
 
-Hubl can be installed using `go install`:
+Hubl có thể được cài đặt bằng `go install`:
 
 ```shell
 go install cosmossdk.io/tools/hubl/cmd/hubl@latest
 ```
 
-Or build from source:
+Hoặc build từ source:
 
 ```shell
 git clone --depth=1 https://github.com/cosmos/cosmos-sdk
 make hubl
 ```
 
-The binary will be located in `tools/hubl`.
+Binary sẽ nằm trong `tools/hubl`.
 
-## Usage
+## Sử Dụng
 
 ```shell
 hubl --help
 ```
 
-### Add chain
+### Thêm Chain
 
-To configure a new chain just run this command using the --init flag and the name of the chain as it's listed in the chain registry (<https://github.com/cosmos/chain-registry>).
+Để cấu hình một chain mới, chỉ cần chạy lệnh này sử dụng flag `--init` và tên của chain như được liệt kê trong chain registry (<https://github.com/cosmos/chain-registry>).
 
-If the chain is not listed in the chain registry, you can use any unique name.
+Nếu chain không được liệt kê trong chain registry, bạn có thể sử dụng bất kỳ tên duy nhất nào.
 
 ```shell
 hubl init [chain-name]
 hubl init regen
 ```
 
-The chain configuration is stored in `~/.hubl/config.toml`.
+Cấu hình chain được lưu trữ trong `~/.hubl/config.toml`.
 
 :::tip
 
-When using an unsecure gRPC endpoint, change the `insecure` field to `true` in the config file.
+Khi sử dụng gRPC endpoint không bảo mật, hãy thay đổi trường `insecure` thành `true` trong file config.
 
 ```toml
 [chains]
@@ -55,7 +55,7 @@ endpoint = 'localhost:9090'
 insecure = true
 ```
 
-Or use the `--insecure` flag:
+Hoặc sử dụng flag `--insecure`:
 
 ```shell
 hubl init regen --insecure
@@ -63,10 +63,10 @@ hubl init regen --insecure
 
 :::
 
-### Query
+### Query (Truy Vấn)
 
-To query a chain, you can use the `query` command.
-Then specify which module you want to query and the query itself.
+Để truy vấn một chain, bạn có thể sử dụng lệnh `query`.
+Sau đó chỉ định module nào bạn muốn truy vấn và query chính nó.
 
 ```shell
 hubl regen query auth module-accounts

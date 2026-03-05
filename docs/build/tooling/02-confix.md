@@ -4,29 +4,29 @@ sidebar_position: 1
 
 # Confix
 
-`Confix` is a configuration management tool that allows you to manage your configuration via CLI.
+`Confix` là một công cụ quản lý cấu hình cho phép bạn quản lý cấu hình của mình thông qua CLI.
 
-It is based on the [CometBFT RFC 019](https://github.com/cometbft/cometbft/blob/5013bc3f4a6d64dcc2bf02ccc002ebc9881c62e4/docs/rfc/rfc-019-config-version.md).
+Nó dựa trên [CometBFT RFC 019](https://github.com/cometbft/cometbft/blob/5013bc3f4a6d64dcc2bf02ccc002ebc9881c62e4/docs/rfc/rfc-019-config-version.md).
 
-## Installation
+## Cài Đặt
 
-### Add Config Command
+### Thêm Config Command
 
-To add the confix tool, it's required to add the `ConfigCommand` to your application's root command file (e.g. `<appd>/cmd/root.go`).
+Để thêm công cụ confix, cần thêm `ConfigCommand` vào file root command của ứng dụng (ví dụ: `<appd>/cmd/root.go`).
 
-Import the `confixCmd` package:
+Import package `confixCmd`:
 
 ```go
 import "cosmossdk.io/tools/confix/cmd"
 ```
 
-Find the following line:
+Tìm dòng sau:
 
 ```go
 initRootCmd(rootCmd, moduleManager)
 ```
 
-After that line, add the following:
+Sau dòng đó, thêm phần sau:
 
 ```go
 rootCmd.AddCommand(
@@ -34,116 +34,116 @@ rootCmd.AddCommand(
 )
 ```
 
-The `ConfixCommand` function builds the `config` root command and is defined in the `confixCmd` package (`cosmossdk.io/tools/confix/cmd`).
-An implementation example can be found in `simapp`.
+Hàm `ConfixCommand` xây dựng lệnh gốc `config` và được định nghĩa trong package `confixCmd` (`cosmossdk.io/tools/confix/cmd`).
+Ví dụ triển khai có thể tìm thấy trong `simapp`.
 
-The command will be available as `simd config`.
+Lệnh sẽ có sẵn là `simd config`.
 
 :::tip
-Using confix directly in the application can have less features than using it standalone.
-This is because confix is versioned with the SDK, while `latest` is the standalone version.
+Sử dụng confix trực tiếp trong ứng dụng có thể có ít tính năng hơn so với sử dụng độc lập.
+Điều này là vì confix được versioned với SDK, trong khi `latest` là phiên bản độc lập.
 :::
 
-### Using Confix Standalone
+### Sử Dụng Confix Độc Lập
 
-To use Confix standalone, without having to add it in your application, install it with the following command:
+Để sử dụng Confix độc lập, mà không cần thêm nó vào ứng dụng của bạn, cài đặt nó với lệnh sau:
 
 ```bash
 go install cosmossdk.io/tools/confix/cmd/confix@latest
 ```
 
-Alternatively, for building from source, simply run `make confix`. The binary will be located in `tools/confix`.
+Ngoài ra, để build từ source, đơn giản chạy `make confix`. Binary sẽ nằm trong `tools/confix`.
 
-## Usage
+## Sử Dụng
 
-Use standalone:
+Sử dụng độc lập:
 
 ```shell
 confix --help
 ```
 
-Use in simd:
+Sử dụng trong simd:
 
 ```shell
 simd config fix --help
 ```
 
-### Get
+### Get (Lấy)
 
-Get a configuration value, e.g.:
+Lấy giá trị cấu hình, ví dụ:
 
 ```shell
-simd config get app pruning # gets the value pruning from app.toml
-simd config get client chain-id # gets the value chain-id from client.toml
+simd config get app pruning # lấy giá trị pruning từ app.toml
+simd config get client chain-id # lấy giá trị chain-id từ client.toml
 ```
 
 ```shell
-confix get ~/.simapp/config/app.toml pruning # gets the value pruning from app.toml
-confix get ~/.simapp/config/client.toml chain-id # gets the value chain-id from client.toml
+confix get ~/.simapp/config/app.toml pruning # lấy giá trị pruning từ app.toml
+confix get ~/.simapp/config/client.toml chain-id # lấy giá trị chain-id từ client.toml
 ```
 
-### Set
+### Set (Đặt)
 
-Set a configuration value, e.g.:
-
-```shell
-simd config set app pruning "enabled" # sets the value pruning from app.toml
-simd config set client chain-id "foo-1" # sets the value chain-id from client.toml
-```
+Đặt giá trị cấu hình, ví dụ:
 
 ```shell
-confix set ~/.simapp/config/app.toml pruning "enabled" # sets the value pruning from app.toml
-confix set ~/.simapp/config/client.toml chain-id "foo-1" # sets the value chain-id from client.toml
-```
-
-### Migrate
-
-Migrate a configuration file to a new version, config type defaults to `app.toml`, if you want to change it to `client.toml`, please indicate it by adding the optional parameter, e.g.:
-
-```shell
-simd config migrate v0.50 # migrates defaultHome/config/app.toml to the latest v0.50 config
-simd config migrate v0.50 --client # migrates defaultHome/config/client.toml to the latest v0.50 config
+simd config set app pruning "enabled" # đặt giá trị pruning trong app.toml
+simd config set client chain-id "foo-1" # đặt giá trị chain-id trong client.toml
 ```
 
 ```shell
-confix migrate v0.50 ~/.simapp/config/app.toml # migrate ~/.simapp/config/app.toml to the latest v0.50 config
-confix migrate v0.50 ~/.simapp/config/client.toml --client # migrate ~/.simapp/config/client.toml to the latest v0.50 config
+confix set ~/.simapp/config/app.toml pruning "enabled" # đặt giá trị pruning trong app.toml
+confix set ~/.simapp/config/client.toml chain-id "foo-1" # đặt giá trị chain-id trong client.toml
 ```
 
-### Diff
+### Migrate (Di Chuyển)
 
-Get the diff between a given configuration file and the default configuration file, e.g.:
-
-```shell
-simd config diff v0.47 # gets the diff between defaultHome/config/app.toml and the latest v0.47 config
-simd config diff v0.47 --client # gets the diff between defaultHome/config/client.toml and the latest v0.47 config
-```
+Di chuyển file cấu hình sang phiên bản mới, loại config mặc định là `app.toml`, nếu bạn muốn thay đổi sang `client.toml`, hãy chỉ ra bằng cách thêm tham số tùy chọn, ví dụ:
 
 ```shell
-confix diff v0.47 ~/.simapp/config/app.toml # gets the diff between ~/.simapp/config/app.toml and the latest v0.47 config
-confix diff v0.47 ~/.simapp/config/client.toml --client # gets the diff between ~/.simapp/config/client.toml and the latest v0.47 config
-```
-
-### View
-
-View a configuration file, e.g:
-
-```shell
-simd config view client # views the current app client config
+simd config migrate v0.50 # di chuyển defaultHome/config/app.toml sang cấu hình v0.50 mới nhất
+simd config migrate v0.50 --client # di chuyển defaultHome/config/client.toml sang cấu hình v0.50 mới nhất
 ```
 
 ```shell
-confix view ~/.simapp/config/client.toml # views the current app client conf
+confix migrate v0.50 ~/.simapp/config/app.toml # di chuyển ~/.simapp/config/app.toml sang cấu hình v0.50 mới nhất
+confix migrate v0.50 ~/.simapp/config/client.toml --client # di chuyển ~/.simapp/config/client.toml sang cấu hình v0.50 mới nhất
 ```
 
-### Maintainer
+### Diff (So Sánh)
 
-At each SDK modification of the default configuration, add the default SDK config under `data/vXX-app.toml`.
-This allows users to use the tool standalone.
+Lấy sự khác biệt giữa file cấu hình đã cho và file cấu hình mặc định, ví dụ:
 
-### Compatibility
+```shell
+simd config diff v0.47 # lấy sự khác biệt giữa defaultHome/config/app.toml và cấu hình v0.47 mới nhất
+simd config diff v0.47 --client # lấy sự khác biệt giữa defaultHome/config/client.toml và cấu hình v0.47 mới nhất
+```
 
-The recommended standalone version is `latest`, which is using the latest development version of the Confix.
+```shell
+confix diff v0.47 ~/.simapp/config/app.toml # lấy sự khác biệt giữa ~/.simapp/config/app.toml và cấu hình v0.47 mới nhất
+confix diff v0.47 ~/.simapp/config/client.toml --client # lấy sự khác biệt giữa ~/.simapp/config/client.toml và cấu hình v0.47 mới nhất
+```
+
+### View (Xem)
+
+Xem file cấu hình, ví dụ:
+
+```shell
+simd config view client # xem cấu hình app client hiện tại
+```
+
+```shell
+confix view ~/.simapp/config/client.toml # xem cấu hình app client hiện tại
+```
+
+### Maintainer (Người Bảo Trì)
+
+Tại mỗi lần sửa đổi cấu hình mặc định của SDK, thêm cấu hình SDK mặc định trong `data/vXX-app.toml`.
+Điều này cho phép người dùng sử dụng công cụ độc lập.
+
+### Compatibility (Tương Thích)
+
+Phiên bản độc lập được khuyến nghị là `latest`, sử dụng phiên bản phát triển mới nhất của Confix.
 
 | SDK Version | Confix Version |
 | ----------- | -------------- |
@@ -151,6 +151,6 @@ The recommended standalone version is `latest`, which is using the latest develo
 | v0.52       | v0.2.x         |
 | v2          | v0.2.x         |
 
-## Credits
+## Credits (Ghi Công)
 
-This project is based on the [CometBFT RFC 019](https://github.com/cometbft/cometbft/blob/5013bc3f4a6d64dcc2bf02ccc002ebc9881c62e4/docs/rfc/rfc-019-config-version.md) and their never released own implementation of [confix](https://github.com/cometbft/cometbft/blob/v0.36.x/scripts/confix/confix.go).
+Dự án này dựa trên [CometBFT RFC 019](https://github.com/cometbft/cometbft/blob/5013bc3f4a6d64dcc2bf02ccc002ebc9881c62e4/docs/rfc/rfc-019-config-version.md) và triển khai [confix](https://github.com/cometbft/cometbft/blob/v0.36.x/scripts/confix/confix.go) riêng của họ chưa bao giờ được phát hành.

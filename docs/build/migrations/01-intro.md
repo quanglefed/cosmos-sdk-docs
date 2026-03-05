@@ -2,14 +2,14 @@
 sidebar_position: 1
 ---
 
-# SDK Migrations
+# SDK Migrations (Di Chuyển SDK)
 
-To smoothen the update to the latest stable release, the SDK includes a CLI command for hard-fork migrations (under the `<appd> genesis migrate` subcommand). 
-Additionally, the SDK includes in-place migrations for its core modules. These in-place migrations are useful to migrate between major releases.
+Để giúp việc cập nhật lên phiên bản ổn định mới nhất diễn ra thuận lợi, SDK bao gồm một lệnh CLI cho các hard-fork migration (trong lệnh con `<appd> genesis migrate`).
+Ngoài ra, SDK còn bao gồm các in-place migration cho các module core của nó. Các in-place migration này hữu ích để di chuyển giữa các major release.
 
-* Hard-fork migrations are supported from the last major release to the current one.
-* [In-place module migrations](https://docs.cosmos.network/main/core/upgrade#overwriting-genesis-functions) are supported from the last two major releases to the current one.
+* Hard-fork migration được hỗ trợ từ major release cuối cùng lên phiên bản hiện tại.
+* [In-place module migration](https://docs.cosmos.network/main/core/upgrade#overwriting-genesis-functions) được hỗ trợ từ hai major release cuối cùng lên phiên bản hiện tại.
 
-Migration from a version older than the last two major releases is not supported.
+Migration từ phiên bản cũ hơn hai major release cuối không được hỗ trợ.
 
-When migrating from a previous version, refer to the [`UPGRADING.md`](../../../../UPGRADING.md) and the `CHANGELOG.md` of the version you are migrating to.
+Khi migrate từ phiên bản trước, hãy tham khảo [`UPGRADING.md`](../../../../UPGRADING.md) và `CHANGELOG.md` của phiên bản bạn đang migrate đến.

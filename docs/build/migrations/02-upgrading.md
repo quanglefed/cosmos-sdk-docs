@@ -1,78 +1,80 @@
-# Upgrading Cosmos SDK
+# Nâng Cấp Cosmos SDK
 
-This guide provides instructions for upgrading to specific versions of Cosmos SDK.
-Note, always read the **SimApp** section for more information on application wiring updates.
+Hướng dẫn này cung cấp các hướng dẫn để nâng cấp lên các phiên bản cụ thể của Cosmos SDK.
+Lưu ý, luôn đọc phần **SimApp** để biết thêm thông tin về các cập nhật kết nối ứng dụng.
 
 ## [v0.50.x](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.50.0)
 
-### Migration to CometBFT (Part 2)
+### Migration sang CometBFT (Phần 2)
 
-The Cosmos SDK has migrated in its previous versions, to CometBFT.
-Some functions have been renamed to reflect the naming change.
+Cosmos SDK đã di chuyển trong các phiên bản trước của nó sang CometBFT.
+Một số hàm đã được đổi tên để phản ánh sự thay đổi tên.
 
-Following an exhaustive list:
+Danh sách đầy đủ:
 
 * `client.TendermintRPC` -> `client.CometRPC`
 * `clitestutil.MockTendermintRPC` -> `clitestutil.MockCometRPC`
 * `clitestutilgenutil.CreateDefaultTendermintConfig` -> `clitestutilgenutil.CreateDefaultCometConfig`
 * Package `client/grpc/tmservice` -> `client/grpc/cmtservice`
 
-Additionally, the commands and flags mentioning `tendermint` have been renamed to `comet`.
-These commands and flags are still supported for backward compatibility.
+Ngoài ra, các lệnh và flag đề cập đến `tendermint` đã được đổi tên thành `comet`.
+Các lệnh và flag này vẫn được hỗ trợ cho khả năng tương thích ngược.
 
-For backward compatibility, the `**/tendermint/**` gRPC services are still supported.
+Để tương thích ngược, các gRPC service `**/tendermint/**` vẫn được hỗ trợ.
 
-Additionally, the SDK is starting its abstraction from CometBFT Go types through the codebase:
+Ngoài ra, SDK bắt đầu trừu tượng hóa khỏi các kiểu Go của CometBFT trong codebase:
 
-* The usage of the CometBFT logger has been replaced by the Cosmos SDK logger interface (`cosmossdk.io/log.Logger`).
-* The usage of `github.com/cometbft/cometbft/libs/bytes.HexByte` has been replaced by `[]byte`.
-* Usage of an application genesis (see [genutil](#xgenutil)).
+* Việc sử dụng CometBFT logger đã được thay thế bằng interface logger của Cosmos SDK (`cosmossdk.io/log.Logger`).
+* Việc sử dụng `github.com/cometbft/cometbft/libs/bytes.HexByte` đã được thay thế bằng `[]byte`.
+* Sử dụng application genesis (xem [genutil](#xgenutil)).
 
-#### Enable Vote Extensions
+#### Kích Hoạt Vote Extensions
 
 :::tip
-This is an optional feature that is disabled by default.
+Đây là tính năng tùy chọn và bị tắt theo mặc định.
 :::
 
-Once all the code changes required to implement Vote Extensions are in place,
-they can be enabled by setting the consensus param `Abci.VoteExtensionsEnableHeight`
-to a value greater than zero.
+Khi tất cả các thay đổi mã cần thiết để triển khai Vote Extensions đã được thực hiện,
+chúng có thể được kích hoạt bằng cách đặt consensus param `Abci.VoteExtensionsEnableHeight`
+thành giá trị lớn hơn không.
 
-In a new chain, this can be done in the `genesis.json` file.
+Trên chain mới, điều này có thể được thực hiện trong file `genesis.json`.
 
-For existing chains this can be done in two ways:
+Đối với các chain hiện có, có thể thực hiện theo hai cách:
 
-* During an upgrade the value is set in an upgrade handler.
-* A governance proposal that changes the consensus param **after a coordinated upgrade has taken place**.
+* Trong quá trình upgrade, giá trị được đặt trong upgrade handler.
+* Một governance proposal thay đổi consensus param **sau khi đã hoàn thành một coordinated upgrade**.
 
 ### BaseApp
 
-All ABCI methods now accept a pointer to the request and response types defined
-by CometBFT. In addition, they also return errors. An ABCI method should only
-return errors in cases where a catastrophic failure has occurred and the application
-should halt. However, this is abstracted away from the application developer. Any
-handler that an application can define or set that returns an error, will gracefully
-by handled by `BaseApp` on behalf of the application.
+Tất cả các phương thức ABCI hiện chấp nhận con trỏ đến các kiểu request và response được định nghĩa
+bởi CometBFT. Ngoài ra, chúng cũng trả về các lỗi. Một phương thức ABCI chỉ nên
+trả về lỗi trong trường hợp xảy ra lỗi thảm khốc và ứng dụng
+cần dừng lại. Tuy nhiên, điều này được trừu tượng hóa khỏi nhà phát triển ứng dụng. Bất kỳ
+handler nào mà ứng dụng có thể định nghĩa hoặc đặt trả về lỗi, sẽ được xử lý một cách
+graceful bởi `BaseApp` thay mặt ứng dụng.
 
-BaseApp calls of `BeginBlock` & `Endblock` are now private but are still exposed
-to the application to define via the `Manager` type. `FinalizeBlock` is public
-and should be used in order to test and run operations. This means that although
-`BeginBlock` & `Endblock` no longer exist in the ABCI interface, they are automatically
-called by `BaseApp` during `FinalizeBlock`. Specifically, the order of operations
-is `BeginBlock` -> `DeliverTx` (for all txs) -> `EndBlock`.
+Các lời gọi `BeginBlock` và `Endblock` của BaseApp hiện là private nhưng vẫn được
+hiển thị cho ứng dụng để định nghĩa thông qua kiểu `Manager`. `FinalizeBlock` là public
+và nên được sử dụng để test và chạy các operations. Điều này có nghĩa là mặc dù
+`BeginBlock` và `Endblock` không còn tồn tại trong ABCI interface, chúng được tự động
+gọi bởi `BaseApp` trong `FinalizeBlock`. Cụ thể, thứ tự các operations
+là `BeginBlock` -> `DeliverTx` (cho tất cả các tx) -> `EndBlock`.
 
-ABCI++ 2.0 also brings `ExtendVote` and `VerifyVoteExtension` ABCI methods. These
-methods allow applications to extend and verify pre-commit votes. The Cosmos SDK
-allows an application to define handlers for these methods via `ExtendVoteHandler`
-and `VerifyVoteExtensionHandler` respectively. Please see [here](https://docs.cosmos.network/v0.50/build/building-apps/vote-extensions)
-for more info.
+ABCI++ 2.0 cũng mang lại các phương thức ABCI `ExtendVote` và `VerifyVoteExtension`. Các
+phương thức này cho phép các ứng dụng mở rộng và xác minh các phiếu pre-commit. Cosmos SDK
+cho phép ứng dụng định nghĩa handler cho các phương thức này thông qua `ExtendVoteHandler`
+và `VerifyVoteExtensionHandler` tương ứng. Vui lòng xem [tại đây](https://docs.cosmos.network/v0.50/build/building-apps/vote-extensions)
+để biết thêm thông tin.
 
-#### Set PreBlocker
+#### Đặt PreBlocker
 
-A `SetPreBlocker` method has been added to BaseApp. This is essential for BaseApp to run `PreBlock` which runs before begin blocker other modules, and allows to modify consensus parameters, and the changes are visible to the following state machine logics.
-Read more about other use cases [here](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-068-preblock.md).
+Phương thức `SetPreBlocker` đã được thêm vào BaseApp. Điều này rất cần thiết để BaseApp chạy `PreBlock`,
+cái chạy trước begin blocker của các module khác, và cho phép sửa đổi consensus parameter, và các thay đổi
+này hiển thị với các logic state machine tiếp theo.
+Đọc thêm về các trường hợp sử dụng khác [tại đây](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-068-preblock.md).
 
-`depinject` / app di users need to add `x/upgrade` in their `app_config.go` / `app.yml`:
+Người dùng `depinject` / app di cần thêm `x/upgrade` vào `app_config.go` / `app.yml` của họ:
 
 ```diff
 + PreBlockers: []string{
@@ -84,7 +86,7 @@ BeginBlockers: []string{
 }
 ```
 
-When using (legacy) application wiring, the following must be added to `app.go`:
+Khi sử dụng kết nối ứng dụng (legacy), cần thêm phần sau vào `app.go`:
 
 ```diff
 +app.ModuleManager.SetOrderPreBlockers(
@@ -106,65 +108,65 @@ app.ModuleManager.SetOrderBeginBlockers(
 
 #### Events
 
-The log section of `abci.TxResult` is not populated in the case of successful
-msg(s) execution. Instead a new attribute is added to all messages indicating
-the `msg_index` which identifies which events and attributes relate the same
-transaction.
+Phần log của `abci.TxResult` không được điền trong trường hợp thực thi
+msg(s) thành công. Thay vào đó, một thuộc tính mới được thêm vào tất cả các message chỉ ra
+`msg_index` giúp xác định sự kiện và thuộc tính nào liên quan đến cùng một
+giao dịch.
 
-`BeginBlock` & `EndBlock` Events are now emitted through `FinalizeBlock` but have
-an added attribute, `mode=BeginBlock|EndBlock`, to identify if the event belongs
-to `BeginBlock` or `EndBlock`.
+Các sự kiện `BeginBlock` và `EndBlock` hiện được phát ra thông qua `FinalizeBlock` nhưng có
+thêm một thuộc tính, `mode=BeginBlock|EndBlock`, để xác định sự kiện thuộc về
+`BeginBlock` hay `EndBlock`.
 
-### Config files
+### Config files (File Cấu Hình)
 
-Confix is a new SDK tool for modifying and migrating configuration of the SDK.
-It is the replacement of the `config.Cmd` command from the `client/config` package.
+Confix là công cụ SDK mới để sửa đổi và di chuyển cấu hình của SDK.
+Đây là sự thay thế cho lệnh `config.Cmd` từ package `client/config`.
 
-Use the following command to migrate your configuration:
+Sử dụng lệnh sau để di chuyển cấu hình của bạn:
 
 ```bash
 simd config migrate v0.50
 ```
 
-If you were using `<appd> config [key]` or `<appd> config [key] [value]` to set and get values from the `client.toml`, replace it with `<appd> config get client [key]` and `<appd> config set client [key] [value]`. The extra verbosity is due to the extra functionalities added in config.
+Nếu bạn đang sử dụng `<appd> config [key]` hoặc `<appd> config [key] [value]` để đặt và lấy giá trị từ `client.toml`, hãy thay thế bằng `<appd> config get client [key]` và `<appd> config set client [key] [value]`. Độ verbose thêm là do các chức năng bổ sung được thêm vào config.
 
-More information about [confix](https://docs.cosmos.network/main/tooling/confix) and how to add it in your application binary in the [documentation](https://docs.cosmos.network/main/tooling/confix).
+Thông tin thêm về [confix](https://docs.cosmos.network/main/tooling/confix) và cách thêm nó vào binary ứng dụng trong [tài liệu](https://docs.cosmos.network/main/tooling/confix).
 
 #### gRPC-Web
 
-gRPC-Web is now listening to the same address and port as the gRPC Gateway API server (default: `localhost:1317`).
-The possibility to listen to a different address has been removed, as well as its settings.
-Use `confix` to clean-up your `app.toml`. A nginx (or alike) reverse-proxy can be set to keep the previous behavior.
+gRPC-Web hiện đang lắng nghe cùng địa chỉ và port với máy chủ API gRPC Gateway (mặc định: `localhost:1317`).
+Khả năng lắng nghe trên địa chỉ khác đã bị xóa, cùng với các cài đặt của nó.
+Sử dụng `confix` để dọn dẹp `app.toml` của bạn. Có thể đặt nginx (hoặc tương tự) reverse-proxy để giữ hành vi trước đây.
 
-#### Database Support
+#### Hỗ Trợ Database
 
-ClevelDB, BoltDB and BadgerDB are not supported anymore. To migrate from a unsupported database to a supported database please use a database migration tool.
+ClevelDB, BoltDB và BadgerDB không còn được hỗ trợ nữa. Để migrate từ database không được hỗ trợ sang database được hỗ trợ, vui lòng sử dụng công cụ migration database.
 
 ### Protobuf
 
-With the deprecation of the Amino JSON codec defined in [cosmos/gogoproto](https://github.com/cosmos/gogoproto) in favor of the protoreflect powered x/tx/aminojson codec, module developers are encouraged verify that their messages have the correct protobuf annotations to deterministically produce identical output from both codecs.
+Với việc ngừng sử dụng Amino JSON codec được định nghĩa trong [cosmos/gogoproto](https://github.com/cosmos/gogoproto) thay bằng codec x/tx/aminojson chạy trên protoreflect, nhà phát triển module được khuyến khích xác minh rằng các message của họ có các annotation protobuf đúng để tạo ra đầu ra giống hệt nhau từ cả hai codec một cách xác định.
 
-For core SDK types equivalence is asserted by generative testing of [SignableTypes](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-beta.0/tests/integration/rapidgen/rapidgen.go#L102) in [TestAminoJSON_Equivalence](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-beta.0/tests/integration/tx/aminojson/aminojson_test.go#L94).
+Đối với các kiểu SDK core, tính tương đương được khẳng định thông qua generative testing của [SignableTypes](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-beta.0/tests/integration/rapidgen/rapidgen.go#L102) trong [TestAminoJSON_Equivalence](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-beta.0/tests/integration/tx/aminojson/aminojson_test.go#L94).
 
-**TODO: summarize proto annotation requirements.**
+**TODO: tóm tắt các yêu cầu annotation proto.**
 
 #### Stringer
 
-The `gogoproto.goproto_stringer = false` annotation has been removed from most proto files. This means that the `String()` method is being generated for types that previously had this annotation. The generated `String()` method uses `proto.CompactTextString` for _stringifying_ structs.
-[Verify](https://github.com/cosmos/cosmos-sdk/pull/13850#issuecomment-1328889651) the usage of the modified `String()` methods and double-check that they are not used in state-machine code.
+Annotation `gogoproto.goproto_stringer = false` đã bị xóa khỏi hầu hết các file proto. Điều này có nghĩa là phương thức `String()` đang được tạo cho các kiểu trước đây có annotation này. Phương thức `String()` được tạo sử dụng `proto.CompactTextString` để _stringify_ các struct.
+[Xác minh](https://github.com/cosmos/cosmos-sdk/pull/13850#issuecomment-1328889651) việc sử dụng các phương thức `String()` đã sửa đổi và kiểm tra kỹ rằng chúng không được sử dụng trong mã state-machine.
 
 ### SimApp
 
-In this section we describe the changes made in Cosmos SDK' SimApp.
-**These changes are directly applicable to your application wiring.**
+Trong phần này chúng tôi mô tả các thay đổi được thực hiện trong SimApp của Cosmos SDK.
+**Các thay đổi này có thể áp dụng trực tiếp cho kết nối ứng dụng của bạn.**
 
 #### Module Assertions
 
-Previously, all modules were required to be set in `OrderBeginBlockers`, `OrderEndBlockers` and `OrderInitGenesis / OrderExportGenesis` in `app.go` / `app_config.go`. This is no longer the case, the assertion has been loosened to only require modules implementing, respectively, the `appmodule.HasBeginBlocker`, `appmodule.HasEndBlocker` and `appmodule.HasGenesis` / `module.HasGenesis` interfaces.
+Trước đây, tất cả các module đều phải được đặt trong `OrderBeginBlockers`, `OrderEndBlockers` và `OrderInitGenesis / OrderExportGenesis` trong `app.go` / `app_config.go`. Điều này không còn là trường hợp nữa, điều kiện đã được nới lỏng để chỉ yêu cầu các module triển khai tương ứng các interface `appmodule.HasBeginBlocker`, `appmodule.HasEndBlocker` và `appmodule.HasGenesis` / `module.HasGenesis`.
 
-#### Module wiring
+#### Module wiring (Kết Nối Module)
 
-The following modules `NewKeeper` function now take a `KVStoreService` instead of a `StoreKey`:
+Hàm `NewKeeper` của các module sau hiện nhận `KVStoreService` thay vì `StoreKey`:
 
 * `x/auth`
 * `x/authz`
@@ -180,9 +182,9 @@ The following modules `NewKeeper` function now take a `KVStoreService` instead o
 * `x/slashing`
 * `x/upgrade`
 
-**Users using `depinject` / app di do not need any changes, this is abstracted for them.**
+**Người dùng dùng `depinject` / app di không cần thay đổi gì, điều này được trừu tượng hóa cho họ.**
 
-Users manually wiring their chain need to use the `runtime.NewKVStoreService` method to create a `KVStoreService` from a `StoreKey`:
+Người dùng kết nối chain thủ công cần sử dụng phương thức `runtime.NewKVStoreService` để tạo `KVStoreService` từ `StoreKey`:
 
 ```diff
 app.ConsensusParamsKeeper = consensusparamkeeper.NewKeeper(
@@ -195,9 +197,9 @@ app.ConsensusParamsKeeper = consensusparamkeeper.NewKeeper(
 
 #### Logger
 
-Replace all your CometBFT logger imports by `cosmossdk.io/log`.
+Thay thế tất cả các import CometBFT logger của bạn bằng `cosmossdk.io/log`.
 
-Additionally, `depinject` / app di users must now supply a logger through the main `depinject.Supply` function instead of passing it to `appBuilder.Build`.
+Ngoài ra, người dùng `depinject` / app di bây giờ phải cung cấp logger thông qua hàm `depinject.Supply` chính thay vì truyền nó cho `appBuilder.Build`.
 
 ```diff
 appConfig = depinject.Configs(
@@ -214,14 +216,14 @@ appConfig = depinject.Configs(
 + app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 ```
 
-User manually wiring their chain need to add the logger argument when creating the `x/bank` keeper.
+Người dùng kết nối chain thủ công cần thêm đối số logger khi tạo keeper `x/bank`.
 
 #### Module Basics
 
-Previously, the `ModuleBasics` was a global variable that was used to register all modules' `AppModuleBasic` implementation.
-The global variable has been removed and the basic module manager can be now created from the module manager.
+Trước đây, `ModuleBasics` là một biến toàn cục được sử dụng để đăng ký triển khai `AppModuleBasic` của tất cả các module.
+Biến toàn cục đã bị xóa và basic module manager giờ có thể được tạo từ module manager.
 
-This is automatically done for `depinject` / app di users, however for supplying different app module implementation, pass them via `depinject.Supply` in the main `AppConfig` (`app_config.go`):
+Điều này được thực hiện tự động cho người dùng `depinject` / app di, tuy nhiên để cung cấp các triển khai module app khác nhau, truyền chúng qua `depinject.Supply` trong `AppConfig` chính (`app_config.go`):
 
 ```go
 depinject.Supply(
@@ -237,11 +239,11 @@ depinject.Supply(
 		)
 ```
 
-Users manually wiring their chain need to use the new `module.NewBasicManagerFromManager` function, after the module manager creation, and pass a `map[string]module.AppModuleBasic` as argument for optionally overriding some module's `AppModuleBasic`.
+Người dùng kết nối chain thủ công cần sử dụng hàm `module.NewBasicManagerFromManager` mới, sau khi tạo module manager, và truyền `map[string]module.AppModuleBasic` làm đối số để tùy chọn ghi đè `AppModuleBasic` của một số module.
 
 #### AutoCLI
 
-[`AutoCLI`](https://docs.cosmos.network/main/core/autocli) has been implemented by the SDK for all its module CLI queries. This means chains must add the following in their `root.go` to enable `AutoCLI` in their application:
+[`AutoCLI`](https://docs.cosmos.network/main/core/autocli) đã được SDK triển khai cho tất cả các CLI query của module. Điều này có nghĩa là các chain phải thêm phần sau vào `root.go` để bật `AutoCLI` trong ứng dụng của họ:
 
 ```go
 if err := autoCliOpts.EnhanceRootCommand(rootCmd); err != nil {
@@ -249,15 +251,15 @@ if err := autoCliOpts.EnhanceRootCommand(rootCmd); err != nil {
 }
 ```
 
-Where `autoCliOpts` is the autocli options of the app, containing all modules and codecs.
-That value can injected by depinject ([see root_v2.go](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-beta.0/simapp/simd/cmd/root_v2.go#L49-L67)) or manually provided by the app ([see legacy app.go](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-beta.0/simapp/app.go#L636-L655)).
+Trong đó `autoCliOpts` là các tùy chọn autocli của app, chứa tất cả các module và codec.
+Giá trị đó có thể được inject bởi depinject ([xem root_v2.go](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-beta.0/simapp/simd/cmd/root_v2.go#L49-L67)) hoặc được cung cấp thủ công bởi app ([xem legacy app.go](https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-beta.0/simapp/app.go#L636-L655)).
 
 :::warning
-Not doing this will result in all core SDK modules queries not to be included in the binary.
+Không làm điều này sẽ dẫn đến tất cả các query của module SDK core không được đưa vào binary.
 :::
 
-Additionally `AutoCLI` automatically adds the custom modules commands to the root command for all modules implementing the [`appmodule.AppModule`](https://pkg.go.dev/cosmossdk.io/core/appmodule#AppModule) interface.
-This means, after ensuring all the used modules implement this interface, the following can be removed from your `root.go`:
+Ngoài ra, `AutoCLI` tự động thêm các lệnh module tùy chỉnh vào lệnh gốc cho tất cả các module triển khai interface [`appmodule.AppModule`](https://pkg.go.dev/cosmossdk.io/core/appmodule#AppModule).
+Điều này có nghĩa là sau khi đảm bảo tất cả các module được sử dụng triển khai interface này, có thể xóa phần sau khỏi `root.go`:
 
 ```diff
 func txCommand() *cobra.Command {
@@ -273,27 +275,27 @@ func queryCommand() *cobra.Command {
 }
 ```
 
-### Packages
+### Packages (Gói)
 
 #### Math
 
-References to `types/math.go` which contained aliases for math types aliasing the `cosmossdk.io/math` package have been removed.
-Import directly the `cosmossdk.io/math` package instead.
+Các tham chiếu đến `types/math.go` chứa các alias cho các kiểu math aliasing package `cosmossdk.io/math` đã bị xóa.
+Import trực tiếp package `cosmossdk.io/math` thay thế.
 
 #### Store
 
-References to `types/store.go` which contained aliases for store types have been remapped to point to appropriate `store/types`, hence the `types/store.go` file is no longer needed and has been removed.
+Các tham chiếu đến `types/store.go` chứa các alias cho các kiểu store đã được ánh xạ lại để trỏ đến `store/types` thích hợp, do đó file `types/store.go` không còn cần thiết và đã bị xóa.
 
-##### Extract Store to a standalone module
+##### Tách Store thành module độc lập
 
-The `store` module is extracted to have a separate go.mod file which allows it be a standalone module.
-All the store imports are now renamed to use `cosmossdk.io/store` instead of `github.com/cosmos/cosmos-sdk/store` across the SDK.
+Module `store` được tách ra để có file go.mod riêng cho phép nó là một module độc lập.
+Tất cả các import store hiện được đổi tên để sử dụng `cosmossdk.io/store` thay vì `github.com/cosmos/cosmos-sdk/store` trong SDK.
 
 ##### Streaming
 
-[ADR-38](https://docs.cosmos.network/main/architecture/adr-038-state-listening) has been implemented in the SDK.
+[ADR-38](https://docs.cosmos.network/main/architecture/adr-038-state-listening) đã được triển khai trong SDK.
 
-To continue using state streaming, replace `streaming.LoadStreamingServices` by the following in your `app.go`:
+Để tiếp tục sử dụng state streaming, thay thế `streaming.LoadStreamingServices` bằng phần sau trong `app.go`:
 
 ```go
 if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
@@ -303,18 +305,18 @@ if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil 
 
 #### Client
 
-The return type of the interface method `TxConfig.SignModeHandler()` has been changed from `x/auth/signing.SignModeHandler` to `x/tx/signing.HandlerMap`. This change is transparent to most users as the `TxConfig` interface is typically implemented by private `x/auth/tx.config` struct (as returned by `auth.NewTxConfig`) which has been updated to return the new type. If users have implemented their own `TxConfig` interface, they will need to update their implementation to return the new type.
+Kiểu trả về của phương thức interface `TxConfig.SignModeHandler()` đã được thay đổi từ `x/auth/signing.SignModeHandler` thành `x/tx/signing.HandlerMap`. Thay đổi này trong suốt với hầu hết người dùng vì interface `TxConfig` thường được triển khai bởi struct `x/auth/tx.config` private (như được trả về bởi `auth.NewTxConfig`) đã được cập nhật để trả về kiểu mới. Nếu người dùng đã triển khai interface `TxConfig` của riêng họ, họ cần cập nhật triển khai để trả về kiểu mới.
 
-##### Textual sign mode
+##### Textual sign mode (Chế Độ Ký Dạng Văn Bản)
 
-A new sign mode is available in the SDK that produces more human readable output, currently only available on Ledger
-devices but soon to be implemented in other UIs. 
+Một sign mode mới có sẵn trong SDK tạo ra đầu ra dễ đọc hơn cho con người, hiện chỉ khả dụng trên
+thiết bị Ledger nhưng sắp được triển khai trong các UI khác.
 
 :::tip
-This sign mode does not allow offline signing
+Sign mode này không cho phép ký ngoại tuyến
 :::
 
-When using (legacy) application wiring, the following must be added to `app.go` after setting the app's bank keeper:
+Khi sử dụng kết nối ứng dụng (legacy), cần thêm phần sau vào `app.go` sau khi đặt bank keeper của app:
 
 ```go
 	enabledSignModes := append(tx.DefaultSignModes, sigtypes.SignMode_SIGN_MODE_TEXTUAL)
@@ -332,9 +334,9 @@ When using (legacy) application wiring, the following must be added to `app.go` 
 	app.txConfig = txConfig
 ```
 
-When using `depinject` / `app di`, **it's enabled by default** if there's a bank keeper present.
+Khi sử dụng `depinject` / `app di`, **nó được bật theo mặc định** nếu có bank keeper.
 
-And in the application client (usually `root.go`):
+Và trong application client (thường là `root.go`):
 
 ```go
 	if !clientCtx.Offline {
@@ -351,23 +353,23 @@ And in the application client (usually `root.go`):
 	}
 ```
 
-When using `depinject` / `app di`, the a tx config should be recreated from the `txConfigOpts` to use `NewGRPCCoinMetadataQueryFn` instead of depending on the bank keeper (that is used in the server).
+Khi sử dụng `depinject` / `app di`, tx config nên được tạo lại từ `txConfigOpts` để sử dụng `NewGRPCCoinMetadataQueryFn` thay vì phụ thuộc vào bank keeper (được sử dụng trong server).
 
-To learn more see the [docs](https://docs.cosmos.network/main/learn/advanced/transactions#sign_mode_textual) and the [ADR-050](https://docs.cosmos.network/main/build/architecture/adr-050-sign-mode-textual).
+Để tìm hiểu thêm xem [docs](https://docs.cosmos.network/main/learn/advanced/transactions#sign_mode_textual) và [ADR-050](https://docs.cosmos.network/main/build/architecture/adr-050-sign-mode-textual).
 
 ### Modules
 
-#### `**all**`
+#### `**all**` (Tất Cả Module)
 
-* [RFC 001](https://docs.cosmos.network/main/rfc/rfc-001-tx-validation) has defined a simplification of the message validation process for modules.
-  The `sdk.Msg` interface has been updated to not require the implementation of the `ValidateBasic` method.
-  It is now recommended to validate message directly in the message server. When the validation is performed in the message server, the `ValidateBasic` method on a message is no longer required and can be removed.
+* [RFC 001](https://docs.cosmos.network/main/rfc/rfc-001-tx-validation) đã định nghĩa sự đơn giản hóa quy trình xác thực message cho các module.
+  Interface `sdk.Msg` đã được cập nhật để không yêu cầu triển khai phương thức `ValidateBasic`.
+  Hiện khuyến nghị xác thực message trực tiếp trong message server. Khi việc xác thực được thực hiện trong message server, phương thức `ValidateBasic` trên message không còn cần thiết và có thể bị xóa.
 
-* Messages no longer need to implement the `LegacyMsg` interface and implementations of `GetSignBytes` can be deleted. Because of this change, global legacy Amino codec definitions and their registration in `init()` can safely be removed as well.
+* Các message không còn cần triển khai interface `LegacyMsg` và các triển khai của `GetSignBytes` có thể bị xóa. Do sự thay đổi này, các định nghĩa amino codec kế thừa toàn cục và việc đăng ký chúng trong `init()` cũng có thể được xóa an toàn.
 
-* The `AppModuleBasic` interface has been simplified. Defining `GetTxCmd() *cobra.Command` and `GetQueryCmd() *cobra.Command` is no longer required. The module manager detects when module commands are defined. If AutoCLI is enabled, `EnhanceRootCommand()` will add the auto-generated commands to the root command, unless a custom module command is defined and register that one instead.
+* Interface `AppModuleBasic` đã được đơn giản hóa. Không còn cần thiết phải định nghĩa `GetTxCmd() *cobra.Command` và `GetQueryCmd() *cobra.Command`. Module manager phát hiện khi các lệnh module được định nghĩa. Nếu AutoCLI được bật, `EnhanceRootCommand()` sẽ thêm các lệnh được tạo tự động vào lệnh gốc, trừ khi một lệnh module tùy chỉnh được định nghĩa và đăng ký thay thế.
 
-* The following modules' `Keeper` methods now take in a `context.Context` instead of `sdk.Context`. Any module that has an interfaces for them (like "expected keepers") will need to update and re-generate mocks if needed:
+* Các phương thức `Keeper` của các module sau hiện nhận `context.Context` thay vì `sdk.Context`. Bất kỳ module nào có interface cho chúng (như "expected keepers") sẽ cần cập nhật và tạo lại mock nếu cần:
 
     * `x/authz`
     * `x/bank`
@@ -379,7 +381,7 @@ To learn more see the [docs](https://docs.cosmos.network/main/learn/advanced/tra
     * `x/slashing`
     * `x/upgrade`
 
-* `BeginBlock` and `EndBlock` have changed their signature, so it is important that any module implementing them are updated accordingly.
+* `BeginBlock` và `EndBlock` đã thay đổi chữ ký, vì vậy điều quan trọng là bất kỳ module nào triển khai chúng đều được cập nhật tương ứng.
 
 ```diff
 - BeginBlock(sdk.Context, abci.RequestBeginBlock)
@@ -391,7 +393,7 @@ To learn more see the [docs](https://docs.cosmos.network/main/learn/advanced/tra
 + EndBlock(context.Context) error
 ```
 
-In case a module requires to return `abci.ValidatorUpdate` from `EndBlock`, it can use the `HasABCIEndBlock` interface instead.
+Trong trường hợp module cần trả về `abci.ValidatorUpdate` từ `EndBlock`, có thể sử dụng interface `HasABCIEndBlock` thay thế.
 
 ```diff
 - EndBlock(sdk.Context, abci.RequestEndBlock) []abci.ValidatorUpdate
@@ -399,7 +401,7 @@ In case a module requires to return `abci.ValidatorUpdate` from `EndBlock`, it c
 ```
 
 :::tip
-It is possible to ensure that a module implements the correct interfaces by using compiler assertions in your `x/{moduleName}/module.go`:
+Có thể đảm bảo rằng một module triển khai đúng các interface bằng cách sử dụng compiler assertions trong `x/{moduleName}/module.go`:
 
 ```go
 var (
@@ -414,22 +416,21 @@ var (
 )
 ```
 
-Read more on those interfaces [here](https://docs.cosmos.network/v0.50/building-modules/module-manager#application-module-interfaces).
+Đọc thêm về các interface đó [tại đây](https://docs.cosmos.network/v0.50/building-modules/module-manager#application-module-interfaces).
 
 :::
 
-* `GetSigners()` is no longer required to be implemented on `Msg` types. The SDK will automatically infer the signers from the `Signer` field on the message. The signer field is required on all messages unless using a custom signer function.
+* `GetSigners()` không còn cần được triển khai trên các kiểu `Msg`. SDK sẽ tự động suy ra các signer từ trường `Signer` trên message. Trường signer là bắt buộc trên tất cả các message trừ khi sử dụng hàm signer tùy chỉnh.
 
-To find out more please read the [signer field](../../build/building-modules/05-protobuf-annotations.md#signer) & [here](https://github.com/cosmos/cosmos-sdk/blob/7352d0bce8e72121e824297df453eb1059c28da8/docs/docs/build/building-modules/02-messages-and-queries.md#L40) documentation.
-<!-- Link to docs once redeployed -->
+Để tìm hiểu thêm, đọc tài liệu về [trường signer](../../build/building-modules/05-protobuf-annotations.md#signer) và [tại đây](https://github.com/cosmos/cosmos-sdk/blob/7352d0bce8e72121e824297df453eb1059c28da8/docs/docs/build/building-modules/02-messages-and-queries.md#L40).
 
 #### `x/auth`
 
-For ante handler construction via `ante.NewAnteHandler`, the field `ante.HandlerOptions.SignModeHandler` has been updated to `x/tx/signing/HandlerMap` from `x/auth/signing/SignModeHandler`. Callers typically fetch this value from `client.TxConfig.SignModeHandler()` (which is also changed) so this change should be transparent to most users.
+Đối với việc xây dựng ante handler qua `ante.NewAnteHandler`, trường `ante.HandlerOptions.SignModeHandler` đã được cập nhật thành `x/tx/signing/HandlerMap` từ `x/auth/signing/SignModeHandler`. Người gọi thường lấy giá trị này từ `client.TxConfig.SignModeHandler()` (cũng đã thay đổi) nên thay đổi này nên trong suốt với hầu hết người dùng.
 
 #### `x/capability`
 
-The capability module has been moved to [cosmos/ibc-go](https://github.com/cosmos/ibc-go). IBC v8 will contain the necessary changes to incorporate the new module location. In your `app.go`, you must import the capability module from the new location:
+Module capability đã được chuyển sang [cosmos/ibc-go](https://github.com/cosmos/ibc-go). IBC v8 sẽ chứa các thay đổi cần thiết để tích hợp vị trí module mới. Trong `app.go` của bạn, cần import module capability từ vị trí mới:
 
 ```diff
 +	"github.com/cosmos/ibc-go/modules/capability"
@@ -440,7 +441,7 @@ The capability module has been moved to [cosmos/ibc-go](https://github.com/cosmo
 -	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 ```
 
-Similar to previous versions, your module manager must include the capability module.
+Tương tự như các phiên bản trước, module manager của bạn phải bao gồm module capability.
 
 ```go
 app.ModuleManager = module.NewManager(
@@ -451,72 +452,72 @@ app.ModuleManager = module.NewManager(
 
 #### `x/genutil`
 
-The Cosmos SDK has migrated from a CometBFT genesis to a application managed genesis file.
-The genesis is now fully handled by `x/genutil`. This has no consequences for running chains:
+Cosmos SDK đã di chuyển từ genesis CometBFT sang file genesis do ứng dụng quản lý.
+Genesis hiện được xử lý hoàn toàn bởi `x/genutil`. Điều này không có hậu quả gì cho các chain đang chạy:
 
-* Importing a CometBFT genesis is still supported.
-* Exporting a genesis now exports the genesis as an application genesis.
+* Import genesis CometBFT vẫn được hỗ trợ.
+* Export genesis hiện xuất genesis dưới dạng application genesis.
 
-When needing to read an application genesis, use the following helpers from the `x/genutil/types` package:
+Khi cần đọc application genesis, sử dụng các helper sau từ package `x/genutil/types`:
 
 ```go
-// AppGenesisFromReader reads the AppGenesis from the reader.
+// AppGenesisFromReader đọc AppGenesis từ reader.
 func AppGenesisFromReader(reader io.Reader) (*AppGenesis, error)
 
-// AppGenesisFromFile reads the AppGenesis from the provided file.
+// AppGenesisFromFile đọc AppGenesis từ file được cung cấp.
 func AppGenesisFromFile(genFile string) (*AppGenesis, error)
 ```
 
 #### `x/gov`
 
-##### Expedited Proposals
+##### Expedited Proposals (Đề Xuất Nhanh)
 
-The `gov` v1 module now supports expedited governance proposals. When a proposal is expedited, the voting period will be shortened to `ExpeditedVotingPeriod` parameter. An expedited proposal must have an higher voting threshold than a classic proposal, that threshold is defined with the `ExpeditedThreshold` parameter.
+Module `gov` v1 hiện hỗ trợ expedited governance proposals. Khi một proposal được expedited, thời gian bỏ phiếu sẽ được rút ngắn xuống tham số `ExpeditedVotingPeriod`. Một expedited proposal phải có ngưỡng bỏ phiếu cao hơn proposal thông thường, ngưỡng đó được định nghĩa bởi tham số `ExpeditedThreshold`.
 
-##### Cancelling Proposals
+##### Cancelling Proposals (Hủy Đề Xuất)
 
-The `gov` module now supports cancelling governance proposals. When a proposal is canceled, all the deposits of the proposal are either burnt or sent to `ProposalCancelDest` address. The deposits burn rate will be determined by a new parameter called `ProposalCancelRatio` parameter.
+Module `gov` hiện hỗ trợ hủy governance proposals. Khi một proposal bị hủy, tất cả các khoản deposit của proposal đó hoặc bị đốt hoặc được gửi đến địa chỉ `ProposalCancelDest`. Tỷ lệ đốt deposit sẽ được xác định bởi tham số mới gọi là `ProposalCancelRatio`.
 
 ```text
-1. deposits * proposal_cancel_ratio will be burned or sent to `ProposalCancelDest` address , if `ProposalCancelDest` is empty then deposits will be burned.
-2. deposits * (1 - proposal_cancel_ratio) will be sent to depositors.
+1. deposits * proposal_cancel_ratio sẽ bị đốt hoặc gửi đến địa chỉ `ProposalCancelDest`, nếu `ProposalCancelDest` trống thì deposits sẽ bị đốt.
+2. deposits * (1 - proposal_cancel_ratio) sẽ được gửi cho người deposit.
 ```
 
-By default, the new `ProposalCancelRatio` parameter is set to `0.5` during migration and `ProposalCancelDest` is set to empty string (i.e. burnt).
+Theo mặc định, tham số `ProposalCancelRatio` mới được đặt thành `0.5` trong quá trình migration và `ProposalCancelDest` được đặt thành chuỗi rỗng (tức là bị đốt).
 
 #### `x/evidence`
 
-##### Extract evidence to a standalone module
+##### Tách evidence thành module độc lập
 
-The `x/evidence` module is extracted to have a separate go.mod file which allows it be a standalone module.
-All the evidence imports are now renamed to use `cosmossdk.io/x/evidence` instead of `github.com/cosmos/cosmos-sdk/x/evidence` across the SDK.
+Module `x/evidence` được tách ra để có file go.mod riêng cho phép nó là một module độc lập.
+Tất cả các import evidence hiện được đổi tên để sử dụng `cosmossdk.io/x/evidence` thay vì `github.com/cosmos/cosmos-sdk/x/evidence` trong SDK.
 
 #### `x/nft`
 
-##### Extract nft to a standalone module
+##### Tách nft thành module độc lập
 
-The `x/nft` module is extracted to have a separate go.mod file which allows it to be a standalone module.
-All the evidence imports are now renamed to use `cosmossdk.io/x/nft` instead of `github.com/cosmos/cosmos-sdk/x/nft` across the SDK.
+Module `x/nft` được tách ra để có file go.mod riêng cho phép nó là một module độc lập.
+Tất cả các import evidence hiện được đổi tên để sử dụng `cosmossdk.io/x/nft` thay vì `github.com/cosmos/cosmos-sdk/x/nft` trong SDK.
 
 #### x/feegrant
 
-##### Extract feegrant to a standalone module
+##### Tách feegrant thành module độc lập
 
-The `x/feegrant` module is extracted to have a separate go.mod file which allows it to be a standalone module.
-All the feegrant imports are now renamed to use `cosmossdk.io/x/feegrant` instead of `github.com/cosmos/cosmos-sdk/x/feegrant` across the SDK.
+Module `x/feegrant` được tách ra để có file go.mod riêng cho phép nó là một module độc lập.
+Tất cả các import feegrant hiện được đổi tên để sử dụng `cosmossdk.io/x/feegrant` thay vì `github.com/cosmos/cosmos-sdk/x/feegrant` trong SDK.
 
 #### `x/upgrade`
 
-##### Extract upgrade to a standalone module
+##### Tách upgrade thành module độc lập
 
-The `x/upgrade` module is extracted to have a separate go.mod file which allows it to be a standalone module.
-All the upgrade imports are now renamed to use `cosmossdk.io/x/upgrade` instead of `github.com/cosmos/cosmos-sdk/x/upgrade` across the SDK.
+Module `x/upgrade` được tách ra để có file go.mod riêng cho phép nó là một module độc lập.
+Tất cả các import upgrade hiện được đổi tên để sử dụng `cosmossdk.io/x/upgrade` thay vì `github.com/cosmos/cosmos-sdk/x/upgrade` trong SDK.
 
-### Tooling
+### Tooling (Công Cụ)
 
 #### Rosetta
 
-Rosetta has moved to it's own [repo](https://github.com/cosmos/rosetta) and not imported by the Cosmos SDK SimApp by default.
-Any user who is interested on using the tool can connect it standalone to any node without the need to add it as part of the node binary.
+Rosetta đã chuyển sang [repo riêng](https://github.com/cosmos/rosetta) và không được SimApp của Cosmos SDK import theo mặc định nữa.
+Bất kỳ người dùng nào quan tâm đến việc sử dụng công cụ này có thể kết nối nó độc lập với bất kỳ node nào mà không cần thêm nó như một phần của node binary.
 
-The rosetta tool also allows multi chain connections.
+Công cụ rosetta cũng cho phép kết nối multi chain.

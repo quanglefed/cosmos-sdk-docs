@@ -4,35 +4,35 @@ sidebar_position: 1
 
 # Depinject
 
-> **DISCLAIMER**: This is a **beta** package. The SDK team is actively working on this feature and we are looking for feedback from the community. Please try it out and let us know what you think.
+> **TUYÊN BỐ TỪ CHỐI TRÁCH NHIỆM**: Đây là gói **beta**. Nhóm SDK đang tích cực làm việc trên tính năng này và chúng tôi đang tìm kiếm phản hồi từ cộng đồng. Vui lòng thử và cho chúng tôi biết suy nghĩ của bạn.
 
-## Overview
+## Tổng Quan
 
-`depinject` is a dependency injection (DI) framework for the Cosmos SDK, designed to streamline the process of building and configuring blockchain applications. It works in conjunction with the `core/appconfig` module to replace the majority of boilerplate code in `app.go` with a configuration file in Go, YAML, or JSON format.
+`depinject` là một framework dependency injection (DI) cho Cosmos SDK, được thiết kế để đơn giản hóa quá trình xây dựng và cấu hình các ứng dụng blockchain. Nó hoạt động cùng với module `core/appconfig` để thay thế phần lớn boilerplate code trong `app.go` bằng file cấu hình theo định dạng Go, YAML hoặc JSON.
 
-`depinject` is particularly useful for developing blockchain applications:
+`depinject` đặc biệt hữu ích để phát triển các ứng dụng blockchain:
 
-* With multiple interdependent components, modules, or services. Helping manage their dependencies effectively.
-* That require decoupling of these components, making it easier to test, modify, or replace individual parts without affecting the entire system.
-* That are wanting to simplify the setup and initialisation of modules and their dependencies by reducing boilerplate code and automating dependency management.
+* Với nhiều thành phần, module hoặc service phụ thuộc lẫn nhau. Giúp quản lý các phụ thuộc của chúng một cách hiệu quả.
+* Yêu cầu tách rời các thành phần này, giúp dễ dàng test, sửa đổi hoặc thay thế các phần riêng lẻ mà không ảnh hưởng đến toàn bộ hệ thống.
+* Muốn đơn giản hóa việc thiết lập và khởi tạo các module và các phụ thuộc bằng cách giảm boilerplate code và tự động hóa quản lý phụ thuộc.
 
-By using `depinject`, developers can achieve:
+Bằng cách sử dụng `depinject`, nhà phát triển có thể đạt được:
 
-* Cleaner and more organised code.
-* Improved modularity and maintainability.
-* A more maintainable and modular structure for their blockchain applications, ultimately enhancing development velocity and code quality.
+* Code sạch hơn và có tổ chức hơn.
+* Cải thiện tính module hóa và khả năng bảo trì.
+* Cấu trúc có thể bảo trì và module hóa hơn cho các ứng dụng blockchain của họ, cuối cùng nâng cao tốc độ phát triển và chất lượng code.
 
 * [Go Doc](https://pkg.go.dev/cosmossdk.io/depinject)
 
-## Usage
+## Sử Dụng
 
-The `depinject` framework, based on dependency injection concepts, streamlines the management of dependencies within your blockchain application using its Configuration API. This API offers a set of functions and methods to create easy to use configurations, making it simple to define, modify, and access dependencies and their relationships.
+Framework `depinject`, dựa trên các khái niệm dependency injection, đơn giản hóa việc quản lý các phụ thuộc trong ứng dụng blockchain của bạn bằng cách sử dụng Configuration API. API này cung cấp một bộ hàm và phương thức để tạo các cấu hình dễ sử dụng, giúp đơn giản hóa việc định nghĩa, sửa đổi và truy cập các phụ thuộc cũng như các mối quan hệ của chúng.
 
-A core component of the [Configuration API](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/depinject#Config) is the `Provide` function, which allows you to register provider functions that supply dependencies. Inspired by constructor injection, these provider functions form the basis of the dependency tree, enabling the management and resolution of dependencies in a structured and maintainable manner. Additionally, `depinject` supports interface types as inputs to provider functions, offering flexibility and decoupling between components, similar to interface injection concepts.
+Một thành phần cốt lõi của [Configuration API](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/depinject#Config) là hàm `Provide`, cho phép bạn đăng ký các hàm provider cung cấp các phụ thuộc. Lấy cảm hứng từ constructor injection, các hàm provider này tạo thành nền tảng của dependency tree, cho phép quản lý và giải quyết các phụ thuộc theo cách có cấu trúc và dễ bảo trì. Ngoài ra, `depinject` hỗ trợ các kiểu interface làm đầu vào cho các hàm provider, cung cấp sự linh hoạt và tách rời giữa các thành phần, tương tự như các khái niệm interface injection.
 
-By leveraging `depinject` and its Configuration API, you can efficiently handle dependencies in your blockchain application, ensuring a clean, modular, and well-organised codebase.
+Bằng cách tận dụng `depinject` và Configuration API của nó, bạn có thể xử lý hiệu quả các phụ thuộc trong ứng dụng blockchain của mình, đảm bảo một codebase sạch, module hóa và có tổ chức tốt.
 
-Example:
+Ví dụ:
 
 ```go
 package main
@@ -67,17 +67,17 @@ func main() {
 }
 ```
 
-In this example, `depinject.Provide` registers two provider functions that return `int` and `AnotherInt` values. The `depinject.Inject` function is then used to inject these values into the variables `x` and `y`.
+Trong ví dụ này, `depinject.Provide` đăng ký hai hàm provider trả về các giá trị `int` và `AnotherInt`. Hàm `depinject.Inject` sau đó được sử dụng để inject các giá trị này vào các biến `x` và `y`.
 
-Provider functions serve as the basis for the dependency tree. They are analysed to identify their inputs as dependencies and their outputs as dependents. These dependents can either be used by another provider function or be stored outside the DI container (e.g., `&x` and `&y` in the example above). Provider functions must be exported.
+Các hàm provider đóng vai trò là nền tảng cho dependency tree. Chúng được phân tích để xác định các đầu vào của chúng là các phụ thuộc và các đầu ra là các dependent. Các dependent này có thể được sử dụng bởi một hàm provider khác hoặc được lưu trữ bên ngoài container DI (ví dụ: `&x` và `&y` trong ví dụ trên). Các hàm provider phải được export.
 
-### Interface type resolution
+### Giải Quyết Kiểu Interface
 
-`depinject` supports the use of interface types as inputs to provider functions, which helps decouple dependencies between modules. This approach is particularly useful for managing complex systems with multiple modules, such as the Cosmos SDK, where dependencies need to be flexible and maintainable.
+`depinject` hỗ trợ sử dụng kiểu interface làm đầu vào cho các hàm provider, giúp tách rời các phụ thuộc giữa các module. Cách tiếp cận này đặc biệt hữu ích để quản lý các hệ thống phức tạp với nhiều module, như Cosmos SDK, nơi các phụ thuộc cần linh hoạt và dễ bảo trì.
 
-For example, `x/bank` expects an [AccountKeeper](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/x/bank/types#AccountKeeper) interface as [input to ProvideModule](https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/x/bank/module.go#L208-L260). `SimApp` uses the implementation in `x/auth`, but the modular design allows for easy changes to the implementation if needed.
+Ví dụ, `x/bank` mong đợi một interface [AccountKeeper](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/x/bank/types#AccountKeeper) làm [đầu vào cho ProvideModule](https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/x/bank/module.go#L208-L260). `SimApp` sử dụng triển khai trong `x/auth`, nhưng thiết kế module hóa cho phép dễ dàng thay đổi triển khai nếu cần.
 
-Consider the following example:
+Xét ví dụ sau:
 
 ```go
 package duck
@@ -101,7 +101,7 @@ type Pond struct {
 }
 ```
 
-And the following provider functions:
+Và các hàm provider sau:
 
 ```go
 func GetMallard() duck.Mallard {
@@ -117,7 +117,7 @@ func GetCanvasback() Canvasback {
 }
 ```
 
-In this example, there's a `Pond` struct that has a `Duck` field of type `AlsoDuck`. The `depinject` framework can automatically resolve the appropriate implementation when there's only one available, as shown below:
+Trong ví dụ này, có một struct `Pond` có trường `Duck` kiểu `AlsoDuck`. Framework `depinject` có thể tự động giải quyết triển khai phù hợp khi chỉ có một triển khai có sẵn, như được hiển thị bên dưới:
 
 ```go
 var pond Pond
@@ -130,9 +130,9 @@ depinject.Inject(
    &pond)
 ```
 
-This code snippet results in the `Duck` field of `Pond` being implicitly bound to the `Mallard` implementation because it's the only implementation of the `Duck` interface in the container.
+Đoạn code này dẫn đến trường `Duck` của `Pond` được liên kết ngầm với triển khai `Mallard` vì đây là triển khai duy nhất của interface `Duck` trong container.
 
-However, if there are multiple implementations of the `Duck` interface, as in the following example, you'll encounter an error:
+Tuy nhiên, nếu có nhiều triển khai của interface `Duck`, như trong ví dụ sau, bạn sẽ gặp lỗi:
 
 ```go
 var pond Pond
@@ -146,11 +146,11 @@ depinject.Inject(
  &pond)
 ```
 
-A specific binding preference for `Duck` is required.
+Cần có tùy chọn binding cụ thể cho `Duck`.
 
-#### `BindInterface` API
+#### API `BindInterface`
 
-In the above situation registering a binding for a given interface binding may look like:
+Trong tình huống trên, đăng ký một binding cho một interface binding nhất định có thể trông như sau:
 
 ```go
 depinject.Inject(
@@ -168,38 +168,38 @@ depinject.Inject(
  &pond)
 ```
 
-Now `depinject` has enough information to provide `Mallard` as an input to `APond`.
+Bây giờ `depinject` có đủ thông tin để cung cấp `Mallard` như đầu vào cho `APond`.
 
-### Full example in real app
+### Ví Dụ Đầy Đủ Trong Ứng Dụng Thực Tế
 
 :::warning
-When using `depinject.Inject`, the injected types must be pointers.
+Khi sử dụng `depinject.Inject`, các kiểu được inject phải là con trỏ.
 :::
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/simapp/app_di.go#L165-L188
 ```
 
-## Debugging
+## Debugging (Gỡ Lỗi)
 
-Issues with resolving dependencies in the container can be done with logs and [Graphviz](https://graphviz.org) renderings of the container tree.
-By default, whenever there is an error, logs will be printed to stderr and a rendering of the dependency graph in Graphviz DOT format will be saved to `debug_container.dot`.
+Các vấn đề trong việc giải quyết các phụ thuộc trong container có thể được xử lý bằng log và các rendering [Graphviz](https://graphviz.org) của container tree.
+Theo mặc định, bất cứ khi nào có lỗi, log sẽ được in ra stderr và một rendering của dependency graph theo định dạng Graphviz DOT sẽ được lưu vào `debug_container.dot`.
 
-Here is an example Graphviz rendering of a successful build of a dependency graph:
+Đây là ví dụ về rendering Graphviz của một dependency graph được build thành công:
 ![Graphviz Example](https://raw.githubusercontent.com/cosmos/cosmos-sdk/ff39d243d421442b400befcd959ec3ccd2525154/depinject/testdata/example.svg)
 
-Rectangles represent functions, ovals represent types, rounded rectangles represent modules and the single hexagon
-represents the function which called `Build`. Black-colored shapes mark functions and types that were called/resolved
-without an error. Gray-colored nodes mark functions and types that could have been called/resolved in the container but
-were left unused.
+Hình chữ nhật đại diện cho các hàm, hình oval đại diện cho các kiểu, hình chữ nhật bo góc đại diện cho các module và hình lục giác đơn
+đại diện cho hàm đã gọi `Build`. Các hình màu đen đánh dấu các hàm và kiểu đã được gọi/giải quyết
+mà không có lỗi. Các node màu xám đánh dấu các hàm và kiểu có thể đã được gọi/giải quyết trong container nhưng
+không được sử dụng.
 
-Here is an example Graphviz rendering of a dependency graph build which failed:
+Đây là ví dụ về rendering Graphviz của một dependency graph build thất bại:
 ![Graphviz Error Example](https://raw.githubusercontent.com/cosmos/cosmos-sdk/ff39d243d421442b400befcd959ec3ccd2525154/depinject/testdata/example_error.svg)
 
-Graphviz DOT files can be converted into SVG's for viewing in a web browser using the `dot` command-line tool, ex:
+Các file Graphviz DOT có thể được chuyển đổi thành SVG để xem trong trình duyệt web bằng công cụ dòng lệnh `dot`, ví dụ:
 
 ```txt
 dot -Tsvg debug_container.dot > debug_container.svg
 ```
 
-Many other tools including some IDEs support working with DOT files.
+Nhiều công cụ khác bao gồm một số IDE hỗ trợ làm việc với các file DOT.

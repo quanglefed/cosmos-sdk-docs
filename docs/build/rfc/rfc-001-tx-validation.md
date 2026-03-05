@@ -1,25 +1,25 @@
-# RFC 001: Transaction Validation
+# RFC 001: Xác Thực Transaction
 
 ## Changelog
 
-* 2023-03-12: Proposed
+* 2023-03-12: Đề xuất
 
-## Background
+## Background (Bối Cảnh)
 
-Transation Validation is crucial to a functioning state machine. Within the Cosmos SDK there are two validation flows, one is outside the message server and the other within. The flow outside of the message server is the `ValidateBasic` function. It is called in the antehandler on both `CheckTx` and `DeliverTx`. There is an overhead and sometimes duplication of validation within these two flows. This extra validation provides an additional check before entering the mempool.
+Xác thực Transaction rất quan trọng cho một state machine hoạt động. Trong Cosmos SDK có hai luồng xác thực, một luồng bên ngoài message server và luồng kia bên trong. Luồng bên ngoài message server là hàm `ValidateBasic`. Nó được gọi trong antehandler trên cả `CheckTx` và `DeliverTx`. Có overhead và đôi khi trùng lặp xác thực trong hai luồng này. Việc xác thực bổ sung này cung cấp một kiểm tra thêm trước khi vào mempool.
 
-With the deprecation of [`GetSigners`](https://github.com/cosmos/cosmos-sdk/issues/11275) we have the optionality to remove [sdk.Msg](https://github.com/cosmos/cosmos-sdk/blob/16a5404f8e00ddcf8857c8a55dca2f7c109c29bc/types/tx_msg.go#L16) and the `ValidateBasic` function. 
+Với sự ngừng sử dụng của [`GetSigners`](https://github.com/cosmos/cosmos-sdk/issues/11275) chúng ta có tùy chọn xóa [sdk.Msg](https://github.com/cosmos/cosmos-sdk/blob/16a5404f8e00ddcf8857c8a55dca2f7c109c29bc/types/tx_msg.go#L16) và hàm `ValidateBasic`.
 
-With the separation of CometBFT and Cosmos-SDK, there is a lack of control of what transactions get broadcasted and included in a block. This extra validation in the antehandler is meant to help in this case. In most cases the transaction is or should be simulated against a node for validation. With this flow transactions will be treated the same. 
+Với sự tách biệt giữa CometBFT và Cosmos-SDK, thiếu sự kiểm soát đối với những transaction nào được broadcast và đưa vào block. Việc xác thực bổ sung trong antehandler nhằm giúp ích trong trường hợp này. Trong hầu hết các trường hợp, transaction đang hoặc nên được mô phỏng đối với một node để xác thực. Với luồng này, các transaction sẽ được xử lý giống nhau.
 
-## Proposal
+## Proposal (Đề Xuất)
 
-The acceptance of this RFC would move validation within `ValidateBasic` to the message server in modules, update tutorials and docs to remove mention of using `ValidateBasic` in favour of handling all validation for a message where it is executed.
+Chấp nhận RFC này sẽ chuyển xác thực trong `ValidateBasic` sang message server trong các module, cập nhật các tutorial và tài liệu để xóa đề cập đến việc sử dụng `ValidateBasic` thay bằng xử lý tất cả xác thực cho một message tại nơi nó được thực thi.
 
-We can and will still support the `Validatebasic` function for users and provide an extension interface of the function once `sdk.Msg` is depreacted. 
+Chúng ta vẫn có thể và sẽ hỗ trợ hàm `Validatebasic` cho người dùng và cung cấp một extension interface của hàm khi `sdk.Msg` bị ngừng sử dụng.
 
-> Note: This is how messages are handled in VMs like Ethereum and CosmWasm. 
+> Lưu ý: Đây là cách các message được xử lý trong các VM như Ethereum và CosmWasm.
 
-### Consequences
+### Consequences (Hậu Quả)
 
-The consequence of updating the transaction flow is that transaction that may have failed before with the `ValidateBasic` flow will now be included in a block and fees charged. 
+Hậu quả của việc cập nhật luồng transaction là các transaction có thể đã thất bại trước đây với luồng `ValidateBasic` bây giờ sẽ được đưa vào block và tính phí.
