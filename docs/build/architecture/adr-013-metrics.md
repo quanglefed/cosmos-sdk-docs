@@ -1,80 +1,71 @@
-# ADR 013: Observability
+# ADR 013: Quan Sát Hệ Thống
 
 ## Changelog
 
-* 20-01-2020: Initial Draft
+* 20-01-2020: Bản nháp đầu tiên
 
-## Status
+## Trạng Thái
 
-Proposed
+Đề Xuất
 
-## Context
+## Bối Cảnh
 
-Telemetry is paramount into debugging and understanding what the application is doing and how it is
-performing. We aim to expose metrics from modules and other core parts of the Cosmos SDK.
+Telemetry là yếu tố tối quan trọng trong việc debug và hiểu ứng dụng đang làm gì và hoạt động như thế nào. Chúng ta nhằm mục tiêu phát lộ các metric từ các module và các phần core khác của Cosmos SDK.
 
-In addition, we should aim to support multiple configurable sinks that an operator may choose from.
-By default, when telemetry is enabled, the application should track and expose metrics that are
-stored in-memory. The operator may choose to enable additional sinks, where we support only
-[Prometheus](https://prometheus.io/) for now, as it's battle-tested, simple to setup, open source,
-and is rich with ecosystem tooling.
+Ngoài ra, chúng ta nên nhắm đến việc hỗ trợ nhiều sink có thể cấu hình mà operator có thể chọn. Theo mặc định, khi telemetry được bật, ứng dụng nên theo dõi và phát lộ các metric được lưu trữ trong bộ nhớ. Operator có thể chọn bật thêm sink, nơi chúng ta chỉ hỗ trợ [Prometheus](https://prometheus.io/) hiện tại, vì nó đã được kiểm chứng thực tế, đơn giản để thiết lập, mã nguồn mở và có hệ sinh thái công cụ phong phú.
 
-We must also aim to integrate metrics into the Cosmos SDK in the most seamless way possible such that
-metrics may be added or removed at will and without much friction. To do this, we will use the
-[go-metrics](https://github.com/hashicorp/go-metrics) library.
+Chúng ta cũng phải nhằm mục tiêu tích hợp metric vào Cosmos SDK theo cách liền mạch nhất có thể để các metric có thể được thêm hoặc xóa theo ý muốn mà không gặp nhiều khó khăn. Để làm điều này, chúng ta sẽ sử dụng thư viện [go-metrics](https://github.com/hashicorp/go-metrics).
 
-Finally, operators may enable telemetry along with specific configuration options. If enabled, metrics
-will be exposed via `/metrics?format={text|prometheus}` via the API server.
+Cuối cùng, operator có thể bật telemetry cùng với các tùy chọn cấu hình cụ thể. Nếu được bật, metric sẽ được phát lộ qua `/metrics?format={text|prometheus}` qua API server.
 
-## Decision
+## Quyết Định
 
-We will add an additional configuration block to `app.toml` that defines telemetry settings:
+Chúng ta sẽ thêm một block cấu hình bổ sung vào `app.toml` định nghĩa các cài đặt telemetry:
 
 ```toml
 ###############################################################################
-###                         Telemetry Configuration                         ###
+###                         Cấu Hình Telemetry                              ###
 ###############################################################################
 
 [telemetry]
 
-# Prefixed with keys to separate services
+# Có tiền tố với các khóa để phân tách dịch vụ
 service-name = {{ .Telemetry.ServiceName }}
 
-# Enabled enables the application telemetry functionality. When enabled,
-# an in-memory sink is also enabled by default. Operators may also enabled
-# other sinks such as Prometheus.
+# Enabled bật chức năng telemetry của ứng dụng. Khi được bật,
+# một in-memory sink cũng được bật theo mặc định. Operator cũng có thể bật
+# các sink khác như Prometheus.
 enabled = {{ .Telemetry.Enabled }}
 
-# Enable prefixing gauge values with hostname
+# Bật tiền tố giá trị gauge với hostname
 enable-hostname = {{ .Telemetry.EnableHostname }}
 
-# Enable adding hostname to labels
+# Bật thêm hostname vào label
 enable-hostname-label = {{ .Telemetry.EnableHostnameLabel }}
 
-# Enable adding service to labels
+# Bật thêm service vào label
 enable-service-label = {{ .Telemetry.EnableServiceLabel }}
 
-# PrometheusRetentionTime, when positive, enables a Prometheus metrics sink.
+# PrometheusRetentionTime, khi dương, bật một Prometheus metrics sink.
 prometheus-retention-time = {{ .Telemetry.PrometheusRetentionTime }}
 ```
 
-The given configuration allows for two sinks -- in-memory and Prometheus. We create a `Metrics`
-type that performs all the bootstrapping for the operator, so capturing metrics becomes seamless.
+Cấu hình đã cho cho phép hai sink -- in-memory và Prometheus. Chúng ta tạo một kiểu `Metrics` thực hiện tất cả bootstrapping cho operator, vì vậy việc thu thập metric trở nên liền mạch.
 
 ```go
-// Metrics defines a wrapper around application telemetry functionality. It allows
-// metrics to be gathered at any point in time. When creating a Metrics object,
-// internally, a global metrics is registered with a set of sinks as configured
-// by the operator. In addition to the sinks, when a process gets a SIGUSR1, a
-// dump of formatted recent metrics will be sent to STDERR.
+// Metrics định nghĩa một wrapper quanh chức năng telemetry của ứng dụng. Nó cho phép
+// metric được thu thập vào bất kỳ thời điểm nào. Khi tạo đối tượng Metrics,
+// nội bộ, một global metrics được đăng ký với một tập hợp sink như được cấu hình
+// bởi operator. Ngoài ra các sink, khi một process nhận SIGUSR1, một
+// dump các metric gần đây được định dạng sẽ được gửi đến STDERR.
 type Metrics struct {
   memSink           *metrics.InmemSink
   prometheusEnabled bool
 }
 
-// Gather collects all registered metrics and returns a GatherResponse where the
-// metrics are encoded depending on the type. Metrics are either encoded via
-// Prometheus or JSON if in-memory.
+// Gather thu thập tất cả metric đã đăng ký và trả về GatherResponse trong đó
+// các metric được mã hóa tùy thuộc vào kiểu. Metric được mã hóa qua
+// Prometheus hoặc JSON nếu in-memory.
 func (m *Metrics) Gather(format string) (GatherResponse, error) {
   switch format {
   case FormatPrometheus:
@@ -92,12 +83,9 @@ func (m *Metrics) Gather(format string) (GatherResponse, error) {
 }
 ```
 
-In addition, `Metrics` allows us to gather the current set of metrics at any given point in time. An
-operator may also choose to send a signal, SIGUSR1, to dump and print formatted metrics to STDERR.
+Ngoài ra, `Metrics` cho phép chúng ta thu thập tập hợp metric hiện tại vào bất kỳ thời điểm nào. Operator cũng có thể chọn gửi tín hiệu, SIGUSR1, để dump và in các metric được định dạng ra STDERR.
 
-During an application's bootstrapping and construction phase, if `Telemetry.Enabled` is `true`, the
-API server will create an instance of a reference to `Metrics` object and will register a metrics
-handler accordingly.
+Trong giai đoạn bootstrapping và xây dựng của ứng dụng, nếu `Telemetry.Enabled` là `true`, API server sẽ tạo một instance tham chiếu đến đối tượng `Metrics` và sẽ đăng ký một metrics handler tương ứng.
 
 ```go
 func (s *Server) Start(cfg config.Config) error {
@@ -134,8 +122,7 @@ func (s *Server) registerMetrics() {
 }
 ```
 
-Application developers may track counters, gauges, summaries, and key/value metrics. There is no
-additional lifting required by modules to leverage profiling metrics. To do so, it's as simple as:
+Nhà phát triển ứng dụng có thể theo dõi counter, gauge, summary và metric key/value. Không cần thêm công sức từ module để tận dụng metric profiling. Để làm vậy, đơn giản như:
 
 ```go
 func (k BaseKeeper) MintCoins(ctx sdk.Context, moduleName string, amt sdk.Coins) error {
@@ -144,14 +131,14 @@ func (k BaseKeeper) MintCoins(ctx sdk.Context, moduleName string, amt sdk.Coins)
 }
 ```
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Exposure into the performance and behavior of an application
+* Hiểu rõ về hiệu suất và hành vi của ứng dụng
 
-### Negative
+### Tiêu Cực
 
-### Neutral
+### Trung Lập
 
-## References
+## Tài Liệu Tham Khảo

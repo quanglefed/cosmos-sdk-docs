@@ -6,31 +6,21 @@ sidebar_position: 1
 
 ## Abstract
 
-This paper specifies the Governance module of the Cosmos SDK, which was first
-described in the [Cosmos Whitepaper](https://cosmos.network/about/whitepaper) in
-June 2016.
+Tài liệu này mô tả module Governance của Cosmos SDK, được trình bày lần đầu trong [Cosmos Whitepaper](https://cosmos.network/about/whitepaper) vào tháng 6 năm 2016.
 
-The module enables Cosmos SDK based blockchain to support an on-chain governance
-system. In this system, holders of the native staking token of the chain can vote
-on proposals on a 1 token 1 vote basis. Next is a list of features the module
-currently supports:
+Module cho phép blockchain dựa trên Cosmos SDK hỗ trợ hệ thống quản trị on-chain. Trong hệ thống này, những người nắm giữ token staking gốc của chain có thể bỏ phiếu cho các proposal theo nguyên tắc 1 token 1 vote. Dưới đây là danh sách các tính năng mà module hiện hỗ trợ:
 
-* **Proposal submission:** Users can submit proposals with a deposit. Once the
-minimum deposit is reached, the proposal enters voting period. The minimum deposit can be reached by collecting deposits from different users (including proposer) within deposit period.
-* **Vote:** Participants can vote on proposals that reached MinDeposit and entered voting period.
-* **Inheritance and penalties:** Delegators inherit their validator's vote if
-they don't vote themselves.
-* **Claiming deposit:** Users that deposited on proposals can recover their
-deposits if the proposal was accepted or rejected. If the proposal was vetoed, or never entered voting period (minimum deposit not reached within deposit period), the deposit is burned.
+* **Gửi proposal:** Người dùng có thể gửi proposal kèm deposit. Khi đạt minimum deposit, proposal chuyển sang giai đoạn voting. Minimum deposit có thể đạt được bằng cách thu thập deposit từ nhiều người dùng khác nhau (bao gồm người đề xuất) trong thời gian deposit.
+* **Vote:** Người tham gia có thể bỏ phiếu cho các proposal đã đạt MinDeposit và đã vào giai đoạn voting.
+* **Kế thừa và phạt:** Delegator kế thừa phiếu của validator nếu họ không tự bỏ phiếu.
+* **Nhận lại deposit:** Người dùng đã deposit vào proposal có thể nhận lại deposit nếu proposal được chấp nhận hoặc từ chối. Nếu proposal bị veto, hoặc không bao giờ vào giai đoạn voting (không đạt minimum deposit trong thời gian deposit), deposit sẽ bị burn.
 
-This module is in use on the Cosmos Hub (a.k.a [gaia](https://github.com/cosmos/gaia)).
-Features that may be added in the future are described in [Future Improvements](#future-improvements).
+Module này đang được sử dụng trên Cosmos Hub (còn gọi là [gaia](https://github.com/cosmos/gaia)).
+Các tính năng có thể được thêm trong tương lai được mô tả trong [Future Improvements](#future-improvements).
 
 ## Contents
 
-The following specification uses *ATOM* as the native staking token. The module
-can be adapted to any Proof-Of-Stake blockchain by replacing *ATOM* with the native
-staking token of the chain.
+Đặc tả sau sử dụng *ATOM* làm token staking gốc. Module có thể được điều chỉnh cho bất kỳ blockchain Proof-Of-Stake nào bằng cách thay *ATOM* bằng token staking gốc của chain đó.
 
 * [Concepts](#concepts)
     * [Proposal submission](#proposal-submission)
@@ -64,111 +54,77 @@ staking token of the chain.
 
 ## Concepts
 
-*Disclaimer: This is work in progress. Mechanisms are susceptible to change.*
+*Disclaimer: Đây là công việc đang tiến hành. Các cơ chế có thể thay đổi.*
 
-The governance process is divided in a few steps that are outlined below:
+Quy trình quản trị được chia thành một số bước được phác thảo dưới đây:
 
-* **Proposal submission:** Proposal is submitted to the blockchain with a
-  deposit.
-* **Vote:** Once deposit reaches a certain value (`MinDeposit`), proposal is
-  confirmed and vote opens. Bonded Atom holders can then send `TxGovVote`
-  transactions to vote on the proposal.
-* **Execution** After a period of time, the votes are tallied and depending
-  on the result, the messages in the proposal will be executed.
+* **Gửi proposal:** Proposal được gửi lên blockchain kèm deposit.
+* **Vote:** Khi deposit đạt một giá trị nhất định (`MinDeposit`), proposal được xác nhận và vote mở. Người nắm giữ Atom đã bond có thể gửi giao dịch `TxGovVote` để bỏ phiếu cho proposal.
+* **Thực thi** Sau một khoảng thời gian, phiếu được tổng hợp và tùy theo kết quả, các message trong proposal sẽ được thực thi.
 
 ### Proposal submission
 
-#### Right to submit a proposal
+#### Quyền gửi proposal
 
-Every account can submit proposals by sending a `MsgSubmitProposal` transaction.
-Once a proposal is submitted, it is identified by its unique `proposalID`.
+Mọi account đều có thể gửi proposal bằng cách gửi giao dịch `MsgSubmitProposal`.
+Khi proposal được gửi, nó được xác định bởi `proposalID` duy nhất.
 
 #### Proposal Messages
 
-A proposal includes an array of `sdk.Msg`s which are executed automatically if the
-proposal passes. The messages are executed by the governance `ModuleAccount` itself. Modules
-such as `x/upgrade`, that want to allow certain messages to be executed by governance
-only should add a whitelist within the respective msg server, granting the governance
-module the right to execute the message once a quorum has been reached. The governance
-module uses the `MsgServiceRouter` to check that these messages are correctly constructed
-and have a respective path to execute on but do not perform a full validity check.
+Một proposal bao gồm một mảng các `sdk.Msg` được thực thi tự động nếu proposal được thông qua. Các message được thực thi bởi chính `ModuleAccount` của governance. Các module như `x/upgrade`, muốn cho phép một số message nhất định chỉ được thực thi bởi governance, nên thêm whitelist trong msg server tương ứng, cấp quyền cho governance module thực thi message khi đã đạt quorum. Module governance sử dụng `MsgServiceRouter` để kiểm tra các message này được xây dựng đúng và có đường dẫn tương ứng để thực thi nhưng không thực hiện kiểm tra tính hợp lệ đầy đủ.
 
 ### Deposit
 
-To prevent spam, proposals must be submitted with a deposit in the coins defined by
-the `MinDeposit` param.
+Để ngăn spam, proposal phải được gửi kèm deposit bằng các coin được định nghĩa bởi tham số `MinDeposit`.
 
-When a proposal is submitted, it has to be accompanied with a deposit that must be
-strictly positive, but can be inferior to `MinDeposit`. The submitter doesn't need
-to pay for the entire deposit on their own. The newly created proposal is stored in
-an *inactive proposal queue* and stays there until its deposit passes the `MinDeposit`.
-Other token holders can increase the proposal's deposit by sending a `Deposit`
-transaction. If a proposal doesn't pass the `MinDeposit` before the deposit end time
-(the time when deposits are no longer accepted), the proposal will be destroyed: the
-proposal will be removed from state and the deposit will be burned (see x/gov `EndBlocker`).
-When a proposal deposit passes the `MinDeposit` threshold (even during the proposal
-submission) before the deposit end time, the proposal will be moved into the
-*active proposal queue* and the voting period will begin.
+Khi proposal được gửi, nó phải kèm theo deposit phải dương chặt, nhưng có thể nhỏ hơn `MinDeposit`. Người gửi không cần trả toàn bộ deposit một mình. Proposal mới tạo được lưu trong *inactive proposal queue* và ở đó cho đến khi deposit vượt qua `MinDeposit`.
+Những người nắm giữ token khác có thể tăng deposit của proposal bằng cách gửi giao dịch `Deposit`. Nếu proposal không đạt `MinDeposit` trước thời điểm kết thúc deposit (thời điểm không còn chấp nhận deposit), proposal sẽ bị hủy: proposal sẽ bị xóa khỏi state và deposit sẽ bị burn (xem x/gov `EndBlocker`).
+Khi deposit của proposal vượt qua ngưỡng `MinDeposit` (kể cả trong lúc gửi proposal) trước thời điểm kết thúc deposit, proposal sẽ được chuyển vào *active proposal queue* và giai đoạn voting sẽ bắt đầu.
 
-The deposit is kept in escrow and held by the governance `ModuleAccount` until the
-proposal is finalized (passed or rejected).
+Deposit được giữ trong escrow và nắm giữ bởi governance `ModuleAccount` cho đến khi proposal được hoàn tất (passed hoặc rejected).
 
-#### Deposit refund and burn
+#### Hoàn trả và burn deposit
 
-When a proposal is finalized, the coins from the deposit are either refunded or burned
-according to the final tally of the proposal:
+Khi proposal được hoàn tất, coin từ deposit được hoàn trả hoặc burn tùy theo kết quả tổng hợp cuối cùng của proposal:
 
-* If the proposal is approved or rejected but *not* vetoed, each deposit will be
-  automatically refunded to its respective depositor (transferred from the governance
-  `ModuleAccount`).
-* When the proposal is vetoed with greater than 1/3, deposits will be burned from the
-  governance `ModuleAccount` and the proposal information along with its deposit
-  information will be removed from state.
-* All refunded or burned deposits are removed from the state. Events are issued when
-  burning or refunding a deposit.
+* Nếu proposal được chấp nhận hoặc từ chối nhưng *không* bị veto, mỗi deposit sẽ được hoàn trả tự động cho người deposit tương ứng (chuyển từ governance `ModuleAccount`).
+* Khi proposal bị veto với hơn 1/3, deposit sẽ bị burn từ governance `ModuleAccount` và thông tin proposal cùng thông tin deposit sẽ bị xóa khỏi state.
+* Tất cả deposit được hoàn trả hoặc burn đều bị xóa khỏi state. Event được phát ra khi burn hoặc hoàn trả deposit.
 
 ### Vote
 
-#### Participants
+#### Người tham gia
 
-*Participants* are users that have the right to vote on proposals. On the
-Cosmos Hub, participants are bonded Atom holders. Unbonded Atom holders and
-other users do not get the right to participate in governance. However, they
-can submit and deposit on proposals.
+*Participants* là người dùng có quyền bỏ phiếu cho proposal. Trên Cosmos Hub, participants là người nắm giữ Atom đã bond. Người nắm giữ Atom chưa bond và người dùng khác không có quyền tham gia quản trị. Tuy nhiên, họ có thể gửi và deposit vào proposal.
 
-Note that when *participants* have bonded and unbonded Atoms, their voting power is calculated from their bonded Atom holdings only.
+Lưu ý rằng khi *participants* có cả Atom đã bond và chưa bond, quyền bỏ phiếu của họ được tính từ phần nắm giữ Atom đã bond.
 
-#### Voting period
+#### Giai đoạn voting
 
-Once a proposal reaches `MinDeposit`, it immediately enters `Voting period`. We
-define `Voting period` as the interval between the moment the vote opens and
-the moment the vote closes. The initial value of `Voting period` is 2 weeks.
+Khi proposal đạt `MinDeposit`, nó ngay lập tức vào `Voting period`. Chúng ta định nghĩa `Voting period` là khoảng thời gian giữa lúc vote mở và lúc vote đóng. Giá trị ban đầu của `Voting period` là 2 tuần.
 
-#### Option set
+#### Tập option
 
-The option set of a proposal refers to the set of choices a participant can
-choose from when casting its vote.
+Tập option của proposal đề cập đến tập các lựa chọn mà participant có thể chọn khi bỏ phiếu.
 
-The initial option set includes the following options:
+Tập option ban đầu bao gồm các option sau:
 
 * `Yes`
 * `No`
 * `NoWithVeto`
 * `Abstain`
 
-`NoWithVeto` counts as `No` but also adds a `Veto` vote. `Abstain` option
-allows voters to signal that they do not intend to vote in favor or against the
-proposal but accept the result of the vote.
+`NoWithVeto` được tính là `No` nhưng cũng thêm một phiếu `Veto`. Option `Abstain` cho phép người bỏ phiếu báo hiệu rằng họ không có ý bỏ phiếu tán thành hay phản đối proposal nhưng chấp nhận kết quả của cuộc bỏ phiếu.
 
-*Note: from the UI, for urgent proposals we should maybe add a ‘Not Urgent’ option that casts a `NoWithVeto` vote.*
+*Lưu ý: từ UI, đối với proposal khẩn cấp chúng ta có thể thêm option 'Not Urgent' bỏ phiếu `NoWithVeto`.*
 
 #### Weighted Votes
 
-[ADR-037](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-037-gov-split-vote.md) introduces the weighted vote feature which allows a staker to split their votes into several voting options. For example, it could use 70% of its voting power to vote Yes and 30% of its voting power to vote No.
+[ADR-037](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-037-gov-split-vote.md) giới thiệu tính năng weighted vote cho phép staker chia phiếu của họ thành nhiều voting option. Ví dụ, có thể sử dụng 70% quyền bỏ phiếu để vote Yes và 30% để vote No.
 
-Often times the entity owning that address might not be a single individual. For example, a company might have different stakeholders who want to vote differently, and so it makes sense to allow them to split their voting power. Currently, it is not possible for them to do "passthrough voting" and giving their users voting rights over their tokens. However, with this system, exchanges can poll their users for voting preferences, and then vote on-chain proportionally to the results of the poll.
+Thường thì thực thể sở hữu địa chỉ đó có thể không phải là một cá nhân duy nhất. Ví dụ, một công ty có thể có các stakeholder khác nhau muốn bỏ phiếu khác nhau, và do đó có ý nghĩa khi cho phép họ chia quyền bỏ phiếu. Hiện tại, họ không thể thực hiện "passthrough voting" và cấp quyền bỏ phiếu cho người dùng của họ đối với token của họ. Tuy nhiên, với hệ thống này, các sàn giao dịch có thể thăm dò người dùng về sở thích bỏ phiếu, sau đó bỏ phiếu on-chain theo tỷ lệ kết quả cuộc thăm dò.
 
-To represent weighted vote on chain, we use the following Protobuf message.
+Để biểu diễn weighted vote trên chain, chúng ta sử dụng Protobuf message sau.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/gov/v1beta1/gov.proto#L34-L47
@@ -178,18 +134,18 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/gov/v1beta1/g
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/gov/v1beta1/gov.proto#L181-L201
 ```
 
-For a weighted vote to be valid, the `options` field must not contain duplicate vote options, and the sum of weights of all options must be equal to 1.
+Để weighted vote hợp lệ, trường `options` không được chứa vote option trùng lặp, và tổng trọng số của tất cả option phải bằng 1.
 
 #### Custom Vote Calculation
 
-Cosmos SDK v0.53.0 introduced an option for developers to define a custom vote result and voting power calculation function.
+Cosmos SDK v0.53.0 giới thiệu tùy chọn cho developer định nghĩa hàm tính toán kết quả vote và quyền bỏ phiếu tùy chỉnh.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/main/x/gov/keeper/tally.go#L15-L24
 ```
 
-This gives developers a more expressive way to handle governance on their appchains. 
-Developers can now build systems with:
+Điều này cho developer cách biểu đạt linh hoạt hơn để xử lý quản trị trên appchain của họ.
+Developer giờ có thể xây dựng hệ thống với:
 
 * Quadratic Voting
 * Time-weighted Voting
@@ -223,120 +179,100 @@ govKeeper := govkeeper.NewKeeper(
 
 ### Quorum
 
-Quorum is defined as the minimum percentage of voting power that needs to be
-cast on a proposal for the result to be valid.
+Quorum được định nghĩa là tỷ lệ phần trăm tối thiểu của quyền bỏ phiếu cần được bỏ cho proposal để kết quả hợp lệ.
 
 ### Expedited Proposals
 
-A proposal can be expedited, making the proposal use shorter voting duration and a higher tally threshold by its default. If an expedited proposal fails to meet the threshold within the scope of shorter voting duration, the expedited proposal is then converted to a regular proposal and restarts voting under regular voting conditions.
+Proposal có thể được expedited, khiến proposal sử dụng thời gian voting ngắn hơn và ngưỡng tally cao hơn theo mặc định. Nếu expedited proposal không đạt ngưỡng trong phạm vi thời gian voting ngắn hơn, expedited proposal sẽ được chuyển thành proposal thường và bắt đầu lại voting trong điều kiện voting thường.
 
 #### Threshold
 
-Threshold is defined as the minimum proportion of `Yes` votes (excluding
-`Abstain` votes) for the proposal to be accepted.
+Threshold được định nghĩa là tỷ lệ tối thiểu của phiếu `Yes` (không tính phiếu `Abstain`) để proposal được chấp nhận.
 
-Initially, the threshold is set at 50% of `Yes` votes, excluding `Abstain`
-votes. A possibility to veto exists if more than 1/3rd of all votes are
-`NoWithVeto` votes.  Note, both of these values are derived from the `TallyParams`
-on-chain parameter, which is modifiable by governance.
-This means that proposals are accepted iff:
+Ban đầu, threshold được đặt ở 50% phiếu `Yes`, không tính phiếu `Abstain`.
+Có khả năng veto nếu hơn 1/3 tổng phiếu là phiếu `NoWithVeto`. Lưu ý, cả hai giá trị này đều được lấy từ tham số on-chain `TallyParams`, có thể thay đổi bởi governance.
+Điều này có nghĩa proposal được chấp nhận iff:
 
-* There exist bonded tokens.
-* Quorum has been achieved.
-* The proportion of `Abstain` votes is inferior to 1/1.
-* The proportion of `NoWithVeto` votes is inferior to 1/3, including
-  `Abstain` votes.
-* The proportion of `Yes` votes, excluding `Abstain` votes, at the end of
-  the voting period is superior to 1/2.
+* Tồn tại bonded token.
+* Đã đạt Quorum.
+* Tỷ lệ phiếu `Abstain` nhỏ hơn 1/1.
+* Tỷ lệ phiếu `NoWithVeto` nhỏ hơn 1/3, bao gồm phiếu `Abstain`.
+* Tỷ lệ phiếu `Yes`, không tính phiếu `Abstain`, vào cuối voting period lớn hơn 1/2.
 
-For expedited proposals, by default, the threshold is higher than with a *normal proposal*, namely, 66.7%.
+Đối với expedited proposal, theo mặc định, threshold cao hơn so với *normal proposal*, cụ thể là 66.7%.
 
 #### Inheritance
 
-If a delegator does not vote, it will inherit its validator vote.
+Nếu delegator không bỏ phiếu, họ sẽ kế thừa phiếu của validator.
 
-* If the delegator votes before its validator, it will not inherit from the
-  validator's vote.
-* If the delegator votes after its validator, it will override its validator
-  vote with its own. If the proposal is urgent, it is possible
-  that the vote will close before delegators have a chance to react and
-  override their validator's vote. This is not a problem, as proposals require more than 2/3rd of the total voting power to pass, when tallied at the end of the voting period. Because as little as 1/3 + 1 validation power could collude to censor transactions, non-collusion is already assumed for ranges exceeding this threshold.
+* Nếu delegator bỏ phiếu trước validator, họ sẽ không kế thừa phiếu của validator.
+* Nếu delegator bỏ phiếu sau validator, họ sẽ ghi đè phiếu của validator bằng phiếu của chính họ. Nếu proposal khẩn cấp, có thể vote sẽ đóng trước khi delegator có cơ hội phản ứng và ghi đè phiếu của validator. Điều này không phải vấn đề, vì proposal yêu cầu hơn 2/3 tổng quyền bỏ phiếu để thông qua, khi tổng hợp vào cuối voting period. Vì chỉ cần 1/3 + 1 quyền validation có thể cấu kết để kiểm duyệt giao dịch, việc không cấu kết đã được giả định cho các phạm vi vượt ngưỡng này.
 
-#### Validator’s punishment for non-voting
+#### Hình phạt validator vì không bỏ phiếu
 
-At present, validators are not punished for failing to vote.
+Hiện tại, validator không bị phạt vì không bỏ phiếu.
 
 #### Governance address
 
-Later, we may add permissioned keys that could only sign txs from certain modules. For the MVP, the `Governance address` will be the main validator address generated at account creation. This address corresponds to a different PrivKey than the CometBFT PrivKey which is responsible for signing consensus messages. Validators thus do not have to sign governance transactions with the sensitive CometBFT PrivKey.
+Sau này, chúng ta có thể thêm permissioned key chỉ có thể ký tx từ một số module nhất định. Đối với MVP, `Governance address` sẽ là địa chỉ validator chính được tạo khi tạo account. Địa chỉ này tương ứng với PrivKey khác với CometBFT PrivKey chịu trách nhiệm ký consensus message. Do đó validator không phải ký giao dịch governance bằng CometBFT PrivKey nhạy cảm.
 
 #### Burnable Params
 
-There are three parameters that define if the deposit of a proposal should be burned or returned to the depositors. 
+Có ba tham số định nghĩa deposit của proposal có nên bị burn hay hoàn trả cho người deposit.
 
-* `BurnVoteVeto` burns the proposal deposit if the proposal gets vetoed. 
-* `BurnVoteQuorum` burns the proposal deposit if the proposal deposit if the vote does not reach quorum.
-* `BurnProposalDepositPrevote` burns the proposal deposit if it does not enter the voting phase. 
+* `BurnVoteVeto` burn deposit của proposal nếu proposal bị veto.
+* `BurnVoteQuorum` burn deposit của proposal nếu vote không đạt quorum.
+* `BurnProposalDepositPrevote` burn deposit của proposal nếu nó không vào giai đoạn voting.
 
-> Note: These parameters are modifiable via governance. 
+> Lưu ý: Các tham số này có thể thay đổi qua governance.
 
 ## State
 
 ### Constitution
 
-`Constitution` is found in the genesis state.  It is a string field intended to be used to describe the purpose of a particular blockchain, and its expected norms.  A few examples of how the constitution field can be used:
+`Constitution` được tìm thấy trong genesis state. Đây là trường chuỗi dùng để mô tả mục đích của một blockchain cụ thể và các chuẩn mực mong đợi của nó. Một số ví dụ về cách sử dụng trường constitution:
 
-* define the purpose of the chain, laying a foundation for its future development
-* set expectations for delegators
-* set expectations for validators
-* define the chain's relationship to "meatspace" entities, like a foundation or corporation
+* định nghĩa mục đích của chain, đặt nền tảng cho sự phát triển tương lai
+* đặt kỳ vọng cho delegator
+* đặt kỳ vọng cho validator
+* định nghĩa mối quan hệ của chain với các thực thể "meatspace", như foundation hoặc corporation
 
-Since this is more of a social feature than a technical feature, we'll now get into some items that may have been useful to have in a genesis constitution:
+Vì đây là tính năng xã hội hơn là kỹ thuật, chúng ta sẽ đi vào một số mục có thể hữu ích trong genesis constitution:
 
-* What limitations on governance exist, if any?
-    * is it okay for the community to slash the wallet of a whale that they no longer feel that they want around? (viz: Juno Proposal 4 and 16)
-    * can governance "socially slash" a validator who is using unapproved MEV? (viz: commonwealth.im/osmosis)
-    * In the event of an economic emergency, what should validators do?
-        * Terra crash of May, 2022, saw validators choose to run a new binary with code that had not been approved by governance, because the governance token had been inflated to nothing.
-* What is the purpose of the chain, specifically?
-    * best example of this is the Cosmos hub, where different founding groups, have different interpretations of the purpose of the network.
+* Có giới hạn nào về governance không?
+    * cộng đồng có được phép slash ví của whale mà họ không còn muốn xung quanh không? (ví dụ: Juno Proposal 4 và 16)
+    * governance có thể "socially slash" validator đang sử dụng MEV chưa được phê duyệt không? (ví dụ: commonwealth.im/osmosis)
+    * Trong trường hợp khẩn cấp kinh tế, validator nên làm gì?
+        * Sự sụp đổ Terra tháng 5/2022, validator chọn chạy binary mới với code chưa được governance phê duyệt, vì governance token đã bị lạm phát về không.
+* Mục đích cụ thể của chain là gì?
+    * ví dụ điển hình nhất là Cosmos hub, nơi các nhóm sáng lập khác nhau có cách hiểu khác nhau về mục đích của mạng.
 
-This genesis entry, "constitution" hasn't been designed for existing chains, who should likely just ratify a constitution using their governance system.  Instead, this is for new chains.  It will allow for validators to have a much clearer idea of purpose and the expectations placed on them while operating their nodes.  Likewise, for community members, the constitution will give them some idea of what to expect from both the "chain team" and the validators, respectively.
+Mục genesis "constitution" này chưa được thiết kế cho các chain hiện có, những chain nên có thể chỉ phê chuẩn constitution bằng hệ thống governance của họ. Thay vào đó, đây dành cho chain mới. Nó cho phép validator có ý tưởng rõ ràng hơn nhiều về mục đích và kỳ vọng đặt lên họ khi vận hành node. Tương tự, đối với thành viên cộng đồng, constitution sẽ cho họ ý tưởng về những gì mong đợi từ cả "chain team" và validator.
 
-This constitution is designed to be immutable, and placed only in genesis, though that could change over time by a pull request to the cosmos-sdk that allows for the constitution to be changed by governance.  Communities whishing to make amendments to their original constitution should use the governance mechanism and a "signaling proposal" to do exactly that.
+Constitution này được thiết kế bất biến và chỉ đặt trong genesis, mặc dù có thể thay đổi theo thời gian qua pull request tới cosmos-sdk cho phép constitution được thay đổi bởi governance. Cộng đồng muốn sửa đổi constitution gốc nên sử dụng cơ chế governance và "signaling proposal" để làm điều đó.
 
-**Ideal use scenario for a cosmos chain constitution**
+**Kịch bản sử dụng lý tưởng cho constitution chain cosmos**
 
-As a chain developer, you decide that you'd like to provide clarity to your key user groups:
+Là chain developer, bạn quyết định muốn cung cấp sự rõ ràng cho các nhóm người dùng chính:
 
-* validators
-* token holders
-* developers (yourself)
+* validator
+* token holder
+* developer (chính bạn)
 
-You use the constitution to immutably store some Markdown in genesis, so that when difficult questions come up, the constitution can provide guidance to the community.
+Bạn sử dụng constitution để lưu trữ Markdown bất biến trong genesis, để khi có câu hỏi khó, constitution có thể cung cấp hướng dẫn cho cộng đồng.
 
 ### Proposals
 
-`Proposal` objects are used to tally votes and generally track the proposal's state.
-They contain an array of arbitrary `sdk.Msg`'s which the governance module will attempt
-to resolve and then execute if the proposal passes. `Proposal`'s are identified by a
-unique id and contains a series of timestamps: `submit_time`, `deposit_end_time`,
-`voting_start_time`, `voting_end_time` which track the lifecycle of a proposal
+Đối tượng `Proposal` được sử dụng để tổng hợp phiếu và theo dõi trạng thái proposal nói chung.
+Chúng chứa mảng các `sdk.Msg` tùy ý mà governance module sẽ cố gắng resolve và thực thi nếu proposal được thông qua. `Proposal` được xác định bởi id duy nhất và chứa một chuỗi timestamp: `submit_time`, `deposit_end_time`, `voting_start_time`, `voting_end_time` theo dõi vòng đời của proposal
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/gov/v1/gov.proto#L51-L99
 ```
 
-A proposal will generally require more than just a set of messages to explain its
-purpose but need some greater justification and allow a means for interested participants
-to discuss and debate the proposal.
-In most cases, **it is encouraged to have an off-chain system that supports the on-chain governance process**.
-To accommodate for this, a proposal contains a special **`metadata`** field, a string,
-which can be used to add context to the proposal. The `metadata` field allows custom use for networks,
-however, it is expected that the field contains a URL or some form of CID using a system such as
-[IPFS](https://docs.ipfs.io/concepts/content-addressing/). To support the case of
-interoperability across networks, the SDK recommends that the `metadata` represents
-the following `JSON` template:
+Proposal thường cần nhiều hơn chỉ một tập message để giải thích mục đích nhưng cần thêm lý do và cho phép phương tiện để người tham gia quan tâm thảo luận và tranh luận proposal.
+Trong hầu hết trường hợp, **khuyến khích có hệ thống off-chain hỗ trợ quy trình governance on-chain**.
+Để phục vụ điều này, proposal chứa trường **`metadata`** đặc biệt, một chuỗi, có thể dùng để thêm ngữ cảnh cho proposal. Trường `metadata` cho phép sử dụng tùy chỉnh cho các mạng, tuy nhiên, mong đợi trường chứa URL hoặc dạng CID sử dụng hệ thống như [IPFS](https://docs.ipfs.io/concepts/content-addressing/). Để hỗ trợ trường hợp tương tác giữa các mạng, SDK khuyến nghị `metadata` biểu diễn template `JSON` sau:
 
 ```json
 {
@@ -347,27 +283,17 @@ the following `JSON` template:
 }
 ```
 
-This makes it far easier for clients to support multiple networks.
+Điều này giúp client hỗ trợ nhiều mạng dễ dàng hơn nhiều.
 
-The metadata has a maximum length that is chosen by the app developer, and
-passed into the gov keeper as a config. The default maximum length in the SDK is 255 characters.
+Metadata có độ dài tối đa do app developer chọn và truyền vào gov keeper dưới dạng config. Độ dài tối đa mặc định trong SDK là 255 ký tự.
 
-#### Writing a module that uses governance
+#### Viết module sử dụng governance
 
-There are many aspects of a chain, or of the individual modules that you may want to
-use governance to perform such as changing various parameters. This is very simple
-to do. First, write out your message types and `MsgServer` implementation. Add an
-`authority` field to the keeper which will be populated in the constructor with the
-governance module account: `govKeeper.GetGovernanceAccount().GetAddress()`. Then for
-the methods in the `msg_server.go`, perform a check on the message that the signer
-matches `authority`. This will prevent any user from executing that message.
+Có nhiều khía cạnh của chain hoặc của các module riêng lẻ mà bạn có thể muốn sử dụng governance để thực hiện như thay đổi các tham số khác nhau. Điều này rất đơn giản. Đầu tiên, viết các message type và implementation `MsgServer`. Thêm trường `authority` vào keeper sẽ được điền trong constructor với governance module account: `govKeeper.GetGovernanceAccount().GetAddress()`. Sau đó với các method trong `msg_server.go`, thực hiện kiểm tra message rằng signer khớp với `authority`. Điều này sẽ ngăn bất kỳ user nào thực thi message đó.
 
 ### Parameters and base types
 
-`Parameters` define the rules according to which votes are run. There can only
-be one active parameter set at any given time. If governance wants to change a
-parameter set, either to modify a value or add/remove a parameter field, a new
-parameter set has to be created and the previous one rendered inactive.
+`Parameters` định nghĩa các quy tắc theo đó vote được chạy. Chỉ có thể có một bộ tham số active tại bất kỳ thời điểm nào. Nếu governance muốn thay đổi bộ tham số, để sửa giá trị hoặc thêm/xóa trường tham số, phải tạo bộ tham số mới và vô hiệu hóa bộ trước đó.
 
 #### DepositParams
 
@@ -387,9 +313,9 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/gov/v1/gov.pr
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/gov/v1/gov.proto#L170-L182
 ```
 
-Parameters are stored in a global `GlobalParams` KVStore.
+Parameters được lưu trong KVStore `GlobalParams` toàn cục.
 
-Additionally, we introduce some basic types:
+Ngoài ra, chúng ta giới thiệu một số base type:
 
 ```go
 type Vote byte
@@ -429,7 +355,7 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/gov/v1/gov.pr
 
 ### ValidatorGovInfo
 
-This type is used in a temp map when tallying
+Type này được sử dụng trong temp map khi tổng hợp
 
 ```go
   type ValidatorGovInfo struct {
@@ -441,38 +367,28 @@ This type is used in a temp map when tallying
 ## Stores
 
 :::note
-Stores are KVStores in the multi-store. The key to find the store is the first parameter in the list
+Stores là KVStores trong multi-store. Key để tìm store là tham số đầu tiên trong danh sách
 :::
 
-We will use one KVStore `Governance` to store four mappings:
+Chúng ta sẽ sử dụng một KVStore `Governance` để lưu bốn ánh xạ:
 
-* A mapping from `proposalID|'proposal'` to `Proposal`.
-* A mapping from `proposalID|'addresses'|address` to `Vote`. This mapping allows
-  us to query all addresses that voted on the proposal along with their vote by
-  doing a range query on `proposalID:addresses`.
-* A mapping from `ParamsKey|'Params'` to `Params`. This map allows to query all
-  x/gov params.
-* A mapping from `VotingPeriodProposalKeyPrefix|proposalID` to a single byte. This allows
-  us to know if a proposal is in the voting period or not with very low gas cost.
-  
-For pseudocode purposes, here are the two function we will use to read or write in stores:
+* Ánh xạ từ `proposalID|'proposal'` đến `Proposal`.
+* Ánh xạ từ `proposalID|'addresses'|address` đến `Vote`. Ánh xạ này cho phép truy vấn tất cả địa chỉ đã bỏ phiếu cho proposal cùng phiếu của họ bằng range query trên `proposalID:addresses`.
+* Ánh xạ từ `ParamsKey|'Params'` đến `Params`. Map này cho phép truy vấn tất cả params x/gov.
+* Ánh xạ từ `VotingPeriodProposalKeyPrefix|proposalID` đến một byte. Điều này cho phép biết proposal có trong voting period hay không với chi phí gas rất thấp.
 
-* `load(StoreKey, Key)`: Retrieve item stored at key `Key` in store found at key `StoreKey` in the multistore
-* `store(StoreKey, Key, value)`: Write value `Value` at key `Key` in store found at key `StoreKey` in the multistore
+Với mục đích pseudocode, đây là hai function chúng ta sẽ dùng để đọc hoặc ghi trong stores:
+
+* `load(StoreKey, Key)`: Lấy item lưu tại key `Key` trong store tìm tại key `StoreKey` trong multistore
+* `store(StoreKey, Key, value)`: Ghi value `Value` tại key `Key` trong store tìm tại key `StoreKey` trong multistore
 
 ### Proposal Processing Queue
 
 **Store:**
 
-* `ProposalProcessingQueue`: A queue `queue[proposalID]` containing all the
-  `ProposalIDs` of proposals that reached `MinDeposit`. During each `EndBlock`,
-  all the proposals that have reached the end of their voting period are processed.
-  To process a finished proposal, the application tallies the votes, computes the
-  votes of each validator and checks if every validator in the validator set has
-  voted. If the proposal is accepted, deposits are refunded. Finally, the proposal
-  content `Handler` is executed.
+* `ProposalProcessingQueue`: Hàng đợi `queue[proposalID]` chứa tất cả `ProposalIDs` của proposal đã đạt `MinDeposit`. Trong mỗi `EndBlock`, tất cả proposal đã đến cuối voting period được xử lý. Để xử lý proposal hoàn thành, ứng dụng tổng hợp phiếu, tính phiếu của mỗi validator và kiểm tra mọi validator trong validator set đã bỏ phiếu chưa. Nếu proposal được chấp nhận, deposit được hoàn trả. Cuối cùng, `Handler` nội dung proposal được thực thi.
 
-And the pseudocode for the `ProposalProcessingQueue`:
+Và pseudocode cho `ProposalProcessingQueue`:
 
 ```go
   in EndBlock do
@@ -536,86 +452,79 @@ And the pseudocode for the `ProposalProcessingQueue`:
 ### Legacy Proposal
 
 :::warning
-Legacy proposals are deprecated. Use the new proposal flow by granting the governance module the right to execute the message.
+Legacy proposals đã deprecated. Sử dụng luồng proposal mới bằng cách cấp quyền cho governance module thực thi message.
 :::
 
-A legacy proposal is the old implementation of governance proposal.
-Contrary to proposal that can contain any messages, a legacy proposal allows to submit a set of pre-defined proposals.
-These proposals are defined by their types and handled by handlers that are registered in the gov v1beta1 router.
+Legacy proposal là implementation cũ của governance proposal.
+Khác với proposal có thể chứa bất kỳ message nào, legacy proposal cho phép gửi tập proposal được định nghĩa trước. Các proposal này được định nghĩa theo type và xử lý bởi handler đăng ký trong gov v1beta1 router.
 
-More information on how to submit proposals in the [client section](#client).
+Thêm thông tin về cách gửi proposal trong [client section](#client).
 
 ## Messages
 
 ### Proposal Submission
 
-Proposals can be submitted by any account via a `MsgSubmitProposal` transaction.
+Proposal có thể được gửi bởi bất kỳ account nào qua giao dịch `MsgSubmitProposal`.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/gov/v1/tx.proto#L42-L69
 ```
 
-All `sdk.Msgs` passed into the `messages` field of a `MsgSubmitProposal` message
-must be registered in the app's `MsgServiceRouter`. Each of these messages must
-have one signer, namely the gov module account. And finally, the metadata length
-must not be larger than the `maxMetadataLen` config passed into the gov keeper.
-The `initialDeposit` must be strictly positive and conform to the accepted denom of the `MinDeposit` param.
+Tất cả `sdk.Msgs` truyền vào trường `messages` của message `MsgSubmitProposal` phải được đăng ký trong `MsgServiceRouter` của app. Mỗi message này phải có một signer, cụ thể là gov module account. Và cuối cùng, độ dài metadata không được lớn hơn config `maxMetadataLen` truyền vào gov keeper.
+`initialDeposit` phải dương chặt và tuân theo denom được chấp nhận của tham số `MinDeposit`.
 
-**State modifications:**
+**Sửa đổi state:**
 
-* Generate new `proposalID`
-* Create new `Proposal`
-* Initialise `Proposal`'s attributes
-* Decrease balance of sender by `InitialDeposit`
-* If `MinDeposit` is reached:
-    * Push `proposalID` in `ProposalProcessingQueue`
-* Transfer `InitialDeposit` from the `Proposer` to the governance `ModuleAccount`
+* Tạo `proposalID` mới
+* Tạo `Proposal` mới
+* Khởi tạo thuộc tính của `Proposal`
+* Giảm balance của sender đi `InitialDeposit`
+* Nếu đạt `MinDeposit`:
+    * Đẩy `proposalID` vào `ProposalProcessingQueue`
+* Chuyển `InitialDeposit` từ `Proposer` sang governance `ModuleAccount`
 
 ### Deposit
 
-Once a proposal is submitted, if `Proposal.TotalDeposit < ActiveParam.MinDeposit`, Atom holders can send
-`MsgDeposit` transactions to increase the proposal's deposit.
+Khi proposal được gửi, nếu `Proposal.TotalDeposit < ActiveParam.MinDeposit`, người nắm giữ Atom có thể gửi giao dịch `MsgDeposit` để tăng deposit của proposal.
 
-A deposit is accepted iff:
+Deposit được chấp nhận iff:
 
-* The proposal exists
-* The proposal is not in the voting period
-* The deposited coins are conform to the accepted denom from the `MinDeposit` param
+* Proposal tồn tại
+* Proposal không trong voting period
+* Coin deposit tuân theo denom được chấp nhận từ tham số `MinDeposit`
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/gov/v1/tx.proto#L134-L147
 ```
 
-**State modifications:**
+**Sửa đổi state:**
 
-* Decrease balance of sender by `deposit`
-* Add `deposit` of sender in `proposal.Deposits`
-* Increase `proposal.TotalDeposit` by sender's `deposit`
-* If `MinDeposit` is reached:
-    * Push `proposalID` in `ProposalProcessingQueueEnd`
-* Transfer `Deposit` from the `proposer` to the governance `ModuleAccount`
+* Giảm balance của sender đi `deposit`
+* Thêm `deposit` của sender vào `proposal.Deposits`
+* Tăng `proposal.TotalDeposit` bằng `deposit` của sender
+* Nếu đạt `MinDeposit`:
+    * Đẩy `proposalID` vào `ProposalProcessingQueueEnd`
+* Chuyển `Deposit` từ `proposer` sang governance `ModuleAccount`
 
 ### Vote
 
-Once `ActiveParam.MinDeposit` is reached, voting period starts. From there,
-bonded Atom holders are able to send `MsgVote` transactions to cast their
-vote on the proposal.
+Khi đạt `ActiveParam.MinDeposit`, voting period bắt đầu. Từ đó, người nắm giữ Atom đã bond có thể gửi giao dịch `MsgVote` để bỏ phiếu cho proposal.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/gov/v1/tx.proto#L92-L108
 ```
 
-**State modifications:**
+**Sửa đổi state:**
 
-* Record `Vote` of sender
+* Ghi `Vote` của sender
 
 :::note
-Gas cost for this message has to take into account the future tallying of the vote in EndBlocker.
+Chi phí gas cho message này phải tính đến việc tổng hợp phiếu trong EndBlocker sau này.
 :::
 
 ## Events
 
-The governance module emits the following events:
+Module governance phát ra các event sau:
 
 ### EndBlocker
 
@@ -640,7 +549,7 @@ The governance module emits the following events:
 | message             | action              | submit_proposal |
 | message             | sender              | {senderAddress} |
 
-* [0] Event only emitted if the voting period starts during the submission.
+* [0] Event chỉ phát ra nếu voting period bắt đầu trong lúc submission.
 
 #### MsgVote
 
@@ -673,11 +582,11 @@ The governance module emits the following events:
 | message              | action              | deposit         |
 | message              | sender              | {senderAddress} |
 
-* [0] Event only emitted if the voting period starts during the submission.
+* [0] Event chỉ phát ra nếu voting period bắt đầu trong lúc submission.
 
 ## Parameters
 
-The governance module contains the following parameters:
+Module governance chứa các tham số sau:
 
 | Key                           | Type             | Example                                 |
 |-------------------------------|------------------|-----------------------------------------|
@@ -696,19 +605,17 @@ The governance module contains the following parameters:
 | min_initial_deposit_ratio                | string             | "0.1"                                    |
 
 
-**NOTE**: The governance module contains parameters that are objects unlike other
-modules. If only a subset of parameters are desired to be changed, only they need
-to be included and not the entire parameter object structure.
+**NOTE**: Module governance chứa các tham số là object khác với các module khác. Nếu chỉ muốn thay đổi một tập con tham số, chỉ cần bao gồm chúng và không cần toàn bộ cấu trúc object tham số.
 
 ## Client
 
 ### CLI
 
-A user can query and interact with the `gov` module using the CLI.
+Người dùng có thể truy vấn và tương tác với module `gov` bằng CLI.
 
 #### Query
 
-The `query` commands allow users to query `gov` state.
+Lệnh `query` cho phép người dùng truy vấn state `gov`.
 
 ```bash
 simd query gov --help
@@ -716,7 +623,7 @@ simd query gov --help
 
 ##### deposit
 
-The `deposit` command allows users to query a deposit for a given proposal from a given depositor.
+Lệnh `deposit` cho phép người dùng truy vấn deposit cho proposal nhất định từ depositor nhất định.
 
 ```bash
 simd query gov deposit [proposal-id] [depositor-addr] [flags]
@@ -740,7 +647,7 @@ proposal_id: "1"
 
 ##### deposits
 
-The `deposits` command allows users to query all deposits for a given proposal.
+Lệnh `deposits` cho phép người dùng truy vấn tất cả deposit cho proposal nhất định.
 
 ```bash
 simd query gov deposits [proposal-id] [flags]
@@ -768,7 +675,7 @@ pagination:
 
 ##### param
 
-The `param` command allows users to query a given parameter for the `gov` module.
+Lệnh `param` cho phép người dùng truy vấn tham số nhất định cho module `gov`.
 
 ```bash
 simd query gov param [param-type] [flags]
@@ -788,7 +695,7 @@ voting_period: "172800000000000"
 
 ##### params
 
-The `params` command allows users to query all parameters for the `gov` module.
+Lệnh `params` cho phép người dùng truy vấn tất cả tham số cho module `gov`.
 
 ```bash
 simd query gov params [flags]
@@ -834,7 +741,7 @@ voting_params:
 
 ##### proposal
 
-The `proposal` command allows users to query a given proposal.
+Lệnh `proposal` cho phép người dùng truy vấn proposal nhất định.
 
 ```bash
 simd query gov proposal [proposal-id] [flags]
@@ -875,7 +782,7 @@ voting_start_time: null
 
 ##### proposals
 
-The `proposals` command allows users to query all proposals with optional filters.
+Lệnh `proposals` cho phép người dùng truy vấn tất cả proposal với bộ lọc tùy chọn.
 
 ```bash
 simd query gov proposals [flags]
@@ -942,7 +849,7 @@ proposals:
 
 ##### proposer
 
-The `proposer` command allows users to query the proposer for a given proposal.
+Lệnh `proposer` cho phép người dùng truy vấn proposer cho proposal nhất định.
 
 ```bash
 simd query gov proposer [proposal-id] [flags]
@@ -963,7 +870,7 @@ proposer: cosmos1..
 
 ##### tally
 
-The `tally` command allows users to query the tally of a given proposal vote.
+Lệnh `tally` cho phép người dùng truy vấn tổng hợp phiếu của proposal vote nhất định.
 
 ```bash
 simd query gov tally [proposal-id] [flags]
@@ -986,7 +893,7 @@ no_with_veto: "0"
 
 ##### vote
 
-The `vote` command allows users to query a vote for a given proposal.
+Lệnh `vote` cho phép người dùng truy vấn phiếu cho proposal nhất định.
 
 ```bash
 simd query gov vote [proposal-id] [voter-addr] [flags]
@@ -1011,7 +918,7 @@ voter: cosmos1..
 
 ##### votes
 
-The `votes` command allows users to query all votes for a given proposal.
+Lệnh `votes` cho phép người dùng truy vấn tất cả phiếu cho proposal nhất định.
 
 ```bash
 simd query gov votes [proposal-id] [flags]
@@ -1040,7 +947,7 @@ votes:
 
 #### Transactions
 
-The `tx` commands allow users to interact with the `gov` module.
+Lệnh `tx` cho phép người dùng tương tác với module `gov`.
 
 ```bash
 simd tx gov --help
@@ -1048,7 +955,7 @@ simd tx gov --help
 
 ##### deposit
 
-The `deposit` command allows users to deposit tokens for a given proposal.
+Lệnh `deposit` cho phép người dùng deposit token cho proposal nhất định.
 
 ```bash
 simd tx gov deposit [proposal-id] [deposit] [flags]
@@ -1062,9 +969,9 @@ simd tx gov deposit 1 10000000stake --from cosmos1..
 
 ##### draft-proposal
 
-The `draft-proposal` command allows users to draft any type of proposal.
-The command returns a `draft_proposal.json`, to be used by `submit-proposal` after being completed.
-The `draft_metadata.json` is meant to be uploaded to [IPFS](#metadata).
+Lệnh `draft-proposal` cho phép người dùng soạn thảo proposal bất kỳ loại nào.
+Lệnh trả về `draft_proposal.json`, dùng cho `submit-proposal` sau khi hoàn thành.
+`draft_metadata.json` dùng để upload lên [IPFS](#metadata).
 
 ```bash
 simd tx gov draft-proposal
@@ -1072,8 +979,8 @@ simd tx gov draft-proposal
 
 ##### submit-proposal
 
-The `submit-proposal` command allows users to submit a governance proposal along with some messages and metadata.
-Messages, metadata and deposit are defined in a JSON file.
+Lệnh `submit-proposal` cho phép người dùng gửi governance proposal cùng một số message và metadata.
+Messages, metadata và deposit được định nghĩa trong file JSON.
 
 ```bash
 simd tx gov submit-proposal [path-to-proposal-json] [flags]
@@ -1085,7 +992,7 @@ Example:
 simd tx gov submit-proposal /path/to/proposal.json --from cosmos1..
 ```
 
-where `proposal.json` contains:
+trong đó `proposal.json` chứa:
 
 ```json
 {
@@ -1105,16 +1012,16 @@ where `proposal.json` contains:
 ```
 
 :::note
-By default the metadata, summary and title are both limited by 255 characters, this can be overridden by the application developer.
+Theo mặc định metadata, summary và title đều giới hạn 255 ký tự, điều này có thể được ghi đè bởi application developer.
 :::
 
 :::tip
-When metadata is not specified, the title is limited to 255 characters and the summary 40x the title length.
+Khi metadata không được chỉ định, title giới hạn 255 ký tự và summary 40x độ dài title.
 :::
 
 ##### submit-legacy-proposal
 
-The `submit-legacy-proposal` command allows users to submit a governance legacy proposal along with an initial deposit.
+Lệnh `submit-legacy-proposal` cho phép người dùng gửi governance legacy proposal cùng deposit ban đầu.
 
 ```bash
 simd tx gov submit-legacy-proposal [command] [flags]
@@ -1149,7 +1056,7 @@ simd tx gov submit-legacy-proposal param-change proposal.json --from cosmos1..
 
 #### cancel-proposal
 
-Once proposal is canceled, from the deposits of proposal `deposits * proposal_cancel_ratio` will be burned or sent to `ProposalCancelDest` address , if `ProposalCancelDest` is empty then deposits will be burned. The `remaining deposits` will be sent to depositors.
+Khi proposal bị hủy, từ deposit của proposal `deposits * proposal_cancel_ratio` sẽ bị burn hoặc gửi đến địa chỉ `ProposalCancelDest`, nếu `ProposalCancelDest` rỗng thì deposit sẽ bị burn. `remaining deposits` sẽ được gửi cho người deposit.
 
 ```bash
 simd tx gov cancel-proposal [proposal-id] [flags]
@@ -1163,7 +1070,7 @@ simd tx gov cancel-proposal 1 --from cosmos1...
 
 ##### vote
 
-The `vote` command allows users to submit a vote for a given governance proposal.
+Lệnh `vote` cho phép người dùng gửi phiếu cho governance proposal nhất định.
 
 ```bash
 simd tx gov vote [command] [flags]
@@ -1177,7 +1084,7 @@ simd tx gov vote 1 yes --from cosmos1..
 
 ##### weighted-vote
 
-The `weighted-vote` command allows users to submit a weighted vote for a given governance proposal.
+Lệnh `weighted-vote` cho phép người dùng gửi weighted vote cho governance proposal nhất định.
 
 ```bash
 simd tx gov weighted-vote [proposal-id] [weighted-options] [flags]
@@ -1191,11 +1098,11 @@ simd tx gov weighted-vote 1 yes=0.5,no=0.5 --from cosmos1..
 
 ### gRPC
 
-A user can query the `gov` module using gRPC endpoints.
+Người dùng có thể truy vấn module `gov` bằng gRPC endpoint.
 
 #### Proposal
 
-The `Proposal` endpoint allows users to query a given proposal.
+Endpoint `Proposal` cho phép người dùng truy vấn proposal nhất định.
 
 Using legacy v1beta1:
 
@@ -1292,7 +1199,7 @@ Example Output:
 
 #### Proposals
 
-The `Proposals` endpoint allows users to query all proposals with optional filters.
+Endpoint `Proposals` cho phép người dùng truy vấn tất cả proposal với bộ lọc tùy chọn.
 
 Using legacy v1beta1:
 
@@ -1358,7 +1265,6 @@ Example Output:
     "total": "2"
   }
 }
-
 ```
 
 Using v1:
@@ -1439,7 +1345,7 @@ Example Output:
 
 #### Vote
 
-The `Vote` endpoint allows users to query a vote for a given proposal.
+Endpoint `Vote` cho phép người dùng truy vấn phiếu cho proposal nhất định.
 
 Using legacy v1beta1:
 
@@ -1509,7 +1415,7 @@ Example Output:
 
 #### Votes
 
-The `Votes` endpoint allows users to query all votes for a given proposal.
+Endpoint `Votes` cho phép người dùng truy vấn tất cả phiếu cho proposal nhất định.
 
 Using legacy v1beta1:
 
@@ -1587,7 +1493,7 @@ Example Output:
 
 #### Params
 
-The `Params` endpoint allows users to query all parameters for the `gov` module.
+Endpoint `Params` cho phép người dùng truy vấn tất cả tham số cho module `gov`.
 
 <!-- TODO: #10197 Querying governance params outputs nil values -->
 
@@ -1651,7 +1557,7 @@ Example Output:
 
 #### Deposit
 
-The `Deposit` endpoint allows users to query a deposit for a given proposal from a given depositor.
+Endpoint `Deposit` cho phép người dùng truy vấn deposit cho proposal nhất định từ depositor nhất định.
 
 Using legacy v1beta1:
 
@@ -1719,7 +1625,7 @@ Example Output:
 
 #### deposits
 
-The `Deposits` endpoint allows users to query all deposits for a given proposal.
+Endpoint `Deposits` cho phép người dùng truy vấn tất cả deposit cho proposal nhất định.
 
 Using legacy v1beta1:
 
@@ -1797,7 +1703,7 @@ Example Output:
 
 #### TallyResult
 
-The `TallyResult` endpoint allows users to query the tally of a given proposal.
+Endpoint `TallyResult` cho phép người dùng truy vấn tổng hợp phiếu của proposal nhất định.
 
 Using legacy v1beta1:
 
@@ -1857,11 +1763,11 @@ Example Output:
 
 ### REST
 
-A user can query the `gov` module using REST endpoints.
+Người dùng có thể truy vấn module `gov` bằng REST endpoint.
 
 #### proposal
 
-The `proposals` endpoint allows users to query a given proposal.
+Endpoint `proposals` cho phép người dùng truy vấn proposal nhất định.
 
 Using legacy v1beta1:
 
@@ -1960,7 +1866,7 @@ Example Output:
 
 #### proposals
 
-The `proposals` endpoint also allows users to query all proposals with optional filters.
+Endpoint `proposals` cũng cho phép người dùng truy vấn tất cả proposal với bộ lọc tùy chọn.
 
 Using legacy v1beta1:
 
@@ -2128,7 +2034,7 @@ Example Output:
 
 #### voter vote
 
-The `votes` endpoint allows users to query a vote for a given proposal.
+Endpoint `votes` cho phép người dùng truy vấn phiếu cho proposal nhất định.
 
 Using legacy v1beta1:
 
@@ -2192,7 +2098,7 @@ Example Output:
 
 #### votes
 
-The `votes` endpoint allows users to query all votes for a given proposal.
+Endpoint `votes` cho phép người dùng truy vấn tất cả phiếu cho proposal nhất định.
 
 Using legacy v1beta1:
 
@@ -2268,7 +2174,7 @@ Example Output:
 
 #### params
 
-The `params` endpoint allows users to query all parameters for the `gov` module.
+Endpoint `params` cho phép người dùng truy vấn tất cả tham số cho module `gov`.
 
 <!-- TODO: #10197 Querying governance params outputs nil values -->
 
@@ -2338,7 +2244,7 @@ Example Output:
 
 #### deposits
 
-The `deposits` endpoint allows users to query a deposit for a given proposal from a given depositor.
+Endpoint `deposits` cho phép người dùng truy vấn deposit cho proposal nhất định từ depositor nhất định.
 
 Using legacy v1beta1:
 
@@ -2400,7 +2306,7 @@ Example Output:
 
 #### proposal deposits
 
-The `deposits` endpoint allows users to query all deposits for a given proposal.
+Endpoint `deposits` cho phép người dùng truy vấn tất cả deposit cho proposal nhất định.
 
 Using legacy v1beta1:
 
@@ -2474,7 +2380,7 @@ Example Output:
 
 #### tally
 
-The `tally` endpoint allows users to query the tally of a given proposal.
+Endpoint `tally` cho phép người dùng truy vấn tổng hợp phiếu của proposal nhất định.
 
 Using legacy v1beta1:
 
@@ -2528,11 +2434,11 @@ Example Output:
 
 ## Metadata
 
-The gov module has two locations for metadata where users can provide further context about the on-chain actions they are taking. By default all metadata fields have a 255 character length field where metadata can be stored in json format, either on-chain or off-chain depending on the amount of data required. Here we provide a recommendation for the json structure and where the data should be stored. There are two important factors in making these recommendations. First, that the gov and group modules are consistent with one another, note the number of proposals made by all groups may be quite large. Second, that client applications such as block explorers and governance interfaces have confidence in the consistency of metadata structure across chains.
+Module gov có hai vị trí cho metadata nơi người dùng có thể cung cấp thêm ngữ cảnh về các hành động on-chain họ đang thực hiện. Theo mặc định tất cả trường metadata có giới hạn 255 ký tự nơi metadata có thể lưu ở định dạng json, on-chain hoặc off-chain tùy theo lượng dữ liệu cần thiết. Ở đây chúng ta cung cấp khuyến nghị cho cấu trúc json và nơi dữ liệu nên được lưu. Có hai yếu tố quan trọng khi đưa ra các khuyến nghị này. Thứ nhất, module gov và group nhất quán với nhau, lưu ý số lượng proposal do tất cả group tạo có thể khá lớn. Thứ hai, ứng dụng client như block explorer và giao diện governance có thể tin tưởng vào tính nhất quán của cấu trúc metadata trên các chain.
 
 ### Proposal
 
-Location: off-chain as json object stored on IPFS (mirrors [group proposal](../group/README.md#metadata))
+Location: off-chain dưới dạng json object lưu trên IPFS (phản chiếu [group proposal](../group/README.md#metadata))
 
 ```json
 {
@@ -2546,13 +2452,13 @@ Location: off-chain as json object stored on IPFS (mirrors [group proposal](../g
 ```
 
 :::note
-The `authors` field is an array of strings, this is to allow for multiple authors to be listed in the metadata.
-In v0.46, the `authors` field is a comma-separated string. Frontends are encouraged to support both formats for backwards compatibility.
+Trường `authors` là mảng chuỗi, cho phép liệt kê nhiều tác giả trong metadata.
+Trong v0.46, trường `authors` là chuỗi phân tách bằng dấu phẩy. Khuyến khích frontend hỗ trợ cả hai định dạng để tương thích ngược.
 :::
 
 ### Vote
 
-Location: on-chain as json within 255 character limit (mirrors [group vote](../group/README.md#metadata))
+Location: on-chain dưới dạng json trong giới hạn 255 ký tự (phản chiếu [group vote](../group/README.md#metadata))
 
 ```json
 {
@@ -2562,27 +2468,8 @@ Location: on-chain as json within 255 character limit (mirrors [group vote](../g
 
 ## Future Improvements
 
-The current documentation only describes the minimum viable product for the
-governance module. Future improvements may include:
+Tài liệu hiện tại chỉ mô tả sản phẩm tối thiểu khả thi cho module governance. Các cải tiến tương lai có thể bao gồm:
 
-* **`BountyProposals`:** If accepted, a `BountyProposal` creates an open
-  bounty. The `BountyProposal` specifies how many Atoms will be given upon
-  completion. These Atoms will be taken from the `reserve pool`. After a
-  `BountyProposal` is accepted by governance, anybody can submit a
-  `SoftwareUpgradeProposal` with the code to claim the bounty. Note that once a
-  `BountyProposal` is accepted, the corresponding funds in the `reserve pool`
-  are locked so that payment can always be honored. In order to link a
-  `SoftwareUpgradeProposal` to an open bounty, the submitter of the
-  `SoftwareUpgradeProposal` will use the `Proposal.LinkedProposal` attribute.
-  If a `SoftwareUpgradeProposal` linked to an open bounty is accepted by
-  governance, the funds that were reserved are automatically transferred to the
-  submitter.
-* **Complex delegation:** Delegators could choose other representatives than
-  their validators. Ultimately, the chain of representatives would always end
-  up to a validator, but delegators could inherit the vote of their chosen
-  representative before they inherit the vote of their validator. In other
-  words, they would only inherit the vote of their validator if their other
-  appointed representative did not vote.
-* **Better process for proposal review:** There would be two parts to
-  `proposal.Deposit`, one for anti-spam (same as in MVP) and an other one to
-  reward third party auditors.
+* **`BountyProposals`:** Nếu được chấp nhận, `BountyProposal` tạo bounty mở. `BountyProposal` chỉ định bao nhiêu Atom sẽ được trao khi hoàn thành. Các Atom này sẽ được lấy từ `reserve pool`. Sau khi `BountyProposal` được governance chấp nhận, bất kỳ ai cũng có thể gửi `SoftwareUpgradeProposal` với code để nhận bounty. Lưu ý rằng khi `BountyProposal` được chấp nhận, quỹ tương ứng trong `reserve pool` bị khóa để thanh toán luôn có thể được thực hiện. Để liên kết `SoftwareUpgradeProposal` với bounty mở, người gửi `SoftwareUpgradeProposal` sẽ sử dụng thuộc tính `Proposal.LinkedProposal`. Nếu `SoftwareUpgradeProposal` liên kết với bounty mở được governance chấp nhận, quỹ đã được reserve sẽ tự động chuyển cho người gửi.
+* **Complex delegation:** Delegator có thể chọn đại diện khác ngoài validator của họ. Cuối cùng, chuỗi đại diện luôn kết thúc ở validator, nhưng delegator có thể kế thừa phiếu của đại diện họ chọn trước khi kế thừa phiếu của validator. Nói cách khác, họ chỉ kế thừa phiếu của validator nếu đại diện được chỉ định khác của họ không bỏ phiếu.
+* **Better process for proposal review:** Sẽ có hai phần cho `proposal.Deposit`, một cho chống spam (giống MVP) và một để thưởng cho auditor bên thứ ba.

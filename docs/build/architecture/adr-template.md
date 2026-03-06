@@ -1,83 +1,84 @@
-# ADR {ADR-NUMBER}: {TITLE}
+# ADR {ADR-NUMBER}: {TIÊU ĐỀ}
 
 ## Changelog
 
 * {date}: {changelog}
 
-## Status
+## Trạng thái
 
-{DRAFT | PROPOSED} Not Implemented
+{DRAFT | PROPOSED} Chưa triển khai
 
-> Please have a look at the [PROCESS](./PROCESS.md#adr-status) page.
-> Use DRAFT if the ADR is in a draft stage (draft PR) or PROPOSED if it's in review.
+> Vui lòng xem trang [PROCESS](./PROCESS.md#adr-status).
+> Dùng DRAFT nếu ADR đang ở giai đoạn nháp (PR nháp) hoặc PROPOSED nếu đang được review.
 
-## Abstract
+## Tóm tắt
 
-> "If you can't explain it simply, you don't understand it well enough." Provide
-> a simplified and layman-accessible explanation of the ADR.
-> A short (~200 words) description of the issue being addressed.
+> "Nếu bạn không thể giải thích đơn giản, bạn chưa hiểu đủ tốt." Hãy cung cấp
+> phần giải thích được đơn giản hoá và dễ tiếp cận với người không chuyên.
+> Mô tả ngắn (~200 từ) về vấn đề đang được giải quyết.
 
-## Context
+## Bối cảnh
 
-> This section describes the forces at play, including technological, political,
-> social, and project local. These forces are probably in tension, and should be
-> called out as such. The language in this section is value-neutral. It is simply
-> describing facts. It should clearly explain the problem and motivation that the
-> proposal aims to resolve.
+> Phần này mô tả các lực tác động, bao gồm công nghệ, chính trị, xã hội, và các yếu
+> tố nội bộ dự án. Những lực này có thể đang “kéo” theo các hướng khác nhau, và cần
+> được nêu rõ như vậy. Ngôn ngữ trong phần này trung tính về giá trị. Nó chỉ đơn giản
+> mô tả các sự kiện. Phần này nên giải thích rõ vấn đề và động lực mà đề xuất hướng
+> tới giải quyết.
 > {context body}
 
-## Alternatives
+## Phương án thay thế
 
-> This section describes alternative designs to the chosen design. This section
-> is important and if an adr does not have any alternatives then it should be
-> considered that the ADR was not thought through. 
+> Phần này mô tả các thiết kế thay thế cho thiết kế đã chọn. Phần này quan trọng,
+> và nếu một ADR không có bất kỳ phương án thay thế nào thì nên xem xét rằng ADR đó
+> chưa được suy nghĩ thấu đáo.
 
-## Decision
+## Quyết định
 
-> This section describes our response to these forces. It is stated in full
-> sentences, with active voice. "We will ..."
+> Phần này mô tả phản hồi của chúng ta trước các lực tác động ở trên. Viết bằng
+> câu đầy đủ, dùng thể chủ động. "Chúng ta sẽ ..."
 > {decision body}
 
-## Consequences
+## Hệ quả
 
-> This section describes the resulting context, after applying the decision. All
-> consequences should be listed here, not just the "positive" ones. A particular
-> decision may have positive, negative, and neutral consequences, but all of them
-> affect the team and project in the future.
+> Phần này mô tả bối cảnh phát sinh sau khi áp dụng quyết định. Tất cả hệ quả
+> phải được liệt kê ở đây, không chỉ các hệ quả "tích cực". Một quyết định cụ thể
+> có thể có hệ quả tích cực, tiêu cực, và trung tính, nhưng tất cả đều ảnh hưởng
+> tới đội ngũ và dự án trong tương lai.
 
-### Backwards Compatibility
+### Tương thích ngược
 
-> All ADRs that introduce backwards incompatibilities must include a section
-> describing these incompatibilities and their severity. The ADR must explain
-> how the author proposes to deal with these incompatibilities. ADR submissions
-> without a sufficient backwards compatibility treatise may be rejected outright.
+> Mọi ADR giới thiệu sự không tương thích ngược đều phải bao gồm một mục mô tả các
+> điểm không tương thích này và mức độ nghiêm trọng. ADR phải giải thích tác giả
+> đề xuất xử lý các điểm không tương thích đó như thế nào. Các ADR được gửi mà
+> không có một bản trình bày tương thích ngược đủ tốt có thể bị từ chối ngay.
 
-### Positive
+### Tích cực
 
 > {positive consequences}
 
-### Negative
+### Tiêu cực
 
 > {negative consequences}
 
-### Neutral
+### Trung tính
 
 > {neutral consequences}
 
-## Further Discussions
+## Thảo luận thêm
 
-> While an ADR is in the DRAFT or PROPOSED stage, this section should contain a
-> summary of issues to be solved in future iterations (usually referencing comments
-> from a pull-request discussion).
-> 
-> Later, this section can optionally list ideas or improvements the author or
-> reviewers found during the analysis of this ADR.
+> Khi một ADR còn ở trạng thái DRAFT hoặc PROPOSED, phần này nên chứa tóm tắt các
+> vấn đề cần giải trong các vòng lặp tiếp theo (thường tham chiếu các bình luận
+> trong thảo luận pull request).
+>
+> Về sau, phần này có thể tuỳ chọn liệt kê các ý tưởng hoặc cải tiến mà tác giả
+> hoặc reviewer tìm thấy trong quá trình phân tích ADR.
 
-## Test Cases [optional]
+## Test Cases [tuỳ chọn]
 
-Test cases for an implementation are mandatory for ADRs that are affecting consensus
-changes. Other ADRs can choose to include links to test cases if applicable.
+Test case cho một triển khai là bắt buộc đối với ADR có ảnh hưởng tới thay đổi
+đồng thuận. Các ADR khác có thể chọn bao gồm link tới test case nếu phù hợp.
 
-## References
+## Tham khảo
 
 * {reference link}
+

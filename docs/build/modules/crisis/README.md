@@ -4,65 +4,62 @@ sidebar_position: 1
 
 # `x/crisis`
 
-NOTE: `x/crisis` is deprecated as of Cosmos SDK v0.53 and will be removed in the next release.
+LƯU Ý: `x/crisis` đã bị deprecate từ Cosmos SDK v0.53 và sẽ bị loại bỏ trong bản phát hành tiếp theo.
 
-## Overview
+## Tổng quan
 
-The crisis module halts the blockchain under the circumstance that a blockchain
-invariant is broken. Invariants can be registered with the application during the
-application initialization process.
+Module crisis sẽ dừng (halt) blockchain trong trường hợp một invariant của
+blockchain bị phá vỡ. Các invariant có thể được đăng ký với ứng dụng trong quá
+trình khởi tạo ứng dụng.
 
-## Contents
+## Nội dung
 
 * [State](#state)
 * [Messages](#messages)
 * [Events](#events)
 * [Parameters](#parameters)
 * [Client](#client)
-    * [CLI](#cli)
+  * [CLI](#cli)
 
 ## State
 
 ### ConstantFee
 
-Due to the anticipated large gas cost requirement to verify an invariant (and
-potential to exceed the maximum allowable block gas limit) a constant fee is
-used instead of the standard gas consumption method. The constant fee is
-intended to be larger than the anticipated gas cost of running the invariant
-with the standard gas consumption method.
+Do dự đoán việc xác minh một invariant tốn gas rất lớn (và có khả năng vượt quá
+giới hạn gas tối đa của block), một mức phí cố định (constant fee) được dùng thay
+vì cơ chế tiêu thụ gas tiêu chuẩn. Constant fee được thiết kế để lớn hơn mức gas
+chi phí dự kiến khi chạy invariant theo cơ chế tiêu thụ gas tiêu chuẩn.
 
-The ConstantFee param is stored in the module params state with the prefix of `0x01`,
-it can be updated with governance or the address with authority.
+Tham số ConstantFee được lưu trong state params của module với prefix `0x01`,
+có thể được cập nhật bằng governance hoặc địa chỉ authority.
 
 * Params: `mint/params -> legacy_amino(sdk.Coin)`
 
 ## Messages
 
-In this section we describe the processing of the crisis messages and the
-corresponding updates to the state.
+Phần này mô tả xử lý các message của crisis và các cập nhật state tương ứng.
 
 ### MsgVerifyInvariant
 
-Blockchain invariants can be checked using the `MsgVerifyInvariant` message.
+Các invariant của blockchain có thể được kiểm tra bằng message `MsgVerifyInvariant`.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/crisis/v1beta1/tx.proto#L26-L42
 ```
 
-This message is expected to fail if:
+Message này dự kiến sẽ thất bại nếu:
 
-* the sender does not have enough coins for the constant fee
-* the invariant route is not registered
+* người gửi không có đủ coin để trả constant fee
+* invariant route chưa được đăng ký
 
-This message checks the invariant provided, and if the invariant is broken it
-panics, halting the blockchain. If the invariant is broken, the constant fee is
-never deducted as the transaction is never committed to a block (equivalent to
-being refunded). However, if the invariant is not broken, the constant fee will
-not be refunded.
+Message này kiểm tra invariant được cung cấp, và nếu invariant bị phá vỡ nó sẽ
+panic, làm blockchain bị halt. Nếu invariant bị phá vỡ, constant fee sẽ không
+bị trừ vì giao dịch không bao giờ được commit vào block (tương đương được hoàn
+lại). Tuy nhiên, nếu invariant không bị phá vỡ, constant fee sẽ không được hoàn lại.
 
 ## Events
 
-The crisis module emits the following events:
+Module crisis phát ra các event sau:
 
 ### Handlers
 
@@ -77,7 +74,7 @@ The crisis module emits the following events:
 
 ## Parameters
 
-The crisis module contains the following parameters:
+Module crisis có các tham số sau:
 
 | Key         | Type          | Example                           |
 |-------------|---------------|-----------------------------------|
@@ -87,11 +84,11 @@ The crisis module contains the following parameters:
 
 ### CLI
 
-A user can query and interact with the `crisis` module using the CLI.
+Người dùng có thể truy vấn và tương tác với module `crisis` bằng CLI.
 
 #### Transactions
 
-The `tx` commands allow users to interact with the `crisis` module.
+Các lệnh `tx` cho phép người dùng tương tác với module `crisis`.
 
 ```bash
 simd tx crisis --help
@@ -99,14 +96,15 @@ simd tx crisis --help
 
 ##### invariant-broken
 
-The `invariant-broken` command submits proof when an invariant was broken to halt the chain
+Lệnh `invariant-broken` gửi bằng chứng rằng một invariant đã bị phá vỡ để halt chain.
 
 ```bash
 simd tx crisis invariant-broken [module-name] [invariant-route] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 simd tx crisis invariant-broken bank total-supply --from=[keyname or address]
 ```
+

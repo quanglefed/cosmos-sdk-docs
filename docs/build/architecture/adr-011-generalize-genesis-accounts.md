@@ -1,47 +1,47 @@
-# ADR 011: Generalize Genesis Accounts
+# ADR 011: Tổng Quát Hóa Genesis Account
 
 ## Changelog
 
-* 2019-08-30: initial draft
+* 2019-08-30: Bản nháp đầu tiên
 
-## Context
+## Bối Cảnh
 
-Currently, the Cosmos SDK allows for custom account types; the `auth` keeper stores any type fulfilling its `Account` interface. However `auth` does not handle exporting or loading accounts to/from a genesis file, this is done by `genaccounts`, which only handles one of 4 concrete account types (`BaseAccount`, `ContinuousVestingAccount`, `DelayedVestingAccount` and `ModuleAccount`).
+Hiện tại, Cosmos SDK cho phép các kiểu tài khoản tùy chỉnh; keeper `auth` lưu trữ bất kỳ kiểu nào thỏa mãn interface `Account` của nó. Tuy nhiên `auth` không xử lý export hoặc load tài khoản đến/từ genesis file, điều này được thực hiện bởi `genaccounts`, chỉ xử lý một trong 4 kiểu tài khoản cụ thể (`BaseAccount`, `ContinuousVestingAccount`, `DelayedVestingAccount` và `ModuleAccount`).
 
-Projects desiring to use custom accounts (say custom vesting accounts) need to fork and modify `genaccounts`.
+Các dự án muốn sử dụng tài khoản tùy chỉnh (chẳng hạn như vesting account tùy chỉnh) cần fork và sửa đổi `genaccounts`.
 
-## Decision
+## Quyết Định
 
-In summary, we will (un)marshal all accounts (interface types) directly using amino, rather than converting to `genaccounts`’s `GenesisAccount` type. Since doing this removes the majority of `genaccounts`'s code, we will merge `genaccounts` into `auth`. Marshalled accounts will be stored in `auth`'s genesis state.
+Tóm lại, chúng ta sẽ (un)marshal tất cả tài khoản (kiểu interface) trực tiếp bằng amino, thay vì chuyển đổi sang kiểu `GenesisAccount` của `genaccounts`. Vì làm điều này xóa phần lớn code của `genaccounts`, chúng ta sẽ merge `genaccounts` vào `auth`. Các tài khoản đã marshal sẽ được lưu trữ trong trạng thái genesis của `auth`.
 
-Detailed changes:
+Các thay đổi chi tiết:
 
-### 1) (Un)Marshal accounts directly using amino
+### 1) (Un)Marshal tài khoản trực tiếp bằng amino
 
-The `auth` module's `GenesisState` gains a new field `Accounts`. Note these aren't of type `exported.Account` for reasons outlined in section 3.
+`GenesisState` của module `auth` nhận thêm một trường `Accounts`. Lưu ý rằng đây không phải kiểu `exported.Account` vì những lý do được nêu trong phần 3.
 
 ```go
-// GenesisState - all auth state that must be provided at genesis
+// GenesisState - tất cả trạng thái auth phải được cung cấp khi genesis
 type GenesisState struct {
     Params   Params           `json:"params" yaml:"params"`
     Accounts []GenesisAccount `json:"accounts" yaml:"accounts"`
 }
 ```
 
-Now `auth`'s `InitGenesis` and `ExportGenesis` (un)marshal accounts as well as the defined params.
+Bây giờ `InitGenesis` và `ExportGenesis` của `auth` cũng (un)marshal tài khoản cũng như các params đã được định nghĩa.
 
 ```go
-// InitGenesis - Init store state from genesis data
+// InitGenesis - Khởi tạo trạng thái store từ dữ liệu genesis
 func InitGenesis(ctx sdk.Context, ak AccountKeeper, data GenesisState) {
     ak.SetParams(ctx, data.Params)
-    // load the accounts
+    // tải tài khoản
     for _, a := range data.Accounts {
-        acc := ak.NewAccount(ctx, a) // set account number
+        acc := ak.NewAccount(ctx, a) // đặt account number
         ak.SetAccount(ctx, acc)
     }
 }
 
-// ExportGenesis returns a GenesisState for a given context and keeper
+// ExportGenesis trả về GenesisState cho context và keeper nhất định
 func ExportGenesis(ctx sdk.Context, ak AccountKeeper) GenesisState {
     params := ak.GetParams(ctx)
 
@@ -56,16 +56,16 @@ func ExportGenesis(ctx sdk.Context, ak AccountKeeper) GenesisState {
 }
 ```
 
-### 2) Register custom account types on the `auth` codec
+### 2) Đăng ký các kiểu tài khoản tùy chỉnh trên codec của `auth`
 
-The `auth` codec must have all custom account types registered to marshal them. We will follow the pattern established in `gov` for proposals.
+Codec của `auth` phải có tất cả kiểu tài khoản tùy chỉnh được đăng ký để marshal chúng. Chúng ta sẽ theo mẫu được thiết lập trong `gov` cho các đề xuất.
 
-An example custom account definition:
+Ví dụ định nghĩa tài khoản tùy chỉnh:
 
 ```go
 import authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 
-// Register the module account type with the auth module codec so it can decode module accounts stored in a genesis file
+// Đăng ký kiểu module account với codec của module auth để nó có thể giải mã module account được lưu trong genesis file
 func init() {
     authtypes.RegisterAccountTypeCodec(ModuleAccount{}, "cosmos-sdk/ModuleAccount")
 }
@@ -74,29 +74,29 @@ type ModuleAccount struct {
     ...
 ```
 
-The `auth` codec definition:
+Định nghĩa codec `auth`:
 
 ```go
 var ModuleCdc *codec.LegacyAmino
 
 func init() {
     ModuleCdc = codec.NewLegacyAmino()
-    // register module msg's and Account interface
+    // đăng ký msg của module và interface Account
     ...
-    // leave the codec unsealed
+    // để codec không được seal
 }
 
-// RegisterAccountTypeCodec registers an external account type defined in another module for the internal ModuleCdc.
+// RegisterAccountTypeCodec đăng ký một kiểu tài khoản bên ngoài được định nghĩa trong module khác cho ModuleCdc nội bộ.
 func RegisterAccountTypeCodec(o interface{}, name string) {
     ModuleCdc.RegisterConcrete(o, name, nil)
 }
 ```
 
-### 3) Genesis validation for custom account types
+### 3) Xác thực Genesis cho các kiểu tài khoản tùy chỉnh
 
-Modules implement a `ValidateGenesis` method. As `auth` does not know of account implementations, accounts will need to validate themselves.
+Các module triển khai phương thức `ValidateGenesis`. Vì `auth` không biết về các triển khai tài khoản, các tài khoản sẽ cần tự xác thực.
 
-We will unmarshal accounts into a `GenesisAccount` interface that includes a `Validate` method.
+Chúng ta sẽ unmarshal tài khoản vào interface `GenesisAccount` bao gồm phương thức `Validate`.
 
 ```go
 type GenesisAccount interface {
@@ -105,27 +105,27 @@ type GenesisAccount interface {
 }
 ```
 
-Then the `auth` `ValidateGenesis` function becomes:
+Sau đó hàm `ValidateGenesis` của `auth` trở thành:
 
 ```go
-// ValidateGenesis performs basic validation of auth genesis data returning an
-// error for any failed validation criteria.
+// ValidateGenesis thực hiện xác thực cơ bản dữ liệu genesis auth trả về
+// lỗi cho bất kỳ tiêu chí xác thực thất bại.
 func ValidateGenesis(data GenesisState) error {
-    // Validate params
+    // Xác thực params
     ...
 
-    // Validate accounts
+    // Xác thực tài khoản
     addrMap := make(map[string]bool, len(data.Accounts))
     for _, acc := range data.Accounts {
 
-        // check for duplicated accounts
+        // kiểm tra tài khoản trùng lặp
         addrStr := acc.GetAddress().String()
         if _, ok := addrMap[addrStr]; ok {
             return fmt.Errorf("duplicate account found in genesis state; address: %s", addrStr)
         }
         addrMap[addrStr] = true
 
-        // check account specific validation
+        // kiểm tra xác thực cụ thể của tài khoản
         if err := acc.Validate(); err != nil {
             return fmt.Errorf("invalid account found in genesis state; address: %s, error: %s", addrStr, err.Error())
         }
@@ -135,36 +135,34 @@ func ValidateGenesis(data GenesisState) error {
 }
 ```
 
-### 4) Move add-genesis-account cli to `auth`
+### 4) Chuyển lệnh CLI add-genesis-account sang `auth`
 
-The `genaccounts` module contains a cli command to add base or vesting accounts to a genesis file.
+Module `genaccounts` chứa lệnh CLI để thêm base hoặc vesting account vào genesis file. Điều này sẽ được chuyển sang `auth`. Chúng ta sẽ để cho các dự án tự viết các lệnh của riêng họ để thêm tài khoản tùy chỉnh. Một handler CLI có thể mở rộng, tương tự như `gov`, có thể được tạo nhưng không đáng phức tạp cho use case nhỏ này.
 
-This will be moved to `auth`. We will leave it to projects to write their own commands to add custom accounts. An extensible cli handler, similar to `gov`, could be created but it is not worth the complexity for this minor use case.
+### 5) Cập nhật module và vesting account
 
-### 5) Update module and vesting accounts
+Theo phương thức mới, các kiểu module và vesting account cần một số cập nhật nhỏ:
 
-Under the new scheme, module and vesting account types need some minor updates:
+* Đăng ký kiểu trên codec của `auth` (được hiển thị ở trên)
+* Phương thức `Validate` cho mỗi kiểu `Account` cụ thể
 
-* Type registration on `auth`'s codec (shown above)
-* A `Validate` method for each `Account` concrete type
+## Trạng Thái
 
-## Status
+Đề Xuất
 
-Proposed
+## Hậu Quả
 
-## Consequences
+### Tích Cực
 
-### Positive
+* tài khoản tùy chỉnh có thể được sử dụng mà không cần fork `genaccounts`
+* giảm số dòng code
 
-* custom accounts can be used without needing to fork `genaccounts`
-* reduction in lines of code
+### Tiêu Cực
 
-### Negative
+### Trung Lập
 
-### Neutral
+* Module `genaccounts` không còn tồn tại
+* Tài khoản trong genesis file được lưu dưới `accounts` trong `auth` thay vì trong module `genaccounts`.
+* Lệnh CLI `add-genesis-account` giờ trong `auth`
 
-* `genaccounts` module no longer exists
-* accounts in genesis files are stored under `accounts` in `auth` rather than in the `genaccounts` module.
--`add-genesis-account` cli command now in `auth`
-
-## References
+## Tài Liệu Tham Khảo

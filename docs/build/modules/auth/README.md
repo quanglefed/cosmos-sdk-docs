@@ -4,93 +4,91 @@ sidebar_position: 1
 
 # `x/auth`
 
-## Abstract
+## Tóm tắt
 
-This document specifies the auth module of the Cosmos SDK.
+Tài liệu này mô tả module auth của Cosmos SDK.
 
-The auth module is responsible for specifying the base transaction and account types
-for an application, since the SDK itself is agnostic to these particulars. It contains
-the middlewares, where all basic transaction validity checks (signatures, nonces, auxiliary fields)
-are performed, and exposes the account keeper, which allows other modules to read, write, and modify accounts.
+Module auth chịu trách nhiệm xác định các kiểu giao dịch (transaction) và tài khoản
+(account) cơ sở cho một ứng dụng, vì bản thân SDK là “bất khả tri” (agnostic) với
+các chi tiết này. Module chứa các middleware, nơi thực hiện mọi kiểm tra hợp lệ cơ
+bản của giao dịch (chữ ký, nonce, các trường phụ trợ), và expose account keeper,
+cho phép các module khác đọc, ghi, và chỉnh sửa tài khoản.
 
-This module is used in the Cosmos Hub.
+Module này được sử dụng trong Cosmos Hub.
 
-## Contents
+## Nội dung
 
-* [Concepts](#concepts)
-    * [Gas & Fees](#gas--fees)
+* [Khái niệm](#khái-niệm)
+  * [Gas & Phí](#gas--phí)
 * [State](#state)
-    * [Accounts](#accounts)
-* [AnteHandlers](#antehandlers)
-* [Keepers](#keepers)
-    * [Account Keeper](#account-keeper)
-* [Parameters](#parameters)
+  * [Tài khoản](#tài-khoản)
+* [AnteHandler](#antehandler)
+* [Keeper](#keeper)
+  * [Account Keeper](#account-keeper)
+* [Tham số](#tham-số)
 * [Client](#client)
-    * [CLI](#cli)
-    * [gRPC](#grpc)
-    * [REST](#rest)
+  * [CLI](#cli)
+  * [gRPC](#grpc)
+  * [REST](#rest)
 
-## Concepts
+## Khái niệm
 
-**Note:** The auth module is different from the [authz module](../authz/).
+**Lưu ý:** module auth khác với [module authz](../authz/).
 
-The differences are:
+Sự khác biệt:
 
-* `auth` - authentication of accounts and transactions for Cosmos SDK applications and is responsible for specifying the base transaction and account types.
-* `authz` - authorization for accounts to perform actions on behalf of other accounts and enables a granter to grant authorizations to a grantee that allows the grantee to execute messages on behalf of the granter.
+* `auth` - xác thực tài khoản và giao dịch cho các ứng dụng Cosmos SDK, và chịu trách nhiệm xác định các kiểu giao dịch và tài khoản cơ sở.
+* `authz` - uỷ quyền để tài khoản thực hiện hành động thay mặt tài khoản khác, và cho phép bên cấp quyền (granter) cấp quyền cho bên nhận quyền (grantee) để grantee có thể thực thi message thay mặt granter.
 
-### Gas & Fees
+### Gas & Phí
 
-Fees serve two purposes for an operator of the network.
+Phí phục vụ hai mục đích đối với operator của mạng.
 
-Fees limit the growth of the state stored by every full node and allow for
-general purpose censorship of transactions of little economic value. Fees
-are best suited as an anti-spam mechanism where validators are disinterested in
-the use of the network and identities of users.
+Phí giới hạn mức tăng trưởng của state được lưu bởi mọi full node và cho phép
+kiểm duyệt giao dịch theo cách “mục đích chung” đối với các giao dịch có giá trị
+kinh tế thấp. Phí phù hợp nhất như một cơ chế chống spam trong bối cảnh validator
+không quan tâm tới việc sử dụng mạng và danh tính người dùng.
 
-Fees are determined by the gas limits and gas prices transactions provide, where
-`fees = ceil(gasLimit * gasPrices)`. Txs incur gas costs for all state reads/writes,
-signature verification, as well as costs proportional to the tx size. Operators
-should set minimum gas prices when starting their nodes. They must set the unit
-costs of gas in each token denomination they wish to support:
+Phí được xác định bởi giới hạn gas và giá gas mà giao dịch cung cấp, theo công thức
+`fees = ceil(gasLimit * gasPrices)`. Tx phát sinh chi phí gas cho mọi thao tác đọc/ghi state,
+xác minh chữ ký, cũng như chi phí tỷ lệ theo kích thước tx. Operator nên thiết lập
+giá gas tối thiểu khi khởi chạy node. Họ phải thiết lập chi phí đơn vị của gas theo
+mỗi mệnh giá token mà họ muốn hỗ trợ:
 
 `simd start ... --minimum-gas-prices=0.00001stake;0.05photinos`
 
-When adding transactions to mempool or gossipping transactions, validators check
-if the transaction's gas prices, which are determined by the provided fees, meet
-any of the validator's minimum gas prices. In other words, a transaction must
-provide a fee of at least one denomination that matches a validator's minimum
-gas price.
+Khi thêm giao dịch vào mempool hoặc gossip giao dịch, validator kiểm tra xem giá gas
+của giao dịch (được suy ra từ phí cung cấp) có thoả mãn bất kỳ mức giá gas tối thiểu
+nào của validator hay không. Nói cách khác, một giao dịch phải cung cấp ít nhất một
+mệnh giá phí khớp với giá gas tối thiểu của validator.
 
-CometBFT does not currently provide fee based mempool prioritization, and fee
-based mempool filtering is local to node and not part of consensus. But with
-minimum gas prices set, such a mechanism could be implemented by node operators.
+CometBFT hiện chưa cung cấp cơ chế ưu tiên mempool theo phí, và lọc mempool theo phí
+là cục bộ theo node và không thuộc về đồng thuận. Tuy nhiên, khi đã đặt giá gas tối
+thiểu, operator có thể triển khai cơ chế như vậy ở cấp node.
 
-Because the market value for tokens will fluctuate, validators are expected to
-dynamically adjust their minimum gas prices to a level that would encourage the
-use of the network.		
+Do giá thị trường của token biến động, kỳ vọng validator sẽ điều chỉnh động (dynamically)
+giá gas tối thiểu tới một mức khuyến khích việc sử dụng mạng.
 
 ## State
 
-### Accounts
+### Tài khoản
 
-Accounts contain authentication information for a uniquely identified external user of an SDK blockchain,
-including public key, address, and account number / sequence number for replay protection. For efficiency,
-since account balances must also be fetched to pay fees, account structs also store the balance of a user
-as `sdk.Coins`.
+Tài khoản chứa thông tin xác thực cho một người dùng bên ngoài được định danh duy nhất
+trong một blockchain SDK, bao gồm public key, địa chỉ, và account number / sequence number
+để bảo vệ chống replay. Vì lý do hiệu năng, do số dư tài khoản cũng cần được lấy để trả phí,
+cấu trúc tài khoản cũng lưu số dư của người dùng dưới dạng `sdk.Coins`.
 
-Accounts are exposed externally as an interface, and stored internally as
-either a base account or vesting account. Module clients wishing to add more
-account types may do so.
+Tài khoản được expose ra ngoài dưới dạng interface, và được lưu nội bộ dưới dạng
+base account hoặc vesting account. Client của module muốn thêm các kiểu tài khoản
+khác có thể làm như vậy.
 
 * `0x01 | Address -> ProtocolBuffer(account)`
 
 #### Account Interface
 
-The account interface exposes methods to read and write standard account information.
-Note that all of these methods operate on an account struct conforming to the
-interface - in order to write the account to the store, the account keeper will
-need to be used.
+Account interface expose các phương thức để đọc và ghi thông tin tài khoản tiêu chuẩn.
+Lưu ý rằng mọi phương thức này thao tác trên một struct tài khoản tuân theo interface —
+để ghi tài khoản vào store, cần dùng account keeper.
 
 ```go
 // AccountI is an interface used to store coins at a given address within state.
@@ -121,8 +119,8 @@ type AccountI interface {
 
 ##### Base Account
 
-A base account is the simplest and most common account type, which just stores all requisite
-fields directly in a struct.
+Base account là kiểu tài khoản đơn giản nhất và phổ biến nhất, chỉ lưu mọi field
+cần thiết trực tiếp trong một struct.
 
 ```protobuf
 // BaseAccount defines a base account type. It contains all the necessary fields
@@ -138,53 +136,54 @@ message BaseAccount {
 
 ### Vesting Account
 
-See [Vesting](https://docs.cosmos.network/main/modules/auth/vesting/).
+Xem [Vesting](https://docs.cosmos.network/main/modules/auth/vesting/).
 
-## AnteHandlers
+## AnteHandler
 
-The `x/auth` module presently has no transaction handlers of its own, but does expose the special `AnteHandler`, used for performing basic validity checks on a transaction, such that it could be thrown out of the mempool.
-The `AnteHandler` can be seen as a set of decorators that check transactions within the current context, per [ADR 010](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-010-modular-antehandler.md).
+Module `x/auth` hiện không có transaction handler riêng, nhưng có expose `AnteHandler`
+đặc biệt, dùng để thực hiện các kiểm tra hợp lệ cơ bản trên giao dịch, để có thể loại
+nó khỏi mempool.
+`AnteHandler` có thể xem như một tập các decorator kiểm tra giao dịch trong context
+hiện tại, theo [ADR 010](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-010-modular-antehandler.md).
 
-Note that the `AnteHandler` is called on both `CheckTx` and `DeliverTx`, as CometBFT proposers presently have the ability to include in their proposed block transactions which fail `CheckTx`.
+Lưu ý `AnteHandler` được gọi trong cả `CheckTx` và `DeliverTx`, vì proposer CometBFT
+hiện có thể đưa vào khối đề xuất các giao dịch không vượt qua `CheckTx`.
 
-### Decorators
+### Decorator
 
-The auth module provides `AnteDecorator`s that are recursively chained together into a single `AnteHandler` in the following order:
+Module auth cung cấp các `AnteDecorator` được nối (chain) đệ quy thành một `AnteHandler`
+duy nhất theo thứ tự sau:
 
-* `SetUpContextDecorator`: Sets the `GasMeter` in the `Context` and wraps the next `AnteHandler` with a defer clause to recover from any downstream `OutOfGas` panics in the `AnteHandler` chain to return an error with information on gas provided and gas used.
+* `SetUpContextDecorator`: Thiết lập `GasMeter` trong `Context` và bọc `AnteHandler`
+  kế tiếp với một mệnh đề defer để recover từ mọi panic `OutOfGas` ở phía sau trong
+  chuỗi `AnteHandler`, nhằm trả về error kèm thông tin gas được cung cấp và gas đã dùng.
+* `RejectExtensionOptionsDecorator`: Từ chối mọi extension option có thể tuỳ chọn
+  được thêm vào trong giao dịch protobuf.
+* `MempoolFeeDecorator`: Kiểm tra phí `tx` có lớn hơn tham số `minFee` cục bộ của mempool
+  trong `CheckTx` hay không.
+* `ValidateBasicDecorator`: Gọi `tx.ValidateBasic` và trả về error khác-nil nếu có.
+* `TxTimeoutHeightDecorator`: Kiểm tra `tx` có timeout theo height hay không.
+* `ValidateMemoDecorator`: Xác thực memo của `tx` theo tham số ứng dụng và trả về error khác-nil nếu có.
+* `ConsumeGasTxSizeDecorator`: Tiêu thụ gas tỷ lệ với kích thước `tx` dựa trên tham số ứng dụng.
+* `DeductFeeDecorator`: Trừ `FeeAmount` từ signer đầu tiên của `tx`. Nếu module `x/feegrant`
+  được bật và có fee granter, nó trừ phí từ tài khoản fee granter.
+* `SetPubKeyDecorator`: Thiết lập pubkey từ các signer của `tx` mà pubkey tương ứng chưa được
+  lưu trong state machine và trong context hiện tại.
+* `ValidateSigCountDecorator`: Xác thực số lượng chữ ký trong `tx` dựa trên tham số ứng dụng.
+* `SigGasConsumeDecorator`: Tiêu thụ lượng gas được tham số hoá cho mỗi chữ ký. Điều này yêu
+  cầu pubkey phải được đặt trong context cho mọi signer như một phần của `SetPubKeyDecorator`.
+* `SigVerificationDecorator`: Xác minh mọi chữ ký là hợp lệ. Điều này yêu cầu pubkey phải được
+  đặt trong context cho mọi signer như một phần của `SetPubKeyDecorator`.
+* `IncrementSequenceDecorator`: Tăng sequence tài khoản cho mỗi signer để ngăn replay attack.
 
-* `RejectExtensionOptionsDecorator`: Rejects all extension options which can optionally be included in protobuf transactions.
+## Keeper
 
-* `MempoolFeeDecorator`: Checks if the `tx` fee is above local mempool `minFee` parameter during `CheckTx`.
-
-* `ValidateBasicDecorator`: Calls `tx.ValidateBasic` and returns any non-nil error.
-
-* `TxTimeoutHeightDecorator`: Check for a `tx` height timeout.
-
-* `ValidateMemoDecorator`: Validates `tx` memo with application parameters and returns any non-nil error.
-
-* `ConsumeGasTxSizeDecorator`: Consumes gas proportional to the `tx` size based on application parameters.
-
-* `DeductFeeDecorator`: Deducts the `FeeAmount` from first signer of the `tx`. If the `x/feegrant` module is enabled and a fee granter is set, it deducts fees from the fee granter account.
-
-* `SetPubKeyDecorator`: Sets the pubkey from a `tx`'s signers that does not already have its corresponding pubkey saved in the state machine and in the current context.
-
-* `ValidateSigCountDecorator`: Validates the number of signatures in `tx` based on app-parameters.
-
-* `SigGasConsumeDecorator`: Consumes parameter-defined amount of gas for each signature. This requires pubkeys to be set in context for all signers as part of `SetPubKeyDecorator`.
-
-* `SigVerificationDecorator`: Verifies all signatures are valid. This requires pubkeys to be set in context for all signers as part of `SetPubKeyDecorator`.
-
-* `IncrementSequenceDecorator`: Increments the account sequence for each signer to prevent replay attacks.
-
-## Keepers
-
-The auth module only exposes one keeper, the account keeper, which can be used to read and write accounts.
+Module auth chỉ expose một keeper: account keeper, có thể dùng để đọc và ghi tài khoản.
 
 ### Account Keeper
 
-Presently only one fully-permissioned account keeper is exposed, which has the ability to both read and write
-all fields of all accounts, and to iterate over all stored accounts.
+Hiện tại chỉ expose một account keeper có đầy đủ quyền (fully-permissioned), có khả năng
+cả đọc và ghi mọi field của mọi tài khoản, và iterate qua mọi tài khoản đã lưu.
 
 ```go
 // AccountKeeperI is the interface contract that x/auth's keeper implements.
@@ -221,27 +220,27 @@ type AccountKeeperI interface {
 }
 ```
 
-## Parameters
+## Tham số
 
-The auth module contains the following parameters:
+Module auth có các tham số sau:
 
-| Key                    | Type            | Example |
-| ---------------------- | --------------- | ------- |
-| MaxMemoCharacters      |      uint64     | 256     |
-| TxSigLimit             |      uint64     | 7       |
-| TxSizeCostPerByte      |      uint64     | 10      |
-| SigVerifyCostED25519   |      uint64     | 590     |
-| SigVerifyCostSecp256k1 |      uint64     | 1000    |
+| Key                    | Type        | Ví dụ |
+| ---------------------- | ----------- | ----- |
+| MaxMemoCharacters      | uint64      | 256   |
+| TxSigLimit             | uint64      | 7     |
+| TxSizeCostPerByte      | uint64      | 10    |
+| SigVerifyCostED25519   | uint64      | 590   |
+| SigVerifyCostSecp256k1 | uint64      | 1000  |
 
 ## Client
 
 ### CLI
 
-A user can query and interact with the `auth` module using the CLI.
+Người dùng có thể truy vấn và tương tác với module `auth` bằng CLI.
 
 ### Query
 
-The `query` commands allow users to query `auth` state.
+Các lệnh `query` cho phép người dùng truy vấn state của `auth`.
 
 ```bash
 simd query auth --help
@@ -249,19 +248,19 @@ simd query auth --help
 
 #### account
 
-The `account` command allow users to query for an account by it's address.
+Lệnh `account` cho phép người dùng truy vấn một tài khoản theo địa chỉ.
 
 ```bash
 simd query auth account [address] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 simd query auth account cosmos1...
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 '@type': /cosmos.auth.v1beta1.BaseAccount
@@ -275,19 +274,19 @@ sequence: "1"
 
 #### accounts
 
-The `accounts` command allow users to query all the available accounts.
+Lệnh `accounts` cho phép người dùng truy vấn tất cả tài khoản hiện có.
 
 ```bash
 simd query auth accounts [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 simd query auth accounts
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 accounts:
@@ -374,19 +373,19 @@ pagination:
 
 #### params
 
-The `params` command allow users to query the current auth parameters.
+Lệnh `params` cho phép người dùng truy vấn các tham số auth hiện tại.
 
 ```bash
 simd query auth params [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 simd query auth params
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 max_memo_characters: "256"
@@ -398,9 +397,11 @@ tx_size_cost_per_byte: "10"
 
 ### Transactions
 
-The `auth` module supports transactions commands to help you with signing and more. Compared to other modules you can access directly the `auth` module transactions commands using the only `tx` command.
+Module `auth` hỗ trợ các lệnh giao dịch để giúp bạn ký (sign) và nhiều thứ khác.
+So với các module khác, bạn có thể truy cập trực tiếp các lệnh giao dịch của module `auth`
+chỉ bằng lệnh `tx`.
 
-Use directly the `--help` flag to get more information about the `tx` command.
+Dùng trực tiếp cờ `--help` để xem thêm thông tin về lệnh `tx`.
 
 ```bash
 simd tx --help
@@ -408,48 +409,53 @@ simd tx --help
 
 #### `sign`
 
-The `sign` command allows users to sign transactions that was generated offline.
+Lệnh `sign` cho phép người dùng ký các giao dịch được tạo offline.
 
 ```bash
 simd tx sign tx.json --from $ALICE > tx.signed.json
 ```
 
-The result is a signed transaction that can be broadcasted to the network thanks to the broadcast command.
+Kết quả là một giao dịch đã ký có thể được broadcast lên mạng bằng lệnh broadcast.
 
-More information about the `sign` command can be found running `simd tx sign --help`.
+Thông tin thêm về lệnh `sign` có thể xem bằng `simd tx sign --help`.
 
 #### `sign-batch`
 
-The `sign-batch` command allows users to sign multiples offline generated transactions.
-The transactions can be in one file, with one tx per line, or in multiple files.
+Lệnh `sign-batch` cho phép người dùng ký nhiều giao dịch được tạo offline.
+Các giao dịch có thể nằm trong một file, mỗi dòng một tx, hoặc nằm trong nhiều file.
 
 ```bash
 simd tx sign txs.json --from $ALICE > tx.signed.json
 ```
 
-or
+hoặc
 
 ```bash 
 simd tx sign tx1.json tx2.json tx3.json --from $ALICE > tx.signed.json
 ```
 
-The result is multiples signed transactions. For combining the signed transactions into one transactions, use the `--append` flag.
+Kết quả là nhiều giao dịch đã ký. Để gộp các giao dịch đã ký thành một giao dịch,
+dùng cờ `--append`.
 
-More information about the `sign-batch` command can be found running `simd tx sign-batch --help`.
+Thông tin thêm về lệnh `sign-batch` có thể xem bằng `simd tx sign-batch --help`.
 
 #### `multi-sign`
 
-The `multi-sign` command allows users to sign transactions that was generated offline by a multisig account.
+Lệnh `multi-sign` cho phép người dùng ký các giao dịch được tạo offline bởi một
+tài khoản multisig.
 
 ```bash
 simd tx multisign transaction.json k1k2k3 k1sig.json k2sig.json k3sig.json
 ```
 
-Where `k1k2k3` is the multisig account address, `k1sig.json` is the signature of the first signer, `k2sig.json` is the signature of the second signer, and `k3sig.json` is the signature of the third signer.
+Trong đó `k1k2k3` là địa chỉ tài khoản multisig, `k1sig.json` là chữ ký của signer thứ nhất,
+`k2sig.json` là chữ ký của signer thứ hai, và `k3sig.json` là chữ ký của signer thứ ba.
 
-##### Nested multisig transactions
+##### Giao dịch multisig lồng nhau
 
-To allow transactions to be signed by nested multisigs, meaning that a participant of a multisig account can be another multisig account, the `--skip-signature-verification` flag must be used.
+Để cho phép giao dịch được ký bởi multisig lồng nhau, nghĩa là một thành viên của
+một tài khoản multisig có thể là một tài khoản multisig khác, cần dùng cờ
+`--skip-signature-verification`.
 
 ```bash
 # First aggregate signatures of the multisig participant
@@ -459,22 +465,25 @@ simd tx multi-sign transaction.json ms1 ms1p1sig.json ms1p2sig.json --signature-
 simd tx multi-sign transaction.json k1ms1 k1sig.json ms1sig.json --skip-signature-verification
 ```
 
-Where `ms1` is the nested multisig account address, `ms1p1sig.json` is the signature of the first participant of the nested multisig account, `ms1p2sig.json` is the signature of the second participant of the nested multisig account, and `ms1sig.json` is the aggregated signature of the nested multisig account.
+Trong đó `ms1` là địa chỉ tài khoản multisig lồng nhau, `ms1p1sig.json` là chữ ký của
+người tham gia thứ nhất, `ms1p2sig.json` là chữ ký của người tham gia thứ hai, và
+`ms1sig.json` là chữ ký đã tổng hợp (aggregated) của multisig lồng nhau.
 
-`k1ms1` is a multisig account comprised of an individual signer and another nested multisig account (`ms1`). `k1sig.json` is the signature of the first signer of the individual member.
+`k1ms1` là một tài khoản multisig gồm một signer cá nhân và một tài khoản multisig lồng nhau (`ms1`).
+`k1sig.json` là chữ ký của signer cá nhân.
 
-More information about the `multi-sign` command can be found running `simd tx multi-sign --help`.
+Thông tin thêm về lệnh `multi-sign` có thể xem bằng `simd tx multi-sign --help`.
 
 #### `multisign-batch`
 
-The `multisign-batch` works the same way as `sign-batch`, but for multisig accounts.
-With the difference that the `multisign-batch` command requires all transactions to be in one file, and the `--append` flag does not exist.
+`multisign-batch` hoạt động tương tự `sign-batch`, nhưng dành cho tài khoản multisig.
+Khác biệt là `multisign-batch` yêu cầu tất cả giao dịch nằm trong một file, và không có cờ `--append`.
 
-More information about the `multisign-batch` command can be found running `simd tx multisign-batch --help`.
+Thông tin thêm về lệnh `multisign-batch` có thể xem bằng `simd tx multisign-batch --help`.
 
 #### `validate-signatures`
 
-The `validate-signatures` command allows users to validate the signatures of a signed transaction.
+Lệnh `validate-signatures` cho phép người dùng xác thực chữ ký của một giao dịch đã ký.
 
 ```bash
 $ simd tx validate-signatures tx.signed.json
@@ -485,32 +494,31 @@ Signatures:
   0: cosmos1l6vsqhh7rnwsyr2kyz3jjg3qduaz8gwgyl8275                      [OK]
 ```
 
-More information about the `validate-signatures` command can be found running `simd tx validate-signatures --help`.
+Thông tin thêm về lệnh `validate-signatures` có thể xem bằng `simd tx validate-signatures --help`.
 
 #### `broadcast`
 
-The `broadcast` command allows users to broadcast a signed transaction to the network.
+Lệnh `broadcast` cho phép người dùng broadcast một giao dịch đã ký lên mạng.
 
 ```bash
 simd tx broadcast tx.signed.json
 ```
 
-More information about the `broadcast` command can be found running `simd tx broadcast --help`.
-
+Thông tin thêm về lệnh `broadcast` có thể xem bằng `simd tx broadcast --help`.
 
 ### gRPC
 
-A user can query the `auth` module using gRPC endpoints.
+Người dùng có thể truy vấn module `auth` qua các endpoint gRPC.
 
 #### Account
 
-The `account` endpoint allow users to query for an account by it's address.
+Endpoint `account` cho phép người dùng truy vấn một tài khoản theo địa chỉ.
 
 ```bash
 cosmos.auth.v1beta1.Query/Account
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 grpcurl -plaintext \
@@ -519,7 +527,7 @@ grpcurl -plaintext \
     cosmos.auth.v1beta1.Query/Account
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 {
@@ -537,13 +545,13 @@ Example Output:
 
 #### Accounts
 
-The `accounts` endpoint allow users to query all the available accounts.
+Endpoint `accounts` cho phép người dùng truy vấn tất cả tài khoản hiện có.
 
 ```bash
 cosmos.auth.v1beta1.Query/Accounts
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 grpcurl -plaintext \
@@ -551,7 +559,7 @@ grpcurl -plaintext \
     cosmos.auth.v1beta1.Query/Accounts
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 {
@@ -653,13 +661,13 @@ Example Output:
 
 #### Params
 
-The `params` endpoint allow users to query the current auth parameters.
+Endpoint `params` cho phép người dùng truy vấn các tham số auth hiện tại.
 
 ```bash
 cosmos.auth.v1beta1.Query/Params
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 grpcurl -plaintext \
@@ -667,7 +675,7 @@ grpcurl -plaintext \
     cosmos.auth.v1beta1.Query/Params
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 {
@@ -683,11 +691,11 @@ Example Output:
 
 ### REST
 
-A user can query the `auth` module using REST endpoints.
+Người dùng có thể truy vấn module `auth` qua các endpoint REST.
 
 #### Account
 
-The `account` endpoint allow users to query for an account by it's address.
+Endpoint `account` cho phép người dùng truy vấn một tài khoản theo địa chỉ.
 
 ```bash
 /cosmos/auth/v1beta1/account?address={address}
@@ -695,7 +703,7 @@ The `account` endpoint allow users to query for an account by it's address.
 
 #### Accounts
 
-The `accounts` endpoint allow users to query all the available accounts.
+Endpoint `accounts` cho phép người dùng truy vấn tất cả tài khoản hiện có.
 
 ```bash
 /cosmos/auth/v1beta1/accounts
@@ -703,8 +711,9 @@ The `accounts` endpoint allow users to query all the available accounts.
 
 #### Params
 
-The `params` endpoint allow users to query the current auth parameters.
+Endpoint `params` cho phép người dùng truy vấn các tham số auth hiện tại.
 
 ```bash
 /cosmos/auth/v1beta1/params
 ```
+

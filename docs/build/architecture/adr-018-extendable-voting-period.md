@@ -1,66 +1,66 @@
-# ADR 18: Extendable Voting Periods
+# ADR 18: Giai Đoạn Bỏ Phiếu Có Thể Mở Rộng
 
 ## Changelog
 
-* 1 January 2020: Start of first version
+* 1 tháng 1 năm 2020: Bắt đầu phiên bản đầu tiên
 
-## Context
+## Bối Cảnh
 
-Currently the voting period for all governance proposals is the same.  However, this is suboptimal as all governance proposals do not require the same time period.  For more non-contentious proposals, they can be dealt with more efficiently with a faster period, while more contentious or complex proposals may need a longer period for extended discussion/consideration.
+Hiện tại, giai đoạn bỏ phiếu cho tất cả các governance proposal là như nhau. Tuy nhiên, điều này không tối ưu vì không phải tất cả governance proposal đều cần cùng khoảng thời gian. Đối với các đề xuất ít gây tranh cãi hơn, chúng có thể được xử lý hiệu quả hơn với giai đoạn nhanh hơn, trong khi các đề xuất gây tranh cãi hoặc phức tạp hơn có thể cần giai đoạn dài hơn để thảo luận/xem xét mở rộng.
 
-## Decision
+## Quyết Định
 
-We would like to design a mechanism for making the voting period of a governance proposal variable based on the demand of voters.  We would like it to be based on the view of the governance participants, rather than just the proposer of a governance proposal (thus, allowing the proposer to select the voting period length is not sufficient).
+Chúng ta muốn thiết kế một cơ chế để làm cho giai đoạn bỏ phiếu của governance proposal có thể thay đổi dựa trên nhu cầu của người bỏ phiếu. Chúng ta muốn nó dựa trên quan điểm của những người tham gia quản trị, chứ không chỉ người đề xuất governance proposal (do đó, cho phép người đề xuất chọn độ dài giai đoạn bỏ phiếu là không đủ).
 
-However, we would like to avoid the creation of an entire second voting process to determine the length of the voting period, as it just pushed the problem to determining the length of that first voting period.
+Tuy nhiên, chúng ta muốn tránh tạo ra toàn bộ quy trình bỏ phiếu thứ hai để xác định độ dài giai đoạn bỏ phiếu, vì nó chỉ đẩy vấn đề sang việc xác định độ dài giai đoạn bỏ phiếu đầu tiên đó.
 
-Thus, we propose the following mechanism:
+Do đó, chúng tôi đề xuất cơ chế sau:
 
-### Params
+### Tham Số
 
-* The current gov param `VotingPeriod` is to be replaced by a `MinVotingPeriod` param.  This is the default voting period that all governance proposal voting periods start with.
-* There is a new gov param called `MaxVotingPeriodExtension`.
+* Tham số gov hiện tại `VotingPeriod` được thay thế bằng tham số `MinVotingPeriod`. Đây là giai đoạn bỏ phiếu mặc định mà tất cả giai đoạn bỏ phiếu governance proposal bắt đầu.
+* Có một tham số gov mới gọi là `MaxVotingPeriodExtension`.
 
-### Mechanism
+### Cơ Chế
 
-There is a new `Msg` type called `MsgExtendVotingPeriod`, which can be sent by any staked account during a proposal's voting period.  It allows the sender to unilaterally extend the length of the voting period by `MaxVotingPeriodExtension * sender's share of voting power`.  Every address can only call `MsgExtendVotingPeriod` once per proposal.
+Có một kiểu `Msg` mới gọi là `MsgExtendVotingPeriod`, có thể được gửi bởi bất kỳ tài khoản có stake nào trong giai đoạn bỏ phiếu của một đề xuất. Nó cho phép người gửi đơn phương mở rộng độ dài giai đoạn bỏ phiếu thêm `MaxVotingPeriodExtension * phần chia sẻ quyền bỏ phiếu của người gửi`. Mỗi địa chỉ chỉ có thể gọi `MsgExtendVotingPeriod` một lần mỗi đề xuất.
 
-So for example, if the `MaxVotingPeriodExtension` is set to 100 Days, then anyone with 1% of voting power can extend the voting power by 1 day.  If 33% of voting power has sent the message, the voting period will be extended by 33 days.  Thus, if absolutely everyone chooses to extend the voting period, the absolute maximum voting period will be `MinVotingPeriod + MaxVotingPeriodExtension`.
+Ví dụ, nếu `MaxVotingPeriodExtension` được đặt thành 100 ngày, thì bất kỳ ai có 1% quyền bỏ phiếu có thể mở rộng quyền bỏ phiếu thêm 1 ngày. Nếu 33% quyền bỏ phiếu đã gửi message, giai đoạn bỏ phiếu sẽ được mở rộng thêm 33 ngày. Do đó, nếu hoàn toàn mọi người chọn mở rộng giai đoạn bỏ phiếu, giai đoạn bỏ phiếu tối đa tuyệt đối sẽ là `MinVotingPeriod + MaxVotingPeriodExtension`.
 
-This system acts as a sort of distributed coordination, where individual stakers choosing to extend or not, allows the system the gauge the contentiousness/complexity of the proposal.  It is extremely unlikely that many stakers will choose to extend at the exact same time, it allows stakers to view how long others have already extended thus far, to decide whether or not to extend further.
+Hệ thống này hoạt động như một loại phối hợp phân tán, trong đó các stakeholder cá nhân chọn mở rộng hay không cho phép hệ thống đánh giá mức độ gây tranh cãi/phức tạp của đề xuất. Rất không thể nhiều stakeholder sẽ chọn mở rộng vào đúng cùng một thời điểm, nó cho phép stakeholder xem người khác đã mở rộng bao lâu cho đến nay, để quyết định có nên mở rộng thêm hay không.
 
-### Dealing with Unbonding/Redelegation
+### Xử Lý Unbonding/Redelegation
 
-There is one thing that needs to be addressed.  How to deal with redelegation/unbonding during the voting period.  If a staker of 5% calls `MsgExtendVotingPeriod` and then unbonds, does the voting period then decrease by 5 days again?  This is not good as it can give people a false sense of how long they have to make their decision.  For this reason, we want to design it such that the voting period length can only be extended, not shortened.  To do this, the current extension amount is based on the highest percent that voted extension at any time.  This is best explained by example:
+Có một điều cần được giải quyết. Cách xử lý redelegation/unbonding trong giai đoạn bỏ phiếu. Nếu một stakeholder 5% gọi `MsgExtendVotingPeriod` và sau đó unbond, giai đoạn bỏ phiếu có giảm lại 5 ngày không? Điều này không tốt vì nó có thể khiến mọi người có cảm giác sai về thời gian họ có để đưa ra quyết định. Vì lý do này, chúng ta muốn thiết kế sao cho độ dài giai đoạn bỏ phiếu chỉ có thể được mở rộng, không thể rút ngắn. Để làm điều này, lượng mở rộng hiện tại dựa trên tỷ lệ phần trăm cao nhất đã bỏ phiếu mở rộng vào bất kỳ thời điểm nào. Điều này được giải thích rõ nhất bằng ví dụ:
 
-1. Let's say 2 stakers of voting power 4% and 3% respectively vote to extend.  The voting period will be extended by 7 days.
-2. Now the staker of 3% decides to unbond before the end of the voting period.  The voting period extension remains 7 days.
-3. Now, let's say another staker of 2% voting power decides to extend voting period.  There is now 6% of active voting power choosing the extend.  The voting power remains 7 days.
-4. If a fourth staker of 10% chooses to extend now, there is a total of 16% of active voting power wishing to extend.  The voting period will be extended to 16 days.
+1. Giả sử 2 stakeholder có quyền bỏ phiếu 4% và 3% tương ứng bỏ phiếu mở rộng. Giai đoạn bỏ phiếu sẽ được mở rộng thêm 7 ngày.
+2. Bây giờ stakeholder 3% quyết định unbond trước khi kết thúc giai đoạn bỏ phiếu. Mở rộng giai đoạn bỏ phiếu vẫn là 7 ngày.
+3. Bây giờ, giả sử một stakeholder khác có 2% quyền bỏ phiếu quyết định mở rộng giai đoạn bỏ phiếu. Bây giờ có 6% quyền bỏ phiếu đang hoạt động chọn mở rộng. Quyền bỏ phiếu vẫn là 7 ngày.
+4. Nếu một stakeholder thứ tư có 10% chọn mở rộng bây giờ, có tổng cộng 16% quyền bỏ phiếu đang hoạt động muốn mở rộng. Giai đoạn bỏ phiếu sẽ được mở rộng lên 16 ngày.
 
-### Delegators
+### Người Ủy Quyền
 
-Just like votes in the actual voting period, delegators automatically inherit the extension of their validators.  If their validator chooses to extend, their voting power will be used in the validator's extension.  However, the delegator is unable to override their validator and "unextend" as that would contradict the "voting power length can only be ratcheted up" principle described in the previous section.  However, a delegator may choose the extend using their personal voting power, if their validator has not done so.
+Giống như các phiếu bầu trong giai đoạn bỏ phiếu thực tế, người ủy quyền tự động kế thừa phần mở rộng của validator của họ. Nếu validator của họ chọn mở rộng, quyền bỏ phiếu của họ sẽ được sử dụng trong phần mở rộng của validator. Tuy nhiên, người ủy quyền không thể override validator và "unextend" vì điều đó sẽ mâu thuẫn với nguyên tắc "độ dài quyền bỏ phiếu chỉ có thể được ratchet lên" được mô tả trong phần trước. Tuy nhiên, người ủy quyền có thể chọn mở rộng bằng quyền bỏ phiếu cá nhân của họ, nếu validator của họ chưa làm vậy.
 
-## Status
+## Trạng Thái
 
-Proposed
+Đề Xuất
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* More complex/contentious governance proposals will have more time to properly digest and deliberate
+* Các governance proposal phức tạp/gây tranh cãi hơn sẽ có nhiều thời gian hơn để xem xét và thảo luận đúng đắn
 
-### Negative
+### Tiêu Cực
 
-* Governance process becomes more complex and requires more understanding to interact with effectively
-* Can no longer predict when a governance proposal will end. Can't assume order in which governance proposals will end.
+* Quy trình quản trị trở nên phức tạp hơn và đòi hỏi hiểu biết sâu hơn để tương tác hiệu quả
+* Không còn có thể dự đoán khi nào governance proposal sẽ kết thúc. Không thể giả định thứ tự kết thúc của các governance proposal.
 
-### Neutral
+### Trung Lập
 
-* The minimum voting period can be made shorter
+* Giai đoạn bỏ phiếu tối thiểu có thể được rút ngắn
 
-## References
+## Tài Liệu Tham Khảo
 
-* [Cosmos Forum post where idea first originated](https://forum.cosmos.network/t/proposal-draft-reduce-governance-voting-period-to-7-days/3032/9)
+* [Bài viết trên Cosmos Forum nơi ý tưởng xuất hiện lần đầu](https://forum.cosmos.network/t/proposal-draft-reduce-governance-voting-period-to-7-days/3032/9)

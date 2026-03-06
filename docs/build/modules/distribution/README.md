@@ -4,80 +4,74 @@ sidebar_position: 1
 
 # `x/distribution`
 
-## Overview
+## Tổng quan
 
-This _simple_ distribution mechanism describes a functional way to passively
-distribute rewards between validators and delegators. Note that this mechanism does
-not distribute funds in as precisely as active reward distribution mechanisms and
-will therefore be upgraded in the future.
+Cơ chế phân phối _đơn giản_ này mô tả một cách thức chức năng để phân phối thụ động
+phần thưởng giữa các validator và delegator. Lưu ý rằng cơ chế này không phân phối
+quỹ chính xác như các cơ chế phân phối phần thưởng chủ động và do đó sẽ được nâng cấp
+trong tương lai.
 
-The mechanism operates as follows. Collected rewards are pooled globally and
-divided out passively to validators and delegators. Each validator has the
-opportunity to charge commission to the delegators on the rewards collected on
-behalf of the delegators. Fees are collected directly into a global reward pool
-and validator proposer-reward pool. Due to the nature of passive accounting,
-whenever changes to parameters which affect the rate of reward distribution
-occurs, withdrawal of rewards must also occur.
+Cơ chế hoạt động như sau. Phần thưởng thu được được gom vào một pool toàn cục và
+phân phối thụ động cho các validator và delegator. Mỗi validator có cơ hội thu
+hoa hồng từ các delegator trên phần thưởng thu được thay mặt delegator. Phí được thu
+trực tiếp vào pool phần thưởng toàn cục và pool phần thưởng proposer của validator.
+Do bản chất của kế toán thụ động, bất cứ khi nào có thay đổi tham số ảnh hưởng đến
+tỷ lệ phân phối phần thưởng thì việc rút phần thưởng cũng phải diễn ra.
 
-* Whenever withdrawing, one must withdraw the maximum amount they are entitled
-   to, leaving nothing in the pool.
-* Whenever bonding, unbonding, or re-delegating tokens to an existing account, a
-   full withdrawal of the rewards must occur (as the rules for lazy accounting
-   change).
-* Whenever a validator chooses to change the commission on rewards, all accumulated
-   commission rewards must be simultaneously withdrawn.
+* Bất cứ khi nào rút, người dùng phải rút tối đa số lượng họ được hưởng, không để
+   lại gì trong pool.
+* Bất cứ khi nào bonding, unbonding, hoặc re-delegating token cho một tài khoản hiện có,
+   phải thực hiện rút toàn bộ phần thưởng (vì quy tắc kế toán lười thay đổi).
+* Bất cứ khi nào validator chọn thay đổi hoa hồng trên phần thưởng, tất cả hoa hồng
+   tích lũy phải được rút đồng thời.
 
-The above scenarios are covered in `hooks.md`.
+Các tình huống trên được mô tả trong `hooks.md`.
 
-The distribution mechanism outlined herein is used to lazily distribute the
-following rewards between validators and associated delegators:
+Cơ chế phân phối được mô tả ở đây được sử dụng để phân phối lười biếng các phần thưởng
+sau giữa các validator và delegator liên kết:
 
-* multi-token fees to be socially distributed
-* inflated staked asset provisions
-* validator commission on all rewards earned by their delegators stake
+* phí đa token để phân phối xã hội
+* cung cấp tài sản stake bị lạm phát
+* hoa hồng validator trên tất cả phần thưởng kiếm được từ stake của delegator
 
-Fees are pooled within a global pool. The mechanisms used allow for validators
-and delegators to independently and lazily withdraw their rewards.
+Phí được gom trong một pool toàn cục. Các cơ chế sử dụng cho phép validator và delegator
+rút phần thưởng độc lập và thụ động.
 
-## Shortcomings
+## Hạn chế
 
-As a part of the lazy computations, each delegator holds an accumulation term
-specific to each validator which is used to estimate what their approximate
-fair portion of tokens held in the global fee pool is owed to them.
+Một phần của các tính toán lười, mỗi delegator giữ một accumulation term cụ thể cho
+mỗi validator được dùng để ước tính phần công bằng gần đúng của họ trong token được
+giữ trong pool phí toàn cục mà họ được hưởng.
 
 ```text
 entitlement = delegator-accumulation / all-delegators-accumulation
 ```
 
-Under the circumstance that there was constant and equal flow of incoming
-reward tokens every block, this distribution mechanism would be equal to the
-active distribution (distribute individually to all delegators each block).
-However, this is unrealistic so deviations from the active distribution will
-occur based on fluctuations of incoming reward tokens as well as timing of
-reward withdrawal by other delegators.
+Trong trường hợp có dòng token phần thưởng đến liên tục và bằng nhau mỗi block, cơ chế
+phân phối này sẽ tương đương với phân phối chủ động (phân phối riêng cho tất cả delegator
+mỗi block). Tuy nhiên, điều này không thực tế nên sẽ có sai lệch so với phân phối chủ động
+dựa trên biến động của token phần thưởng đến cũng như thời điểm rút phần thưởng của
+các delegator khác.
 
-If you happen to know that incoming rewards are about to significantly increase,
-you are incentivized to not withdraw until after this event, increasing the
-worth of your existing _accum_. See [#2764](https://github.com/cosmos/cosmos-sdk/issues/2764)
-for further details.
+Nếu bạn biết rằng phần thưởng sắp đến sẽ tăng đáng kể, bạn có động lực không rút cho đến
+sau sự kiện này, làm tăng giá trị _accum_ hiện có của bạn. Xem [#2764](https://github.com/cosmos/cosmos-sdk/issues/2764)
+để biết thêm chi tiết.
 
-## Effect on Staking
+## Ảnh hưởng đến Staking
 
-Charging commission on Atom provisions while also allowing for Atom-provisions
-to be auto-bonded (distributed directly to the validators bonded stake) is
-problematic within BPoS. Fundamentally, these two mechanisms are mutually
-exclusive. If both commission and auto-bonding mechanisms are simultaneously
-applied to the staking-token then the distribution of staking-tokens between
-any validator and its delegators will change with each block. This then
-necessitates a calculation for each delegation records for each block -
-which is considered computationally expensive.
+Thu hoa hồng trên cung cấp Atom trong khi cũng cho phép cung cấp Atom được auto-bonded
+(phân phối trực tiếp vào stake bonded của validator) là có vấn đề trong BPoS. Về cơ bản,
+hai cơ chế này loại trừ lẫn nhau. Nếu cả cơ chế hoa hồng và auto-bonding được áp dụng
+đồng thời cho staking-token thì việc phân phối staking-token giữa bất kỳ validator và
+delegator của nó sẽ thay đổi mỗi block. Điều này đòi hỏi phải tính toán cho mỗi bản ghi
+delegation cho mỗi block - được coi là tốn kém về mặt tính toán.
 
-In conclusion, we can only have Atom commission and unbonded atoms
-provisions or bonded atom provisions with no Atom commission, and we elect to
-implement the former. Stakeholders wishing to rebond their provisions may elect
-to set up a script to periodically withdraw and rebond rewards.
+Kết luận, chúng ta chỉ có thể có hoa hồng Atom và cung cấp atom unbonded hoặc cung cấp
+atom bonded mà không có hoa hồng Atom, và chúng ta chọn triển khai phương án trước.
+Các bên liên quan muốn rebond phần cung cấp của họ có thể thiết lập script để định kỳ
+rút và rebond phần thưởng.
 
-## Contents
+## Nội dung
 
 * [Concepts](#concepts)
 * [State](#state)
@@ -96,38 +90,29 @@ to set up a script to periodically withdraw and rebond rewards.
 
 ## Concepts
 
-In Proof of Stake (PoS) blockchains, rewards gained from transaction fees are paid to validators. The fee distribution module fairly distributes the rewards to the validators' constituent delegators.
+Trong các blockchain Proof of Stake (PoS), phần thưởng từ phí giao dịch được trả cho các validator. Module phân phối phí phân phối công bằng phần thưởng cho các delegator cấu thành của validator.
 
-Rewards are calculated per period. The period is updated each time a validator's delegation changes, for example, when the validator receives a new delegation.
-The rewards for a single validator can then be calculated by taking the total rewards for the period before the delegation started, minus the current total rewards.
-To learn more, see the [F1 Fee Distribution paper](https://github.com/cosmos/cosmos-sdk/tree/main/docs/spec/fee_distribution/f1_fee_distr.pdf).
+Phần thưởng được tính theo từng kỳ. Kỳ được cập nhật mỗi khi delegation của validator thay đổi, ví dụ khi validator nhận delegation mới.
+Phần thưởng cho một validator có thể được tính bằng cách lấy tổng phần thưởng cho kỳ trước khi delegation bắt đầu, trừ đi tổng phần thưởng hiện tại.
+Để tìm hiểu thêm, xem [F1 Fee Distribution paper](https://github.com/cosmos/cosmos-sdk/tree/main/docs/spec/fee_distribution/f1_fee_distr.pdf).
 
-The commission to the validator is paid when the validator is removed or when the validator requests a withdrawal.
-The commission is calculated and incremented at every `BeginBlock` operation to update accumulated fee amounts.
+Hoa hồng cho validator được trả khi validator bị loại bỏ hoặc khi validator yêu cầu rút.
+Hoa hồng được tính và tăng dần ở mỗi thao tác `BeginBlock` để cập nhật số lượng phí tích lũy.
 
-The rewards to a delegator are distributed when the delegation is changed or removed, or a withdrawal is requested.
-Before rewards are distributed, all slashes to the validator that occurred during the current delegation are applied.
+Phần thưởng cho delegator được phân phối khi delegation thay đổi hoặc bị loại bỏ, hoặc khi có yêu cầu rút.
+Trước khi phân phối phần thưởng, tất cả các slash đối với validator xảy ra trong delegation hiện tại được áp dụng.
 
-### Reference Counting in F1 Fee Distribution
+### Reference Counting trong F1 Fee Distribution
 
-In F1 fee distribution, the rewards a delegator receives are calculated when their delegation is withdrawn. This calculation must read the terms of the summation of rewards divided by the share of tokens from the period which they ended when they delegated, and the final period that was created for the withdrawal.
+Trong phân phối phí F1, phần thưởng delegator nhận được tính khi delegation của họ được rút. Tính toán này phải đọc các term của tổng phần thưởng chia cho tỷ lệ token từ kỳ mà họ kết thúc khi họ delegate, và kỳ cuối cùng được tạo cho việc rút.
 
-Additionally, as slashes change the amount of tokens a delegation will have (but we calculate this lazily,
-only when a delegator un-delegates), we must calculate rewards in separate periods before / after any slashes
-which occurred in between when a delegator delegated and when they withdrew their rewards. Thus slashes, like
-delegations, reference the period which was ended by the slash event.
+Ngoài ra, vì slash thay đổi số lượng token mà delegation sẽ có (nhưng chúng ta tính điều này một cách lười biếng, chỉ khi delegator un-delegate), chúng ta phải tính phần thưởng trong các kỳ riêng biệt trước/sau bất kỳ slash nào xảy ra giữa khi delegator delegate và khi họ rút phần thưởng. Do đó slash, giống như delegation, tham chiếu đến kỳ được kết thúc bởi sự kiện slash.
 
-All stored historical rewards records for periods which are no longer referenced by any delegations
-or any slashes can thus be safely removed, as they will never be read (future delegations and future
-slashes will always reference future periods). This is implemented by tracking a `ReferenceCount`
-along with each historical reward storage entry. Each time a new object (delegation or slash)
-is created which might need to reference the historical record, the reference count is incremented.
-Each time one object which previously needed to reference the historical record is deleted, the reference
-count is decremented. If the reference count hits zero, the historical record is deleted.
+Tất cả các bản ghi phần thưởng lịch sử được lưu trữ cho các kỳ không còn được tham chiếu bởi bất kỳ delegation hoặc slash nào có thể được xóa an toàn, vì chúng sẽ không bao giờ được đọc (delegation và slash tương lai sẽ luôn tham chiếu các kỳ tương lai). Điều này được triển khai bằng cách theo dõi `ReferenceCount` cùng với mỗi mục lưu trữ phần thưởng lịch sử. Mỗi khi một đối tượng mới (delegation hoặc slash) được tạo có thể cần tham chiếu bản ghi lịch sử, reference count được tăng. Mỗi khi một đối tượng trước đây cần tham chiếu bản ghi lịch sử bị xóa, reference count được giảm. Nếu reference count về 0, bản ghi lịch sử bị xóa.
 
 ### External Community Pool Keepers
 
-An external pool community keeper is defined as:
+External pool community keeper được định nghĩa như sau:
 
 ```go
 // ExternalCommunityPoolKeeper is the interface that an external community pool module keeper must fulfill
@@ -144,22 +129,16 @@ type ExternalCommunityPoolKeeper interface {
 }
 ```
 
-By default, the distribution module will use a community pool implementation that is internal.  An external community pool 
-can be provided to the module which will have funds be diverted to it instead of the internal implementation.  The reference
-external community pool maintained by the Cosmos SDK is [`x/protocolpool`](../protocolpool/README.md).
+Mặc định, module distribution sẽ sử dụng triển khai community pool nội bộ. Một external community pool có thể được cung cấp cho module và quỹ sẽ được chuyển hướng đến nó thay vì triển khai nội bộ. External community pool tham chiếu được Cosmos SDK duy trì là [`x/protocolpool`](../protocolpool/README.md).
 
 ## State
 
 ### FeePool
 
-All globally tracked parameters for distribution are stored within
-`FeePool`. Rewards are collected and added to the reward pool and
-distributed to validators/delegators from here.
+Tất cả các tham số theo dõi toàn cục cho distribution được lưu trong `FeePool`. Phần thưởng được thu và thêm vào reward pool và phân phối cho validator/delegator từ đây.
 
-Note that the reward pool holds decimal coins (`DecCoins`) to allow
-for fractions of coins to be received from operations like inflation.
-When coins are distributed from the pool they are truncated back to
-`sdk.Coins` which are non-decimal.
+Lưu ý rằng reward pool giữ decimal coins (`DecCoins`) để cho phép nhận phân số coin từ các thao tác như inflation.
+Khi coin được phân phối từ pool, chúng được cắt bớt trở lại thành `sdk.Coins` không phải decimal.
 
 * FeePool: `0x00 -> ProtocolBuffer(FeePool)`
 
@@ -179,11 +158,11 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/distribution/
 
 ### Validator Distribution
 
-Validator distribution information for the relevant validator is updated each time:
+Thông tin phân phối validator cho validator liên quan được cập nhật mỗi khi:
 
-1. delegation amount to a validator is updated,
-2. any delegator withdraws from a validator, or
-3. the validator withdraws its commission.
+1. số lượng delegation cho validator được cập nhật,
+2. bất kỳ delegator nào rút từ validator, hoặc
+3. validator rút hoa hồng của mình.
 
 * ValidatorDistInfo: `0x02 | ValOperatorAddrLen (1 byte) | ValOperatorAddr -> ProtocolBuffer(validatorDistribution)`
 
@@ -197,11 +176,7 @@ type ValidatorDistInfo struct {
 
 ### Delegation Distribution
 
-Each delegation distribution only needs to record the height at which it last
-withdrew fees. Because a delegation must withdraw fees each time it's
-properties change (aka bonded tokens etc.) its properties will remain constant
-and the delegator's _accumulation_ factor can be calculated passively knowing
-only the height of the last withdrawal and its current properties.
+Mỗi delegation distribution chỉ cần ghi lại chiều cao mà nó rút phí lần cuối. Vì delegation phải rút phí mỗi khi thuộc tính của nó thay đổi (tức là bonded tokens, v.v.) nên thuộc tính của nó sẽ không đổi và hệ số _accumulation_ của delegator có thể được tính thụ động chỉ cần biết chiều cao của lần rút cuối và thuộc tính hiện tại.
 
 * DelegationDistInfo: `0x02 | DelegatorAddrLen (1 byte) | DelegatorAddr | ValOperatorAddrLen (1 byte) | ValOperatorAddr -> ProtocolBuffer(delegatorDist)`
 
@@ -213,8 +188,7 @@ type DelegationDistInfo struct {
 
 ### Params
 
-The distribution module stores it's params in state with the prefix of `0x09`,
-it can be updated with governance or the address with authority.
+Module distribution lưu params trong state với prefix `0x09`, có thể cập nhật bằng governance hoặc địa chỉ có quyền.
 
 * Params: `0x09 | ProtocolBuffer(Params)`
 
@@ -224,38 +198,27 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/distribution/
 
 ## Begin Block
 
-At each `BeginBlock`, all fees received in the previous block are transferred to
-the distribution `ModuleAccount` account. When a delegator or validator
-withdraws their rewards, they are taken out of the `ModuleAccount`. During begin
-block, the different claims on the fees collected are updated as follows:
+Ở mỗi `BeginBlock`, tất cả phí nhận được ở block trước được chuyển đến tài khoản `ModuleAccount` của distribution. Khi delegator hoặc validator rút phần thưởng, chúng được lấy ra từ `ModuleAccount`. Trong begin block, các khoản yêu cầu khác nhau về phí thu được được cập nhật như sau:
 
-* The reserve community tax is charged.
-* The remainder is distributed proportionally by voting power to all bonded validators
+* Thuế cộng đồng dự trữ được thu.
+* Phần còn lại được phân phối tỷ lệ theo voting power cho tất cả validator bonded
 
 ### The Distribution Scheme
 
-See [params](#params) for description of parameters.
+Xem [params](#params) để biết mô tả tham số.
 
-Let `fees` be the total fees collected in the previous block, including
-inflationary rewards to the stake. All fees are collected in a specific module
-account during the block. During `BeginBlock`, they are sent to the
-`"distribution"` `ModuleAccount`. No other sending of tokens occurs. Instead, the
-rewards each account is entitled to are stored, and withdrawals can be triggered
-through the messages `FundCommunityPool`, `WithdrawValidatorCommission` and
-`WithdrawDelegatorReward`.
+Gọi `fees` là tổng phí thu được trong block trước, bao gồm phần thưởng lạm phát cho stake. Tất cả phí được thu trong một tài khoản module cụ thể trong block. Trong `BeginBlock`, chúng được gửi đến `ModuleAccount` `"distribution"`. Không có việc gửi token nào khác xảy ra. Thay vào đó, phần thưởng mỗi tài khoản được hưởng được lưu trữ, và việc rút có thể được kích hoạt qua các message `FundCommunityPool`, `WithdrawValidatorCommission` và `WithdrawDelegatorReward`.
 
 #### Reward to the Community Pool
 
-The community pool gets `community_tax * fees`, plus any remaining dust after
-validators get their rewards that are always rounded down to the nearest
-integer value.
+Community pool nhận `community_tax * fees`, cộng với bất kỳ dust còn lại nào sau khi validator nhận phần thưởng luôn được làm tròn xuống giá trị nguyên gần nhất.
 
 #### Using an External Community Pool
 
-Starting with Cosmos SDK v0.53.0, an external community pool, such as `x/protocolpool`, can be used in place of the `x/distribution` managed community pool.
+Bắt đầu từ Cosmos SDK v0.53.0, external community pool như `x/protocolpool` có thể được sử dụng thay cho community pool do `x/distribution` quản lý.
 
 
-Please view the warning in the next section before deciding to use an external community pool.
+Vui lòng xem cảnh báo trong phần tiếp theo trước khi quyết định sử dụng external community pool.
 
 ```go
 // ExternalCommunityPoolKeeper is the interface that an external community pool module keeper must fulfill
@@ -287,7 +250,7 @@ app.DistrKeeper = distrkeeper.NewKeeper(
 
 #### External Community Pool Usage Warning
 
-When using an external community pool with `x/distribution`, the following handlers will return an error:
+Khi sử dụng external community pool với `x/distribution`, các handler sau sẽ trả về lỗi:
 
 **QueryService**
 
@@ -298,43 +261,32 @@ When using an external community pool with `x/distribution`, the following handl
 * `CommunityPoolSpend`
 * `FundCommunityPool`
 
-If you have services that rely on this functionality from `x/distribution`, please update them to use the `x/protocolpool` equivalents.
+Nếu bạn có dịch vụ phụ thuộc vào chức năng này từ `x/distribution`, vui lòng cập nhật chúng để sử dụng tương đương `x/protocolpool`.
 
 #### Reward To the Validators
 
-The proposer receives no extra rewards. All fees are distributed among all the
-bonded validators, including the proposer, in proportion to their consensus power.
+Proposer không nhận phần thưởng thêm. Tất cả phí được phân phối cho tất cả validator bonded, bao gồm proposer, theo tỷ lệ consensus power của họ.
 
 ```text
 powFrac = validator power / total bonded validator power
 voteMul = 1 - community_tax
 ```
 
-All validators receive `fees * voteMul * powFrac`.
+Tất cả validator nhận `fees * voteMul * powFrac`.
 
 #### Rewards to Delegators
 
-Each validator's rewards are distributed to its delegators. The validator also
-has a self-delegation that is treated like a regular delegation in
-distribution calculations.
+Phần thưởng của mỗi validator được phân phối cho delegator của nó. Validator cũng có self-delegation được xử lý như delegation thông thường trong tính toán distribution.
 
-The validator sets a commission rate. The commission rate is flexible, but each
-validator sets a maximum rate and a maximum daily increase. These maximums cannot be exceeded and protect delegators from sudden increases of validator commission rates to prevent validators from taking all of the rewards.
+Validator đặt tỷ lệ hoa hồng. Tỷ lệ hoa hồng linh hoạt, nhưng mỗi validator đặt tỷ lệ tối đa và mức tăng hàng ngày tối đa. Các mức tối đa này không thể vượt quá và bảo vệ delegator khỏi việc tăng đột ngột tỷ lệ hoa hồng validator để ngăn validator chiếm hết phần thưởng.
 
-The outstanding rewards that the operator is entitled to are stored in
-`ValidatorAccumulatedCommission`, while the rewards the delegators are entitled
-to are stored in `ValidatorCurrentRewards`. The [F1 fee distribution scheme](#concepts) is used to calculate the rewards per delegator as they
-withdraw or update their delegation, and is thus not handled in `BeginBlock`.
+Phần thưởng chưa thanh toán mà operator được hưởng được lưu trong `ValidatorAccumulatedCommission`, trong khi phần thưởng delegator được hưởng được lưu trong `ValidatorCurrentRewards`. [F1 fee distribution scheme](#concepts) được sử dụng để tính phần thưởng cho mỗi delegator khi họ rút hoặc cập nhật delegation, và do đó không được xử lý trong `BeginBlock`.
 
 #### Example Distribution
 
-For this example distribution, the underlying consensus engine selects block proposers in
-proportion to their power relative to the entire bonded power.
+Đối với ví dụ phân phối này, consensus engine cơ bản chọn block proposer theo tỷ lệ power của họ so với toàn bộ bonded power.
 
-All validators are equally performant at including pre-commits in their proposed
-blocks. Then hold `(pre_commits included) / (total bonded validator power)`
-constant so that the amortized block reward for the validator is `( validator power / total bonded power) * (1 - community tax rate)` of
-the total rewards. Consequently, the reward for a single delegator is:
+Tất cả validator đều thực hiện như nhau trong việc bao gồm pre-commit trong block đề xuất của họ. Sau đó giữ `(pre_commits included) / (total bonded validator power)` không đổi để phần thưởng block khấu hao cho validator là `( validator power / total bonded power) * (1 - community tax rate)` của tổng phần thưởng. Do đó, phần thưởng cho một delegator đơn lẻ là:
 
 ```text
 (delegator proportion of the validator power / validator power) * (validator power / total bonded power)
@@ -347,10 +299,10 @@ community tax rate) * (1 - validator commission rate)
 
 ### MsgSetWithdrawAddress
 
-By default, the withdraw address is the delegator address. To change its withdraw address, a delegator must send a `MsgSetWithdrawAddress` message.
-Changing the withdraw address is possible only if the parameter `WithdrawAddrEnabled` is set to `true`.
+Mặc định, địa chỉ rút là địa chỉ delegator. Để thay đổi địa chỉ rút, delegator phải gửi message `MsgSetWithdrawAddress`.
+Thay đổi địa chỉ rút chỉ có thể nếu tham số `WithdrawAddrEnabled` được đặt là `true`.
 
-The withdraw address cannot be any of the module accounts. These accounts are blocked from being withdraw addresses by being added to the distribution keeper's `blockedAddrs` array at initialization.
+Địa chỉ rút không thể là bất kỳ tài khoản module nào. Các tài khoản này bị chặn làm địa chỉ rút bằng cách được thêm vào mảng `blockedAddrs` của distribution keeper khi khởi tạo.
 
 Response:
 
@@ -373,22 +325,22 @@ func (k Keeper) SetWithdrawAddr(ctx context.Context, delegatorAddr sdk.AccAddres
 
 ### MsgWithdrawDelegatorReward
 
-A delegator can withdraw its rewards.
-Internally in the distribution module, this transaction simultaneously removes the previous delegation with associated rewards, the same as if the delegator simply started a new delegation of the same value.
-The rewards are sent immediately from the distribution `ModuleAccount` to the withdraw address.
-Any remainder (truncated decimals) are sent to the community pool.
-The starting height of the delegation is set to the current validator period, and the reference count for the previous period is decremented.
-The amount withdrawn is deducted from the `ValidatorOutstandingRewards` variable for the validator.
+Delegator có thể rút phần thưởng của mình.
+Nội bộ trong module distribution, giao dịch này đồng thời loại bỏ delegation trước với phần thưởng liên kết, giống như nếu delegator đơn giản bắt đầu delegation mới có cùng giá trị.
+Phần thưởng được gửi ngay lập tức từ `ModuleAccount` distribution đến địa chỉ rút.
+Bất kỳ phần còn lại nào (decimal bị cắt) được gửi đến community pool.
+Chiều cao bắt đầu của delegation được đặt thành validator period hiện tại, và reference count cho period trước được giảm.
+Số lượng rút được trừ từ biến `ValidatorOutstandingRewards` cho validator.
 
-In the F1 distribution, the total rewards are calculated per validator period, and a delegator receives a piece of those rewards in proportion to their stake in the validator.
-In basic F1, the total rewards that all the delegators are entitled to between to periods is calculated the following way.
-Let `R(X)` be the total accumulated rewards up to period `X` divided by the tokens staked at that time. The delegator allocation is `R(X) * delegator_stake`.
-Then the rewards for all the delegators for staking between periods `A` and `B` are `(R(B) - R(A)) * total stake`.
-However, these calculated rewards don't account for slashing.
+Trong phân phối F1, tổng phần thưởng được tính theo validator period, và delegator nhận một phần phần thưởng đó theo tỷ lệ stake của họ trong validator.
+Trong F1 cơ bản, tổng phần thưởng mà tất cả delegator được hưởng giữa hai period được tính theo cách sau.
+Gọi `R(X)` là tổng phần thưởng tích lũy đến period `X` chia cho token staked tại thời điểm đó. Phân bổ delegator là `R(X) * delegator_stake`.
+Sau đó phần thưởng cho tất cả delegator vì staking giữa period `A` và `B` là `(R(B) - R(A)) * total stake`.
+Tuy nhiên, các phần thưởng tính toán này không tính đến slashing.
 
-Taking the slashes into account requires iteration.
-Let `F(X)` be the fraction a validator is to be slashed for a slashing event that happened at period `X`.
-If the validator was slashed at periods `P1, ..., PN`, where `A < P1`, `PN < B`, the distribution module calculates the individual delegator's rewards, `T(A, B)`, as follows:
+Tính đến slash cần lặp.
+Gọi `F(X)` là phân số validator bị slash cho sự kiện slashing xảy ra tại period `X`.
+Nếu validator bị slash tại period `P1, ..., PN`, trong đó `A < P1`, `PN < B`, module distribution tính phần thưởng delegator cá nhân, `T(A, B)`, như sau:
 
 ```go
 stake := initial stake
@@ -401,8 +353,8 @@ for P in P1, ..., PN`:
 rewards = rewards + (R(B) - R(PN)) * stake
 ```
 
-The historical rewards are calculated retroactively by playing back all the slashes and then attenuating the delegator's stake at each step.
-The final calculated stake is equivalent to the actual staked coins in the delegation with a margin of error due to rounding errors.
+Phần thưởng lịch sử được tính hồi tố bằng cách phát lại tất cả slash và sau đó làm giảm stake của delegator ở mỗi bước.
+Stake tính toán cuối cùng tương đương với coin staked thực tế trong delegation với sai số do lỗi làm tròn.
 
 Response:
 
@@ -412,22 +364,22 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/distribution/
 
 ### WithdrawValidatorCommission
 
-The validator can send the WithdrawValidatorCommission message to withdraw their accumulated commission.
-The commission is calculated in every block during `BeginBlock`, so no iteration is required to withdraw.
-The amount withdrawn is deducted from the `ValidatorOutstandingRewards` variable for the validator.
-Only integer amounts can be sent. If the accumulated awards have decimals, the amount is truncated before the withdrawal is sent, and the remainder is left to be withdrawn later.
+Validator có thể gửi message WithdrawValidatorCommission để rút hoa hồng tích lũy của mình.
+Hoa hồng được tính trong mỗi block trong `BeginBlock`, nên không cần lặp để rút.
+Số lượng rút được trừ từ biến `ValidatorOutstandingRewards` cho validator.
+Chỉ số lượng nguyên có thể được gửi. Nếu phần thưởng tích lũy có decimal, số lượng được cắt bớt trước khi gửi rút, và phần còn lại để rút sau.
 
 ### FundCommunityPool
 
 :::warning
 
-This handler will return an error if an `ExternalCommunityPool` is used.
+Handler này sẽ trả về lỗi nếu sử dụng `ExternalCommunityPool`.
 
 :::
 
-This message sends coins directly from the sender to the community pool.
+Message này gửi coin trực tiếp từ người gửi đến community pool.
 
-The transaction fails if the amount cannot be transferred from the sender to the distribution module account.
+Giao dịch thất bại nếu số lượng không thể chuyển từ người gửi đến tài khoản module distribution.
 
 ```go
 func (k Keeper) FundCommunityPool(ctx context.Context, amount sdk.Coins, sender sdk.AccAddress) error {
@@ -452,12 +404,12 @@ func (k Keeper) FundCommunityPool(ctx context.Context, amount sdk.Coins, sender 
 
 ### Common distribution operations
 
-These operations take place during many different messages.
+Các thao tác này diễn ra trong nhiều message khác nhau.
 
 #### Initialize delegation
 
-Each time a delegation is changed, the rewards are withdrawn and the delegation is reinitialized.
-Initializing a delegation increments the validator period and keeps track of the starting period of the delegation.
+Mỗi khi delegation thay đổi, phần thưởng được rút và delegation được khởi tạo lại.
+Khởi tạo delegation tăng validator period và theo dõi period bắt đầu của delegation.
 
 ```go
 // initialize starting info for a new delegation
@@ -481,19 +433,19 @@ func (k Keeper) initializeDelegation(ctx context.Context, val sdk.ValAddress, de
 
 ### MsgUpdateParams
 
-Distribution module params can be updated through `MsgUpdateParams`, which can be done using governance proposal and the signer will always be gov module account address.
+Params của module distribution có thể được cập nhật qua `MsgUpdateParams`, có thể thực hiện bằng governance proposal và người ký sẽ luôn là địa chỉ tài khoản module gov.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/distribution/v1beta1/tx.proto#L133-L147
 ```
 
-The message handling can fail if:
+Xử lý message có thể thất bại nếu:
 
-* signer is not the gov module account address.
+* người ký không phải địa chỉ tài khoản module gov.
 
 ## Hooks
 
-Available hooks that can be called by and from this module.
+Các hook có sẵn có thể được gọi bởi và từ module này.
 
 ### Create or modify delegation distribution
 
@@ -501,22 +453,22 @@ Available hooks that can be called by and from this module.
 
 #### Before
 
-* The delegation rewards are withdrawn to the withdraw address of the delegator.
-  The rewards include the current period and exclude the starting period.
-* The validator period is incremented.
-  The validator period is incremented because the validator's power and share distribution might have changed.
-* The reference count for the delegator's starting period is decremented.
+* Phần thưởng delegation được rút đến địa chỉ rút của delegator.
+  Phần thưởng bao gồm period hiện tại và loại trừ period bắt đầu.
+* Validator period được tăng.
+  Validator period được tăng vì power và phân phối share của validator có thể đã thay đổi.
+* Reference count cho period bắt đầu của delegator được giảm.
 
 #### After
 
-The starting height of the delegation is set to the previous period.
-Because of the `Before`-hook, this period is the last period for which the delegator was rewarded.
+Chiều cao bắt đầu của delegation được đặt thành period trước.
+Do hook `Before`, period này là period cuối cùng mà delegator được thưởng.
 
 ### Validator created
 
 * triggered-by: `staking.MsgCreateValidator`
 
-When a validator is created, the following validator variables are initialized:
+Khi validator được tạo, các biến validator sau được khởi tạo:
 
 * Historical rewards
 * Current accumulated rewards
@@ -524,31 +476,29 @@ When a validator is created, the following validator variables are initialized:
 * Total outstanding rewards
 * Period
 
-By default, all values are set to a `0`, except period, which is set to `1`.
+Mặc định, tất cả giá trị được đặt là `0`, ngoại trừ period được đặt là `1`.
 
 ### Validator removed
 
 * triggered-by: `staking.RemoveValidator`
 
-Outstanding commission is sent to the validator's self-delegation withdrawal address.
-Remaining delegator rewards get sent to the community fee pool.
+Hoa hồng chưa thanh toán được gửi đến địa chỉ rút self-delegation của validator.
+Phần thưởng delegator còn lại được gửi đến community fee pool.
 
-Note: The validator gets removed only when it has no remaining delegations.
-At that time, all outstanding delegator rewards will have been withdrawn.
-Any remaining rewards are dust amounts.
+Lưu ý: Validator chỉ bị loại bỏ khi không còn delegation. Tại thời điểm đó, tất cả phần thưởng delegator chưa thanh toán sẽ đã được rút. Bất kỳ phần thưởng còn lại nào là số lượng dust.
 
 ### Validator is slashed
 
 * triggered-by: `staking.Slash`
-* The current validator period reference count is incremented.
-  The reference count is incremented because the slash event has created a reference to it.
-* The validator period is incremented.
-* The slash event is stored for later use.
-  The slash event will be referenced when calculating delegator rewards.
+* Reference count của validator period hiện tại được tăng.
+  Reference count được tăng vì sự kiện slash đã tạo tham chiếu đến nó.
+* Validator period được tăng.
+* Sự kiện slash được lưu để sử dụng sau.
+  Sự kiện slash sẽ được tham chiếu khi tính phần thưởng delegator.
 
 ## Events
 
-The distribution module emits the following events:
+Module distribution phát ra các sự kiện sau:
 
 ### BeginBlocker
 
@@ -593,30 +543,30 @@ The distribution module emits the following events:
 
 ## Parameters
 
-The distribution module contains the following parameters:
+Module distribution chứa các tham số sau:
 
 | Key                 | Type         | Example                    |
 | ------------------- | ------------ | -------------------------- |
 | communitytax        | string (dec) | "0.020000000000000000" [0] |
 | withdrawaddrenabled | bool         | true                       |
 
-* [0] `communitytax` must be positive and cannot exceed 1.00.
-* `baseproposerreward` and `bonusproposerreward` were parameters that are deprecated in v0.47 and are not used.
+* [0] `communitytax` phải dương và không thể vượt quá 1.00.
+* `baseproposerreward` và `bonusproposerreward` là các tham số đã bị deprecated trong v0.47 và không được sử dụng.
 
 :::note
-The reserve pool is the pool of collected funds for use by governance taken via the `CommunityTax`.
-Currently with the Cosmos SDK, tokens collected by the CommunityTax are accounted for but unspendable.
+Reserve pool là pool quỹ thu được để governance sử dụng thông qua `CommunityTax`.
+Hiện tại với Cosmos SDK, token thu bởi CommunityTax được ghi nhận nhưng không thể chi tiêu.
 :::
 
 ## Client
 
 ## CLI
 
-A user can query and interact with the `distribution` module using the CLI.
+Người dùng có thể truy vấn và tương tác với module `distribution` bằng CLI.
 
 #### Query
 
-The `query` commands allow users to query `distribution` state.
+Các lệnh `query` cho phép người dùng truy vấn state `distribution`.
 
 ```shell
 simd query distribution --help
@@ -624,19 +574,19 @@ simd query distribution --help
 
 ##### commission
 
-The `commission` command allows users to query validator commission rewards by address.
+Lệnh `commission` cho phép người dùng truy vấn phần thưởng hoa hồng validator theo địa chỉ.
 
 ```shell
 simd query distribution commission [address] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query distribution commission cosmosvaloper1...
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```yml
 commission:
@@ -646,19 +596,19 @@ commission:
 
 ##### community-pool
 
-The `community-pool` command allows users to query all coin balances within the community pool.
+Lệnh `community-pool` cho phép người dùng truy vấn tất cả số dư coin trong community pool.
 
 ```shell
 simd query distribution community-pool [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query distribution community-pool
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```yml
 pool:
@@ -668,19 +618,19 @@ pool:
 
 ##### params
 
-The `params` command allows users to query the parameters of the `distribution` module.
+Lệnh `params` cho phép người dùng truy vấn tham số của module `distribution`.
 
 ```shell
 simd query distribution params [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query distribution params
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```yml
 base_proposer_reward: "0.000000000000000000"
@@ -691,19 +641,19 @@ withdraw_addr_enabled: true
 
 ##### rewards
 
-The `rewards` command allows users to query delegator rewards. Users can optionally include the validator address to query rewards earned from a specific validator.
+Lệnh `rewards` cho phép người dùng truy vấn phần thưởng delegator. Người dùng có thể tùy chọn bao gồm địa chỉ validator để truy vấn phần thưởng kiếm được từ validator cụ thể.
 
 ```shell
 simd query distribution rewards [delegator-addr] [validator-addr] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query distribution rewards cosmos1...
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```yml
 rewards:
@@ -718,19 +668,19 @@ total:
 
 ##### slashes
 
-The `slashes` command allows users to query all slashes for a given block range.
+Lệnh `slashes` cho phép người dùng truy vấn tất cả slash cho một khoảng block cho trước.
 
 ```shell
 simd query distribution slashes [validator] [start-height] [end-height] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query distribution slashes cosmosvaloper1... 1 1000
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```yml
 pagination:
@@ -743,19 +693,19 @@ slashes:
 
 ##### validator-outstanding-rewards
 
-The `validator-outstanding-rewards` command allows users to query all outstanding (un-withdrawn) rewards for a validator and all their delegations.
+Lệnh `validator-outstanding-rewards` cho phép người dùng truy vấn tất cả phần thưởng chưa thanh toán (chưa rút) cho validator và tất cả delegation của họ.
 
 ```shell
 simd query distribution validator-outstanding-rewards [validator] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query distribution validator-outstanding-rewards cosmosvaloper1...
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```yml
 rewards:
@@ -765,13 +715,13 @@ rewards:
 
 ##### validator-distribution-info
 
-The `validator-distribution-info` command allows users to query validator commission and self-delegation rewards for validator.
+Lệnh `validator-distribution-info` cho phép người dùng truy vấn hoa hồng validator và phần thưởng self-delegation cho validator.
 
-````shell
+```shell
 simd query distribution validator-distribution-info cosmosvaloper1...
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```yml
 commission:
@@ -785,7 +735,7 @@ self_bond_rewards:
 
 #### Transactions
 
-The `tx` commands allow users to interact with the `distribution` module.
+Các lệnh `tx` cho phép người dùng tương tác với module `distribution`.
 
 ```shell
 simd tx distribution --help
@@ -793,13 +743,13 @@ simd tx distribution --help
 
 ##### fund-community-pool
 
-The `fund-community-pool` command allows users to send funds to the community pool.
+Lệnh `fund-community-pool` cho phép người dùng gửi quỹ đến community pool.
 
 ```shell
 simd tx distribution fund-community-pool [amount] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd tx distribution fund-community-pool 100stake --from cosmos1...
@@ -807,13 +757,13 @@ simd tx distribution fund-community-pool 100stake --from cosmos1...
 
 ##### set-withdraw-addr
 
-The `set-withdraw-addr` command allows users to set the withdraw address for rewards associated with a delegator address.
+Lệnh `set-withdraw-addr` cho phép người dùng đặt địa chỉ rút cho phần thưởng liên kết với địa chỉ delegator.
 
 ```shell
 simd tx distribution set-withdraw-addr [withdraw-addr] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd tx distribution set-withdraw-addr cosmos1... --from cosmos1...
@@ -821,13 +771,13 @@ simd tx distribution set-withdraw-addr cosmos1... --from cosmos1...
 
 ##### withdraw-all-rewards
 
-The `withdraw-all-rewards` command allows users to withdraw all rewards for a delegator.
+Lệnh `withdraw-all-rewards` cho phép người dùng rút tất cả phần thưởng cho delegator.
 
 ```shell
 simd tx distribution withdraw-all-rewards [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd tx distribution withdraw-all-rewards --from cosmos1...
@@ -835,14 +785,13 @@ simd tx distribution withdraw-all-rewards --from cosmos1...
 
 ##### withdraw-rewards
 
-The `withdraw-rewards` command allows users to withdraw all rewards from a given delegation address,
-and optionally withdraw validator commission if the delegation address given is a validator operator and the user proves the `--commission` flag.
+Lệnh `withdraw-rewards` cho phép người dùng rút tất cả phần thưởng từ địa chỉ delegation cho trước, và tùy chọn rút hoa hồng validator nếu địa chỉ delegation cho trước là validator operator và người dùng chứng minh cờ `--commission`.
 
 ```shell
 simd tx distribution withdraw-rewards [validator-addr] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd tx distribution withdraw-rewards cosmosvaloper1... --from cosmos1... --commission
@@ -850,13 +799,13 @@ simd tx distribution withdraw-rewards cosmosvaloper1... --from cosmos1... --comm
 
 ### gRPC
 
-A user can query the `distribution` module using gRPC endpoints.
+Người dùng có thể truy vấn module `distribution` bằng các endpoint gRPC.
 
 #### Params
 
-The `Params` endpoint allows users to query parameters of the `distribution` module.
+Endpoint `Params` cho phép người dùng truy vấn tham số của module `distribution`.
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -864,7 +813,7 @@ grpcurl -plaintext \
     cosmos.distribution.v1beta1.Query/Params
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```json
 {
@@ -879,9 +828,9 @@ Example Output:
 
 #### ValidatorDistributionInfo
 
-The `ValidatorDistributionInfo` queries validator commission and self-delegation rewards for validator.
+ValidatorDistributionInfo truy vấn hoa hồng validator và phần thưởng self-delegation cho validator.
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -890,7 +839,7 @@ grpcurl -plaintext \
     cosmos.distribution.v1beta1.Query/ValidatorDistributionInfo
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```json
 {
@@ -914,9 +863,9 @@ Example Output:
 
 #### ValidatorOutstandingRewards
 
-The `ValidatorOutstandingRewards` endpoint allows users to query rewards of a validator address.
+Endpoint `ValidatorOutstandingRewards` cho phép người dùng truy vấn phần thưởng của địa chỉ validator.
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -925,7 +874,7 @@ grpcurl -plaintext \
     cosmos.distribution.v1beta1.Query/ValidatorOutstandingRewards
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```json
 {
@@ -942,9 +891,9 @@ Example Output:
 
 #### ValidatorCommission
 
-The `ValidatorCommission` endpoint allows users to query accumulated commission for a validator.
+Endpoint `ValidatorCommission` cho phép người dùng truy vấn hoa hồng tích lũy cho validator.
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -953,7 +902,7 @@ grpcurl -plaintext \
     cosmos.distribution.v1beta1.Query/ValidatorCommission
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```json
 {
@@ -970,9 +919,9 @@ Example Output:
 
 #### ValidatorSlashes
 
-The `ValidatorSlashes` endpoint allows users to query slash events of a validator.
+Endpoint `ValidatorSlashes` cho phép người dùng truy vấn sự kiện slash của validator.
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -981,7 +930,7 @@ grpcurl -plaintext \
     cosmos.distribution.v1beta1.Query/ValidatorSlashes
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```json
 {
@@ -999,9 +948,9 @@ Example Output:
 
 #### DelegationRewards
 
-The `DelegationRewards` endpoint allows users to query the total rewards accrued by a delegation.
+Endpoint `DelegationRewards` cho phép người dùng truy vấn tổng phần thưởng tích lũy bởi delegation.
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -1010,7 +959,7 @@ grpcurl -plaintext \
     cosmos.distribution.v1beta1.Query/DelegationRewards
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```json
 {
@@ -1025,9 +974,9 @@ Example Output:
 
 #### DelegationTotalRewards
 
-The `DelegationTotalRewards` endpoint allows users to query the total rewards accrued by each validator.
+Endpoint `DelegationTotalRewards` cho phép người dùng truy vấn tổng phần thưởng tích lũy bởi mỗi validator.
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -1036,7 +985,7 @@ grpcurl -plaintext \
     cosmos.distribution.v1beta1.Query/DelegationTotalRewards
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```json
 {
@@ -1062,9 +1011,9 @@ Example Output:
 
 #### DelegatorValidators
 
-The `DelegatorValidators` endpoint allows users to query all validators for given delegator.
+Endpoint `DelegatorValidators` cho phép người dùng truy vấn tất cả validator cho delegator cho trước.
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -1073,7 +1022,7 @@ grpcurl -plaintext \
     cosmos.distribution.v1beta1.Query/DelegatorValidators
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```json
 {
@@ -1083,9 +1032,9 @@ Example Output:
 
 #### DelegatorWithdrawAddress
 
-The `DelegatorWithdrawAddress` endpoint allows users to query the withdraw address of a delegator.
+Endpoint `DelegatorWithdrawAddress` cho phép người dùng truy vấn địa chỉ rút của delegator.
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -1094,7 +1043,7 @@ grpcurl -plaintext \
     cosmos.distribution.v1beta1.Query/DelegatorWithdrawAddress
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```json
 {
@@ -1104,9 +1053,9 @@ Example Output:
 
 #### CommunityPool
 
-The `CommunityPool` endpoint allows users to query the community pool coins.
+Endpoint `CommunityPool` cho phép người dùng truy vấn coin của community pool.
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -1114,7 +1063,7 @@ grpcurl -plaintext \
     cosmos.distribution.v1beta1.Query/CommunityPool
 ```
 
-Example Output:
+Ví dụ đầu ra:
 
 ```json
 {

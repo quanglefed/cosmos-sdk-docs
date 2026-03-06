@@ -1,62 +1,48 @@
-# ADR 022: Custom BaseApp panic handling
+# ADR 022: Xử Lý Panic Tùy Chỉnh trong BaseApp
 
-## Changelog
+## Nhật Ký Thay Đổi
 
-* 2020 Apr 24: Initial Draft
-* 2021 Sep 14: Superseded by ADR-045
+* 24 tháng 4 năm 2020: Bản nháp đầu tiên
+* 14 tháng 9 năm 2021: Được thay thế bởi ADR-045
 
-## Status
+## Trạng Thái
 
-SUPERSEDED by ADR-045
+BỊ THAY THẾ bởi ADR-045
 
-## Context
+## Bối Cảnh
 
-The current implementation of BaseApp does not allow developers to write custom error handlers during panic recovery
-[runTx()](https://github.com/cosmos/cosmos-sdk/blob/bad4ca75f58b182f600396ca350ad844c18fc80b/baseapp/baseapp.go#L539)
-method. We think that this method can be more flexible and can give Cosmos SDK users more options for customizations without
-the need to rewrite whole BaseApp. Also there's one special case for `sdk.ErrorOutOfGas` error handling, that case
-might be handled in a "standard" way (middleware) alongside the others.
+Triển khai hiện tại của BaseApp không cho phép các nhà phát triển viết các handler lỗi tùy chỉnh trong quá trình khôi phục panic tại phương thức [runTx()](https://github.com/cosmos/cosmos-sdk/blob/bad4ca75f58b182f600396ca350ad844c18fc80b/baseapp/baseapp.go#L539). Chúng tôi cho rằng phương thức này có thể linh hoạt hơn và có thể cung cấp cho người dùng Cosmos SDK nhiều tùy chọn tùy chỉnh hơn mà không cần phải viết lại toàn bộ BaseApp. Ngoài ra, có một trường hợp đặc biệt cho việc xử lý lỗi `sdk.ErrorOutOfGas`, trường hợp đó có thể được xử lý theo cách "tiêu chuẩn" (middleware) cùng với các trường hợp khác.
 
-We propose middleware-solution, which could help developers implement the following cases:
+Chúng tôi đề xuất giải pháp middleware có thể giúp các nhà phát triển triển khai các trường hợp sau:
 
-* add external logging (let's say sending reports to external services like [Sentry](https://sentry.io));
-* call panic for specific error cases;
+* Thêm ghi nhật ký bên ngoài (chẳng hạn gửi báo cáo đến các dịch vụ bên ngoài như [Sentry](https://sentry.io));
+* Gọi panic cho các trường hợp lỗi cụ thể;
 
-It will also make `OutOfGas` case and `default` case one of the middlewares.
-`Default` case wraps recovery object to an error and logs it ([example middleware implementation](#recovery-middleware)).
+Nó cũng sẽ làm cho trường hợp `OutOfGas` và trường hợp `default` trở thành một trong các middleware. Trường hợp `Default` bọc đối tượng khôi phục thành một lỗi và ghi nhật ký ([ví dụ triển khai middleware](#recovery-middleware)).
 
-Our project has a sidecar service running alongside the blockchain node (smart contracts virtual machine). It is
-essential that node <-> sidecar connectivity stays stable for TXs processing. So when the communication breaks we need
-to crash the node and reboot it once the problem is solved. That behaviour makes the node's state machine execution
-deterministic. As all keeper panics are caught by runTx's `defer()` handler, we have to adjust the BaseApp code
-in order to customize it.
+Dự án của chúng tôi có một dịch vụ sidecar chạy cùng với node blockchain (máy ảo hợp đồng thông minh). Điều thiết yếu là kết nối node <-> sidecar phải ổn định cho việc xử lý TX. Vì vậy khi giao tiếp bị gián đoạn, chúng tôi cần crash node và khởi động lại nó khi vấn đề được giải quyết. Hành vi đó làm cho quá trình thực thi máy trạng thái của node có tính xác định. Vì tất cả các panic của keeper đều bị bắt bởi handler `defer()` của runTx, chúng tôi phải điều chỉnh mã BaseApp để tùy chỉnh nó.
 
-## Decision
+## Quyết Định
 
-### Design
+### Thiết Kế
 
-#### Overview
+#### Tổng Quan
 
-Instead of hardcoding custom error handling into BaseApp we suggest using a set of middlewares which can be customized
-externally and will allow developers to use as many custom error handlers as they want. Implementation with tests
-can be found [here](https://github.com/cosmos/cosmos-sdk/pull/6053).
+Thay vì mã hóa cứng xử lý lỗi tùy chỉnh vào BaseApp, chúng tôi đề xuất sử dụng một tập hợp các middleware có thể được tùy chỉnh từ bên ngoài và cho phép các nhà phát triển sử dụng nhiều handler lỗi tùy chỉnh tùy ý. Triển khai với các test có thể được tìm thấy [tại đây](https://github.com/cosmos/cosmos-sdk/pull/6053).
 
-#### Implementation details
+#### Chi Tiết Triển Khai
 
-##### Recovery handler
+##### Recovery Handler
 
-New `RecoveryHandler` type added. `recoveryObj` input argument is an object returned by the standard Go function
-`recover()` from the `builtin` package.
+Kiểu `RecoveryHandler` mới được thêm vào. Đối số đầu vào `recoveryObj` là một đối tượng được trả về bởi hàm Go tiêu chuẩn `recover()` từ gói `builtin`.
 
 ```go
 type RecoveryHandler func(recoveryObj interface{}) error
 ```
 
-Handler should type assert (or other methods) an object to define if the object should be handled.
-`nil` should be returned if the input object can't be handled by that `RecoveryHandler` (not a handler's target type).
-Not `nil` error should be returned if the input object was handled and the middleware chain execution should be stopped.
+Handler nên xác nhận kiểu (hoặc các phương thức khác) một đối tượng để xác định xem đối tượng đó có nên được xử lý hay không. `nil` nên được trả về nếu đối tượng đầu vào không thể được xử lý bởi `RecoveryHandler` đó (không phải kiểu mục tiêu của handler). Lỗi không phải `nil` nên được trả về nếu đối tượng đầu vào đã được xử lý và việc thực thi chuỗi middleware nên dừng lại.
 
-An example:
+Một ví dụ:
 
 ```go
 func exampleErrHandler(recoveryObj interface{}) error {
@@ -71,13 +57,11 @@ func exampleErrHandler(recoveryObj interface{}) error {
 }
 ```
 
-This example breaks the application execution, but it also might enrich the error's context like the `OutOfGas` handler.
+Ví dụ này ngắt quá trình thực thi ứng dụng, nhưng nó cũng có thể bổ sung ngữ cảnh lỗi như handler `OutOfGas`.
 
-##### Recovery middleware
+##### Recovery Middleware
 
-We also add a middleware type (decorator). That function type wraps `RecoveryHandler` and returns the next middleware in
-execution chain and handler's `error`. Type is used to separate actual `recovery()` object handling from middleware
-chain processing.
+Chúng tôi cũng thêm kiểu middleware (decorator). Kiểu hàm này bọc `RecoveryHandler` và trả về middleware tiếp theo trong chuỗi thực thi cùng với `error` của handler. Kiểu được sử dụng để tách việc xử lý đối tượng `recovery()` thực tế khỏi xử lý chuỗi middleware.
 
 ```go
 type recoveryMiddleware func(recoveryObj interface{}) (recoveryMiddleware, error)
@@ -92,14 +76,13 @@ func newRecoveryMiddleware(handler RecoveryHandler, next recoveryMiddleware) rec
 }
 ```
 
-Function receives a `recoveryObj` object and returns:
+Hàm nhận đối tượng `recoveryObj` và trả về:
 
-* (next `recoveryMiddleware`, `nil`) if object wasn't handled (not a target type) by `RecoveryHandler`;
-* (`nil`, not nil `error`) if input object was handled and other middlewares in the chain should not be executed;
-* (`nil`, `nil`) in case of invalid behavior. Panic recovery might not have been properly handled;
-this can be avoided by always using a `default` as a rightmost middleware in the chain (always returns an `error`');
+* (middleware `recoveryMiddleware` tiếp theo, `nil`) nếu đối tượng không được xử lý (không phải kiểu mục tiêu) bởi `RecoveryHandler`;
+* (`nil`, `error` không phải nil) nếu đối tượng đầu vào đã được xử lý và các middleware khác trong chuỗi không nên được thực thi;
+* (`nil`, `nil`) trong trường hợp hành vi không hợp lệ. Có thể khôi phục panic không được xử lý đúng cách; điều này có thể tránh bằng cách luôn sử dụng `default` làm middleware ngoài cùng bên phải trong chuỗi (luôn trả về `error`);
 
-`OutOfGas` middleware example:
+Ví dụ middleware `OutOfGas`:
 
 ```go
 func newOutOfGasRecoveryMiddleware(gasWanted uint64, ctx sdk.Context, next recoveryMiddleware) recoveryMiddleware {
@@ -118,7 +101,7 @@ func newOutOfGasRecoveryMiddleware(gasWanted uint64, ctx sdk.Context, next recov
 }
 ```
 
-`Default` middleware example:
+Ví dụ middleware `Default`:
 
 ```go
 func newDefaultRecoveryMiddleware() recoveryMiddleware {
@@ -132,9 +115,9 @@ func newDefaultRecoveryMiddleware() recoveryMiddleware {
 }
 ```
 
-##### Recovery processing
+##### Xử Lý Recovery
 
-Basic chain of middlewares processing would look like:
+Xử lý chuỗi middleware cơ bản sẽ trông như thế này:
 
 ```go
 func processRecovery(recoveryObj interface{}, middleware recoveryMiddleware) error {
@@ -148,12 +131,11 @@ func processRecovery(recoveryObj interface{}, middleware recoveryMiddleware) err
 }
 ```
 
-That way we can create a middleware chain which is executed from left to right, the rightmost middleware is a
-`default` handler which must return an `error`.
+Theo cách đó chúng ta có thể tạo một chuỗi middleware được thực thi từ trái sang phải, middleware ngoài cùng bên phải là handler `default` phải trả về một `error`.
 
-##### BaseApp changes
+##### Thay Đổi BaseApp
 
-The `default` middleware chain must exist in a `BaseApp` object. `Baseapp` modifications:
+Chuỗi middleware `default` phải tồn tại trong đối tượng `BaseApp`. Các sửa đổi với `Baseapp`:
 
 ```go
 type BaseApp struct {
@@ -180,7 +162,7 @@ func (app *BaseApp) runTx(...) {
 }
 ```
 
-Developers can add their custom `RecoveryHandler`s by providing `AddRunTxRecoveryHandler` as a BaseApp option parameter to the `NewBaseapp` constructor:
+Các nhà phát triển có thể thêm `RecoveryHandler` tùy chỉnh của họ bằng cách cung cấp `AddRunTxRecoveryHandler` như một tham số tùy chọn BaseApp cho constructor `NewBaseapp`:
 
 ```go
 func (app *BaseApp) AddRunTxRecoveryHandler(handlers ...RecoveryHandler) {
@@ -190,29 +172,29 @@ func (app *BaseApp) AddRunTxRecoveryHandler(handlers ...RecoveryHandler) {
 }
 ```
 
-This method would prepend handlers to an existing chain.
+Phương thức này sẽ thêm các handler vào đầu chuỗi hiện có.
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Developers of Cosmos SDK-based projects can add custom panic handlers to:
-    * add error context for custom panic sources (panic inside of custom keepers);
-    * emit `panic()`: passthrough recovery object to the Tendermint core;
-    * other necessary handling;
-* Developers can use standard Cosmos SDK `BaseApp` implementation, rather than rewriting it in their projects;
-* Proposed solution doesn't break the current "standard" `runTx()` flow;
+* Các nhà phát triển dự án dựa trên Cosmos SDK có thể thêm các handler panic tùy chỉnh để:
+    * thêm ngữ cảnh lỗi cho các nguồn panic tùy chỉnh (panic bên trong các keeper tùy chỉnh);
+    * phát ra `panic()`: truyền đối tượng khôi phục tới lõi Tendermint;
+    * các xử lý cần thiết khác;
+* Các nhà phát triển có thể sử dụng triển khai `BaseApp` tiêu chuẩn của Cosmos SDK, thay vì phải viết lại trong các dự án của họ;
+* Giải pháp đề xuất không phá vỡ luồng `runTx()` "tiêu chuẩn" hiện tại;
 
-### Negative
+### Tiêu Cực
 
-* Introduces changes to the execution model design.
+* Giới thiệu các thay đổi vào thiết kế mô hình thực thi.
 
-### Neutral
+### Trung Lập
 
-* `OutOfGas` error handler becomes one of the middlewares;
-* Default panic handler becomes one of the middlewares;
+* Handler lỗi `OutOfGas` trở thành một trong các middleware;
+* Handler panic mặc định trở thành một trong các middleware;
 
-## References
+## Tham Khảo
 
-* [PR-6053 with proposed solution](https://github.com/cosmos/cosmos-sdk/pull/6053)
-* [Similar solution. ADR-010 Modular AnteHandler](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-010-modular-antehandler.md)
+* [PR-6053 với giải pháp đề xuất](https://github.com/cosmos/cosmos-sdk/pull/6053)
+* [Giải pháp tương tự. ADR-010 Modular AnteHandler](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-010-modular-antehandler.md)

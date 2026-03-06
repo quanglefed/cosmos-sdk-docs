@@ -1,28 +1,31 @@
 # `x/genutil`
 
-## Concepts
+## Khái niệm
 
-The `genutil` package contains a variety of genesis utility functionalities for usage within a blockchain application. Namely:
+Gói `genutil` chứa nhiều chức năng tiện ích liên quan đến genesis để dùng trong
+ứng dụng blockchain. Cụ thể:
 
-* Genesis transactions related (gentx)
-* Commands for collection and creation of gentxs
-* `InitChain` processing of gentxs
-* Genesis file creation
-* Genesis file validation
-* Genesis file migration
-* CometBFT related initialization
-    * Translation of an app genesis to a CometBFT genesis
+* Các giao dịch genesis (gentx)
+* Lệnh thu thập và tạo gentx
+* Xử lý gentx trong `InitChain`
+* Tạo file genesis
+* Xác thực file genesis
+* Migration file genesis
+* Khởi tạo liên quan CometBFT
+  * Chuyển đổi genesis của ứng dụng sang genesis CometBFT
 
 ## Genesis
 
-Genutil contains the data structure that defines an application genesis.
-An application genesis consists of a consensus genesis (g.e. CometBFT genesis) and application related genesis data.
+Genutil chứa cấu trúc dữ liệu định nghĩa genesis của ứng dụng.
+Genesis của ứng dụng gồm một consensus genesis (ví dụ: genesis CometBFT) và dữ
+liệu genesis liên quan ứng dụng.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-rc.0/x/genutil/types/genesis.go#L24-L34
 ```
 
-The application genesis can then be translated to the consensus engine to the right format:
+Genesis của ứng dụng sau đó có thể được chuyển đổi sang đúng định dạng cho
+consensus engine:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-rc.0/x/genutil/types/genesis.go#L126-L136
@@ -36,54 +39,63 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-rc.0/server/start.go#L397-L407
 
 ### CLI
 
-The genutil commands are available under the `genesis` subcommand.
+Các lệnh genutil có trong nhóm lệnh con `genesis`.
 
 #### add-genesis-account
 
-Add a genesis account to `genesis.json`. Learn more [here](https://docs.cosmos.network/main/run-node/run-node#adding-genesis-accounts).
+Thêm một genesis account vào `genesis.json`. Xem thêm [tại đây](https://docs.cosmos.network/main/run-node/run-node#adding-genesis-accounts).
 
 #### collect-gentxs
 
-Collect genesis txs and output a `genesis.json` file.
+Thu thập các genesis tx và xuất ra file `genesis.json`.
 
 ```shell
 simd genesis collect-gentxs
 ```
 
-This will create a new `genesis.json` file that includes data from all the validators (we sometimes call it the "super genesis file" to distinguish it from single-validator genesis files).
+Lệnh này sẽ tạo một file `genesis.json` mới bao gồm dữ liệu từ tất cả validator
+đôi khi được gọi là “super genesis file” để phân biệt với genesis file của một
+validator đơn lẻ.
 
 #### gentx
 
-Generate a genesis tx carrying a self delegation.
+Tạo một genesis tx mang theo self-delegation.
 
 ```shell
 simd genesis gentx [key_name] [amount] --chain-id [chain-id]
 ```
 
-This will create the genesis transaction for your new chain. Here `amount` should be at least `1000000000stake`.
-If you provide too much or too little, you will encounter an error when starting a node.
+Lệnh này sẽ tạo genesis transaction cho chain mới. `amount` ở đây nên ít nhất là
+`1000000000stake`. Nếu bạn cung cấp quá nhiều hoặc quá ít, bạn sẽ gặp lỗi khi
+khởi chạy node.
 
 #### migrate
 
-Migrate genesis to a specified target (SDK) version.
+Migrate genesis sang một phiên bản (SDK) đích.
 
 ```shell
 simd genesis migrate [target-version]
 ```
 
-:::tip
-The `migrate` command is extensible and takes a `MigrationMap`. This map is a mapping of target versions to genesis migrations functions.
-When not using the default `MigrationMap`, it is recommended to still call the default `MigrationMap` corresponding the SDK version of the chain and prepend/append your own genesis migrations.
-:::
+::::tip
+Lệnh `migrate` có thể mở rộng và nhận một `MigrationMap`. Map này ánh xạ từ phiên
+bản đích sang các hàm migration genesis.
+Khi không dùng `MigrationMap` mặc định, khuyến nghị vẫn gọi `MigrationMap` mặc
+định tương ứng với phiên bản SDK của chain và prepend/append các migration genesis
+của riêng bạn.
+::::
 
 #### validate-genesis
 
-Validates the genesis file at the default location or at the location passed as an argument.
+Xác thực file genesis tại vị trí mặc định hoặc tại đường dẫn được truyền vào.
 
 ```shell
 simd genesis validate-genesis
 ```
 
-:::warning
-Validate genesis only validates if the genesis is valid at the **current application binary**. For validating a genesis from a previous version of the application, use the `migrate` command to migrate the genesis to the current version.
-:::
+::::warning
+`validate-genesis` chỉ xác thực genesis có hợp lệ với **binary ứng dụng hiện tại**
+hay không. Để xác thực một genesis từ phiên bản ứng dụng trước đó, hãy dùng lệnh
+`migrate` để migrate genesis sang phiên bản hiện tại.
+::::
+

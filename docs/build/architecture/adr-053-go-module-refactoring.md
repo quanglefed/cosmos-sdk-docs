@@ -1,110 +1,57 @@
-# ADR 053: Go Module Refactoring
+# ADR 053: Tái Cấu Trúc Go Module
 
 ## Changelog
 
-* 2022-04-27: First Draft
+* 2022-04-27: Bản nháp đầu tiên
 
-## Status
+## Trạng Thái
 
-PROPOSED
+ĐỀ XUẤT
 
-## Abstract
+## Tóm Tắt
 
-The current SDK is built as a single monolithic go module. This ADR describes
-how we refactor the SDK into smaller independently versioned go modules
-for ease of maintenance.
+SDK hiện tại được xây dựng như một go module nguyên khối duy nhất. ADR này mô tả cách chúng ta tái cấu trúc SDK thành các go module nhỏ hơn được phiên bản độc lập để dễ bảo trì hơn.
 
-## Context
+## Bối Cảnh
 
-Go modules impose certain requirements on software projects with respect to
-stable version numbers (anything above 0.x) in that [any API breaking changes
-necessitate a major version](https://go.dev/doc/modules/release-workflow#breaking)
-increase which technically creates a new go module
-(with a v2, v3, etc. suffix).
+Go module áp đặt các yêu cầu nhất định đối với các dự án phần mềm liên quan đến số phiên bản ổn định (bất cứ thứ gì trên 0.x) ở chỗ [bất kỳ thay đổi API breaking nào đều đòi hỏi tăng phiên bản major](https://go.dev/doc/modules/release-workflow#breaking), điều này về mặt kỹ thuật tạo ra một go module mới (với hậu tố v2, v3, v.v.).
 
-[Keeping modules API compatible](https://go.dev/blog/module-compatibility) in
-this way requires a fair amount of thought and discipline.
+Cosmos SDK là một dự án khá lớn xuất phát trước khi go module ra đời và luôn ở phiên bản v0.x mặc dù đã được sử dụng trong production trong nhiều năm, không phải vì nó không phải phần mềm chất lượng production, mà vì các đảm bảo tương thích API theo yêu cầu của go module khá phức tạp để tuân thủ với một dự án lớn như vậy.
 
-The Cosmos SDK is a fairly large project which originated before go modules
-came into existence and has always been under a v0.x release even though
-it has been used in production for years now, not because it isn't production
-quality software, but rather because the API compatibility guarantees required
-by go modules are fairly complex to adhere to with such a large project.
-Up to now, it has generally been deemed more important to be able to break the
-API if needed rather than require all users update all package import paths
-to accommodate breaking changes causing v2, v3, etc. releases. This is in
-addition to the other complexities related to protobuf generated code that will
-be addressed in a separate ADR.
+Tuy nhiên, mong muốn về semantic versioning đã [mạnh mẽ trong cộng đồng](https://github.com/cosmos/cosmos-sdk/discussions/10162) và quy trình phát hành go module đơn lẻ đã khiến rất khó phát hành các thay đổi nhỏ cho các tính năng riêng lẻ kịp thời. Các chu kỳ phát hành thường vượt quá sáu tháng, có nghĩa là các cải tiến nhỏ thực hiện trong một hoặc hai ngày bị tắc nghẽn bởi mọi thứ khác trong chu kỳ phát hành nguyên khối.
 
-Nevertheless, the desire for semantic versioning has been [strong in the
-community](https://github.com/cosmos/cosmos-sdk/discussions/10162) and the
-single go module release process has made it very hard to
-release small changes to isolated features in a timely manner. Release cycles
-often exceed six months which means small improvements done in a day or
-two get bottle-necked by everything else in the monolithic release cycle.
+## Quyết Định
 
-## Decision
+Để cải thiện tình trạng hiện tại, SDK đang được tái cấu trúc thành nhiều go module trong kho lưu trữ hiện tại. Phương pháp được áp dụng là:
 
-To improve the current situation, the SDK is being refactored into multiple
-go modules within the current repository. There has been a [fair amount of
-debate](https://github.com/cosmos/cosmos-sdk/discussions/10582#discussioncomment-1813377)
-as to how to do this, with some developers arguing for larger vs smaller
-module scopes. There are pros and cons to both approaches (which will be
-discussed below in the [Consequences](#consequences) section), but the
-approach being adopted is the following:
+* Một go module nên nói chung được xác định phạm vi đến một tập hợp chức năng cụ thể nhất quán (chẳng hạn như math, errors, store, v.v.)
+* Khi code được xóa khỏi core SDK và chuyển sang đường dẫn module mới, mọi nỗ lực nên được thực hiện để tránh thay đổi API breaking trong code hiện có bằng cách sử dụng alias và wrapper types.
+* Các go module mới nên được chuyển sang domain độc lập (`cosmossdk.io`) trước khi được gắn tag là `v1.0.0`.
+* Tất cả go module nên tuân theo hướng dẫn trong https://go.dev/blog/module-compatibility trước khi `v1.0.0` được gắn tag và nên sử dụng package `internal` để giới hạn bề mặt API được tiếp xúc.
+* API của go module mới có thể khác với code hiện có ở những chỗ có sự cải thiện rõ ràng hoặc để xóa các phụ thuộc legacy (ví dụ về amino hoặc gogo proto), miễn là package cũ cố gắng tránh API breakage với alias và wrapper.
 
-* a go module should generally be scoped to a specific coherent set of
-functionality (such as math, errors, store, etc.)
-* when code is removed from the core SDK and moved to a new module path, every 
-effort should be made to avoid API breaking changes in the existing code using
-aliases and wrapper types (as done in https://github.com/cosmos/cosmos-sdk/pull/10779
-and https://github.com/cosmos/cosmos-sdk/pull/11788)
-* new go modules should be moved to a standalone domain (`cosmossdk.io`) before
-being tagged as `v1.0.0` to accommodate the possibility that they may be
-better served by a standalone repository in the future
-* all go modules should follow the guidelines in https://go.dev/blog/module-compatibility
-before `v1.0.0` is tagged and should make use of `internal` packages to limit
-the exposed API surface
-* the new go module's API may deviate from the existing code where there are
-clear improvements to be made or to remove legacy dependencies (for instance on
-amino or gogo proto), as long the old package attempts
-to avoid API breakage with aliases and wrappers
-* care should be taken when simply trying to turn an existing package into a
-new go module: https://github.com/golang/go/wiki/Modules#is-it-possible-to-add-a-module-to-a-multi-module-repository.
-In general, it seems safer to just create a new module path (appending v2, v3, etc.
-if necessary), rather than trying to make an old package a new module.
+## Hậu Quả
 
-## Consequences
+### Tương Thích Ngược
 
-### Backwards Compatibility
+Nếu các hướng dẫn trên được tuân theo để sử dụng alias hoặc wrapper types trỏ lại các go module mới, không nên có hoặc rất ít thay đổi breaking cho API hiện có.
 
-If the above guidelines are followed to use aliases or wrapper types pointing
-in existing APIs that point back to the new go modules, there should be no or
-very limited breaking changes to existing APIs.
+### Tích Cực
 
-### Positive
+* Các phần mềm độc lập sẽ đạt `v1.0.0` sớm hơn.
+* Các tính năng mới cho chức năng cụ thể sẽ được phát hành sớm hơn.
 
-* standalone pieces of software will reach `v1.0.0` sooner
-* new features to specific functionality will be released sooner 
+### Tiêu Cực
 
-### Negative
+* Sẽ có nhiều phiên bản go module hơn để cập nhật trong SDK và mỗi dự án, mặc dù hầu hết trong số này sẽ là gián tiếp.
 
-* there will be more go module versions to update in the SDK itself and
-per-project, although most of these will hopefully be indirect
+## Thảo Luận Thêm
 
-### Neutral
+Các thảo luận tiếp theo đang diễn ra chủ yếu tại https://github.com/cosmos/cosmos-sdk/discussions/10582 và trong Cosmos SDK Framework Working Group.
 
-## Further Discussions
-
-Further discussions are occurring primarily in
-https://github.com/cosmos/cosmos-sdk/discussions/10582 and within
-the Cosmos SDK Framework Working Group.
-
-## References
+## Tài Liệu Tham Khảo
 
 * https://go.dev/doc/modules/release-workflow
 * https://go.dev/blog/module-compatibility
 * https://github.com/cosmos/cosmos-sdk/discussions/10162
-* https://github.com/cosmos/cosmos-sdk/discussions/10582
 * https://github.com/cosmos/cosmos-sdk/pull/10779
-* https://github.com/cosmos/cosmos-sdk/pull/11788

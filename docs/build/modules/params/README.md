@@ -4,34 +4,39 @@ sidebar_position: 1
 
 # `x/params`
 
-NOTE: `x/params` is deprecated as of Cosmos SDK v0.53 and will be removed in the next release.
+LƯU Ý: `x/params` đã bị deprecate từ Cosmos SDK v0.53 và sẽ bị loại bỏ trong bản phát hành tiếp theo.
 
-## Abstract
+## Tóm tắt
 
-Package params provides a globally available parameter store.
+Gói params cung cấp một kho tham số (parameter store) dùng chung toàn cục.
 
-There are two main types, Keeper and Subspace. Subspace is an isolated namespace for a
-paramstore, where keys are prefixed by preconfigured spacename. Keeper has a
-permission to access all existing spaces.
+Có hai kiểu chính: Keeper và Subspace. Subspace là một namespace tách biệt cho
+paramstore, trong đó các key được prefix bởi spacename cấu hình sẵn. Keeper có
+quyền truy cập tất cả các space hiện có.
 
-Subspace can be used by the individual keepers, which need a private parameter store
-that the other keepers cannot modify. The params Keeper can be used to add a route to `x/gov` router in order to modify any parameter in case a proposal passes.
+Subspace có thể được dùng bởi các keeper riêng lẻ (của từng module), khi cần một
+kho tham số riêng tư mà các keeper khác không thể chỉnh sửa. Params Keeper có thể
+được dùng để thêm route vào router của `x/gov` nhằm sửa bất kỳ tham số nào nếu một
+proposal được thông qua.
 
-The following contents explains how to use params module for master and user modules.
+Phần nội dung sau giải thích cách dùng module params cho master module và user module.
 
-## Contents
+## Nội dung
 
 * [Keeper](#keeper)
 * [Subspace](#subspace)
-    * [Key](#key)
-    * [KeyTable](#keytable)
-    * [ParamSet](#paramset)
+  * [Key](#key)
+  * [KeyTable](#keytable)
+  * [ParamSet](#paramset)
 
 ## Keeper
 
-In the app initialization stage, [subspaces](#subspace) can be allocated for other modules' keeper using `Keeper.Subspace` and are stored in `Keeper.spaces`. Then, those modules can have a reference to their specific parameter store through `Keeper.GetSubspace`.
+Trong giai đoạn khởi tạo ứng dụng, các [subspace](#subspace) có thể được cấp phát
+cho keeper của các module khác bằng `Keeper.Subspace` và được lưu trong `Keeper.spaces`.
+Sau đó, các module đó có thể tham chiếu tới kho tham số cụ thể của mình thông qua
+`Keeper.GetSubspace`.
 
-Example:
+Ví dụ:
 
 ```go
 type ExampleKeeper struct {
@@ -45,35 +50,37 @@ func (k ExampleKeeper) SetParams(ctx sdk.Context, params types.Params) {
 
 ## Subspace
 
-`Subspace` is a prefixed subspace of the parameter store. Each module which uses the
-parameter store will take a `Subspace` to isolate permission to access.
+`Subspace` là một subspace có prefix của parameter store. Mỗi module dùng parameter
+store sẽ nhận một `Subspace` để cô lập quyền truy cập.
 
 ### Key
 
-Parameter keys are human readable alphanumeric strings. A parameter for the key
-`"ExampleParameter"` is stored under `[]byte("SubspaceName" + "/" + "ExampleParameter")`,
-	where `"SubspaceName"` is the name of the subspace.
+Key tham số là các chuỗi chữ-số dễ đọc (alphanumeric). Một tham số có key
+`"ExampleParameter"` được lưu dưới dạng `[]byte("SubspaceName" + "/" + "ExampleParameter")`,
+trong đó `"SubspaceName"` là tên subspace.
 
-Subkeys are secondary parameter keys those are used along with a primary parameter key.
-Subkeys can be used for grouping or dynamic parameter key generation during runtime.
+Subkey là key tham số phụ, được dùng cùng với key tham số chính (primary key).
+Subkey có thể dùng để nhóm hoặc tạo key tham số động trong lúc chạy (runtime).
 
 ### KeyTable
 
-All of the parameter keys that will be used should be registered at the compile
-time. `KeyTable` is essentially a `map[string]attribute`, where the `string` is a parameter key.
+Tất cả key tham số sẽ được dùng nên được đăng ký ở compile-time. `KeyTable` về
+bản chất là một `map[string]attribute`, trong đó `string` là key tham số.
 
-Currently, `attribute` consists of a `reflect.Type`, which indicates the parameter
-type to check that provided key and value are compatible and registered, as well as a function `ValueValidatorFn` to validate values.
+Hiện tại, `attribute` gồm một `reflect.Type` (để kiểm tra kiểu tham số tương
+thích với key và value được cung cấp và đã đăng ký), cùng một hàm `ValueValidatorFn`
+để validate giá trị.
 
-Only primary keys have to be registered on the `KeyTable`. Subkeys inherit the
-attribute of the primary key.
+Chỉ primary key cần được đăng ký trong `KeyTable`. Subkey thừa hưởng attribute
+của primary key.
 
 ### ParamSet
 
-Modules often define parameters as a proto message. The generated struct can implement
-`ParamSet` interface to be used with the following methods:
+Các module thường định nghĩa tham số như một proto message. Struct được generate
+có thể hiện thực interface `ParamSet` để dùng với các phương thức sau:
 
-* `KeyTable.RegisterParamSet()`: registers all parameters in the struct
-* `Subspace.{Get, Set}ParamSet()`: Get to & Set from the struct
+* `KeyTable.RegisterParamSet()`: đăng ký tất cả tham số trong struct
+* `Subspace.{Get, Set}ParamSet()`: lấy/đặt tham số từ struct
 
-The implementer should be a pointer in order to use `GetParamSet()`.
+Implementer nên là con trỏ (pointer) để có thể dùng `GetParamSet()`.
+

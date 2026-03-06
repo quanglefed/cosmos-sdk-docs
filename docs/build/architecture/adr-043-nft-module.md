@@ -1,68 +1,66 @@
-# ADR 43: NFT Module
+# ADR 43: Module NFT
 
 ## Changelog
 
-* 2021-05-01: Initial Draft
-* 2021-07-02: Review updates
-* 2022-06-15: Add batch operation
-* 2022-11-11: Remove strict validation of classID and tokenID
+* 2021-05-01: Bản nháp đầu tiên
+* 2021-07-02: Cập nhật từ review
+* 2022-06-15: Thêm thao tác batch
+* 2022-11-11: Bỏ xác thực nghiêm ngặt classID và tokenID
 
-## Status
+## Trạng Thái
 
-PROPOSED
+ĐỀ XUẤT
 
-## Abstract
+## Tóm Tắt
 
-This ADR defines the `x/nft` module which is a generic implementation of NFTs, roughly "compatible" with ERC721. **Applications using the `x/nft` module must implement the following functions**:
+ADR này định nghĩa module `x/nft`, là một triển khai NFT chung, tương thích với ERC721. **Các ứng dụng sử dụng module `x/nft` phải triển khai các hàm sau**:
 
-* `MsgNewClass` - Receive the user's request to create a class, and call the `NewClass` of the `x/nft` module.
-* `MsgUpdateClass` - Receive the user's request to update a class, and call the `UpdateClass` of the `x/nft` module.
-* `MsgMintNFT` - Receive the user's request to mint a nft, and call the `MintNFT` of the `x/nft` module.
-* `BurnNFT` - Receive the user's request to burn a nft, and call the `BurnNFT` of the `x/nft` module.
-* `UpdateNFT` - Receive the user's request to update a nft, and call the `UpdateNFT` of the `x/nft` module.
+* `MsgNewClass` - Nhận yêu cầu của người dùng để tạo một class, và gọi `NewClass` của module `x/nft`.
+* `MsgUpdateClass` - Nhận yêu cầu của người dùng để cập nhật một class, và gọi `UpdateClass` của module `x/nft`.
+* `MsgMintNFT` - Nhận yêu cầu của người dùng để mint một nft, và gọi `MintNFT` của module `x/nft`.
+* `BurnNFT` - Nhận yêu cầu của người dùng để burn một nft, và gọi `BurnNFT` của module `x/nft`.
+* `UpdateNFT` - Nhận yêu cầu của người dùng để cập nhật một nft, và gọi `UpdateNFT` của module `x/nft`.
 
-## Context
+## Bối Cảnh
 
-NFTs are more than just crypto art, which is very helpful for accruing value to the Cosmos ecosystem. As a result, Cosmos Hub should implement NFT functions and enable a unified mechanism for storing and sending the ownership representative of NFTs as discussed in https://github.com/cosmos/cosmos-sdk/discussions/9065.
+NFT không chỉ là crypto art, điều này rất hữu ích để tích lũy giá trị cho hệ sinh thái Cosmos. Kết quả là, Cosmos Hub nên triển khai các chức năng NFT và kích hoạt một cơ chế thống nhất để lưu trữ và gửi đại diện quyền sở hữu của NFT như đã thảo luận tại https://github.com/cosmos/cosmos-sdk/discussions/9065.
 
-As discussed in [#9065](https://github.com/cosmos/cosmos-sdk/discussions/9065), several potential solutions can be considered:
+Như đã thảo luận trong [#9065](https://github.com/cosmos/cosmos-sdk/discussions/9065), có thể xem xét một số giải pháp tiềm năng:
 
-* irismod/nft and modules/incubator/nft
+* irismod/nft và modules/incubator/nft
 * CW721
 * DID NFTs
 * interNFT
 
-Since functions/use cases of NFTs are tightly connected with their logic, it is almost impossible to support all the NFTs' use cases in one Cosmos SDK module by defining and implementing different transaction types.
+Vì các chức năng/use case của NFT gắn chặt với logic của chúng, gần như không thể hỗ trợ tất cả các use case NFT trong một module Cosmos SDK bằng cách định nghĩa và triển khai các loại giao dịch khác nhau.
 
-Considering generic usage and compatibility of interchain protocols including IBC and Gravity Bridge, it is preferred to have a generic NFT module design which handles the generic NFTs logic.
-This design idea can enable composability that application-specific functions should be managed by other modules on Cosmos Hub or on other Zones by importing the NFT module.
+Xem xét tính sử dụng chung và khả năng tương thích của các giao thức interchain bao gồm IBC và Gravity Bridge, nên ưu tiên thiết kế module NFT chung xử lý logic NFT chung. Ý tưởng thiết kế này có thể kích hoạt khả năng kết hợp, nơi các chức năng dành riêng cho ứng dụng nên được quản lý bởi các module khác trên Cosmos Hub hoặc trên các Zone khác bằng cách nhập module NFT.
 
-The current design is based on the work done by [IRISnet team](https://github.com/irisnet/irismod/tree/master/modules/nft) and an older implementation in the [Cosmos repository](https://github.com/cosmos/modules/tree/master/incubator/nft).
+Thiết kế hiện tại dựa trên công việc được thực hiện bởi [nhóm IRISnet](https://github.com/irisnet/irismod/tree/master/modules/nft) và triển khai cũ hơn trong [kho lưu trữ Cosmos](https://github.com/cosmos/modules/tree/master/incubator/nft).
 
-## Decision
+## Quyết Định
 
-We create a `x/nft` module, which contains the following functionality:
+Chúng ta tạo một module `x/nft`, chứa các chức năng sau:
 
-* Store NFTs and track their ownership.
-* Expose `Keeper` interface for composing modules to transfer, mint and burn NFTs.
-* Expose external `Message` interface for users to transfer ownership of their NFTs.
-* Query NFTs and their supply information.
+* Lưu trữ NFT và theo dõi quyền sở hữu của chúng.
+* Phát lộ interface `Keeper` cho các module kết hợp để chuyển, mint và burn NFT.
+* Phát lộ interface `Message` bên ngoài cho người dùng để chuyển quyền sở hữu NFT của họ.
+* Truy vấn NFT và thông tin về tổng cung.
 
-The proposed module is a base module for NFT app logic. It's goal it to provide a common layer for storage, basic transfer functionality and IBC. The module should not be used as a standalone.
-Instead an app should create a specialized module to handle app specific logic (eg: NFT ID construction, royalty), user level minting and burning. Moreover an app specialized module should handle auxiliary data to support the app logic (eg indexes, ORM, business data).
+Module được đề xuất là module cơ sở cho logic NFT của ứng dụng. Mục tiêu của nó là cung cấp một lớp chung cho lưu trữ, chức năng chuyển giao cơ bản và IBC. Module không nên được sử dụng như một standalone. Thay vào đó, ứng dụng nên tạo một module chuyên biệt để xử lý logic dành riêng cho ứng dụng (ví dụ: xây dựng NFT ID, royalty), mint và burn ở cấp độ người dùng. Hơn nữa, một module chuyên biệt của ứng dụng nên xử lý dữ liệu phụ trợ để hỗ trợ logic ứng dụng (ví dụ: index, ORM, dữ liệu business).
 
-All data carried over IBC must be part of the `NFT` or `Class` type described below. The app specific NFT data should be encoded in `NFT.data` for cross-chain integrity. Other objects related to NFT, which are not important for integrity can be part of the app specific module.
+Tất cả dữ liệu mang qua IBC phải là một phần của kiểu `NFT` hoặc `Class` được mô tả dưới đây. Dữ liệu NFT dành riêng cho ứng dụng nên được mã hóa trong `NFT.data` để đảm bảo tính toàn vẹn cross-chain. Các đối tượng khác liên quan đến NFT, không quan trọng cho tính toàn vẹn, có thể là một phần của module dành riêng cho ứng dụng.
 
-### Types
+### Các Kiểu Dữ Liệu
 
-We propose two main types:
+Chúng tôi đề xuất hai kiểu chính:
 
-* `Class` -- describes NFT class. We can think about it as a smart contract address.
-* `NFT` -- object representing unique, non fungible asset. Each NFT is associated with a Class.
+* `Class` -- mô tả NFT class. Chúng ta có thể coi nó như một địa chỉ smart contract.
+* `NFT` -- đối tượng đại diện cho tài sản độc đáo, không thể thay thế. Mỗi NFT được liên kết với một Class.
 
 #### Class
 
-NFT **Class** is comparable to an ERC-721 smart contract (provides description of a smart contract), under which a collection of NFTs can be created and managed.
+**Class** NFT tương đương với một smart contract ERC-721 (cung cấp mô tả về một smart contract), trong đó có thể tạo và quản lý một bộ sưu tập NFT.
 
 ```protobuf
 message Class {
@@ -76,17 +74,17 @@ message Class {
 }
 ```
 
-* `id` is used as the primary index for storing the class; _required_
-* `name` is a descriptive name of the NFT class; _optional_
-* `symbol` is the symbol usually shown on exchanges for the NFT class; _optional_
-* `description` is a detailed description of the NFT class; _optional_
-* `uri` is a URI for the class metadata stored off chain. It should be a JSON file that contains metadata about the NFT class and NFT data schema ([OpenSea example](https://docs.opensea.io/docs/contract-level-metadata)); _optional_
-* `uri_hash` is a hash of the document pointed by uri; _optional_
-* `data` is app specific metadata of the class; _optional_
+* `id` được dùng làm chỉ mục chính để lưu trữ class; _bắt buộc_
+* `name` là tên mô tả của NFT class; _tùy chọn_
+* `symbol` là ký hiệu thường hiển thị trên các sàn cho NFT class; _tùy chọn_
+* `description` là mô tả chi tiết của NFT class; _tùy chọn_
+* `uri` là URI cho metadata của class được lưu trữ off chain. Nên là file JSON chứa metadata về NFT class và schema dữ liệu NFT ([ví dụ OpenSea](https://docs.opensea.io/docs/contract-level-metadata)); _tùy chọn_
+* `uri_hash` là hash của tài liệu được trỏ bởi uri; _tùy chọn_
+* `data` là metadata dành riêng cho ứng dụng của class; _tùy chọn_
 
 #### NFT
 
-We define a general model for `NFT` as follows.
+Chúng tôi định nghĩa một mô hình chung cho `NFT` như sau.
 
 ```protobuf
 message NFT {
@@ -98,30 +96,30 @@ message NFT {
 }
 ```
 
-* `class_id` is the identifier of the NFT class where the NFT belongs; _required_
-* `id` is an identifier of the NFT, unique within the scope of its class. It is specified by the creator of the NFT and may be expanded to use DID in the future. `class_id` combined with `id` uniquely identifies an NFT and is used as the primary index for storing the NFT; _required_
+* `class_id` là định danh của NFT class mà NFT thuộc về; _bắt buộc_
+* `id` là định danh của NFT, duy nhất trong phạm vi class của nó. Nó được người tạo NFT chỉ định và có thể được mở rộng để sử dụng DID trong tương lai. `class_id` kết hợp với `id` định danh duy nhất một NFT và được dùng làm chỉ mục chính để lưu trữ NFT; _bắt buộc_
 
   ```text
   {class_id}/{id} --> NFT (bytes)
   ```
 
-* `uri` is a URI for the NFT metadata stored off chain. Should point to a JSON file that contains metadata about this NFT (Ref: [ERC721 standard and OpenSea extension](https://docs.opensea.io/docs/metadata-standards)); _required_
-* `uri_hash` is a hash of the document pointed by uri; _optional_
-* `data` is an app specific data of the NFT. CAN be used by composing modules to specify additional properties of the NFT; _optional_
+* `uri` là URI cho metadata NFT được lưu trữ off chain. Nên trỏ đến một file JSON chứa metadata về NFT này (Tham chiếu: [tiêu chuẩn ERC721 và phần mở rộng OpenSea](https://docs.opensea.io/docs/metadata-standards)); _bắt buộc_
+* `uri_hash` là hash của tài liệu được trỏ bởi uri; _tùy chọn_
+* `data` là dữ liệu dành riêng cho ứng dụng của NFT. CÓ THỂ được sử dụng bởi các module kết hợp để chỉ định các thuộc tính bổ sung của NFT; _tùy chọn_
 
-This ADR doesn't specify values that `data` can take; however, best practices recommend upper-level NFT modules clearly specify their contents.  Although the value of this field doesn't provide the additional context required to manage NFT records, which means that the field can technically be removed from the specification, the field's existence allows basic informational/UI functionality.
+ADR này không chỉ định các giá trị mà `data` có thể có; tuy nhiên, thực hành tốt nhất khuyến nghị các module NFT cấp trên chỉ định rõ ràng nội dung của chúng. Mặc dù giá trị của trường này không cung cấp ngữ cảnh bổ sung cần thiết để quản lý các bản ghi NFT, có nghĩa là trường này về mặt kỹ thuật có thể được xóa khỏi đặc tả, sự tồn tại của trường cho phép các chức năng thông tin/UI cơ bản.
 
-### `Keeper` Interface
+### Interface `Keeper`
 
 ```go
 type Keeper interface {
   NewClass(ctx sdk.Context,class Class)
   UpdateClass(ctx sdk.Context,class Class)
 
-  Mint(ctx sdk.Context,nft NFT，receiver sdk.AccAddress)   // updates totalSupply
+  Mint(ctx sdk.Context,nft NFT，receiver sdk.AccAddress)   // cập nhật totalSupply
   BatchMint(ctx sdk.Context, tokens []NFT,receiver sdk.AccAddress) error
 
-  Burn(ctx sdk.Context, classId string, nftId string)    // updates totalSupply
+  Burn(ctx sdk.Context, classId string, nftId string)    // cập nhật totalSupply
   BatchBurn(ctx sdk.Context, classID string, nftIDs []string) error
 
   Update(ctx sdk.Context, nft NFT)
@@ -143,9 +141,9 @@ type Keeper interface {
 }
 ```
 
-Other business logic implementations should be defined in composing modules that import `x/nft` and use its `Keeper`.
+Các triển khai logic business khác nên được định nghĩa trong các module kết hợp nhập `x/nft` và sử dụng `Keeper` của nó.
 
-### `Msg` Service
+### Dịch Vụ `Msg`
 
 ```protobuf
 service Msg {
@@ -161,9 +159,9 @@ message MsgSend {
 message MsgSendResponse {}
 ```
 
-`MsgSend` can be used to transfer the ownership of an NFT to another address.
+`MsgSend` có thể được sử dụng để chuyển quyền sở hữu của một NFT sang địa chỉ khác.
 
-The implementation outline of the server is as follows:
+Phác thảo triển khai của server như sau:
 
 ```go
 type msgServer struct{
@@ -171,179 +169,100 @@ type msgServer struct{
 }
 
 func (m msgServer) Send(ctx context.Context, msg *types.MsgSend) (*types.MsgSendResponse, error) {
-  // check current ownership
+  // kiểm tra quyền sở hữu hiện tại
   assertEqual(msg.Sender, m.k.GetOwner(msg.ClassId, msg.Id))
 
-  // transfer ownership
+  // chuyển quyền sở hữu
   m.k.Transfer(msg.ClassId, msg.Id, msg.Receiver)
 
   return &types.MsgSendResponse{}, nil
 }
 ```
 
-The query service methods for the `x/nft` module are:
+Các phương thức dịch vụ query cho module `x/nft` là:
 
 ```protobuf
 service Query {
-  // Balance queries the number of NFTs of a given class owned by the owner, same as balanceOf in ERC721
+  // Balance truy vấn số lượng NFT của một class nhất định thuộc sở hữu của owner, tương tự balanceOf trong ERC721
   rpc Balance(QueryBalanceRequest) returns (QueryBalanceResponse) {
     option (google.api.http).get = "/cosmos/nft/v1beta1/balance/{owner}/{class_id}";
   }
 
-  // Owner queries the owner of the NFT based on its class and id, same as ownerOf in ERC721
+  // Owner truy vấn chủ sở hữu của NFT dựa trên class và id của nó, tương tự ownerOf trong ERC721
   rpc Owner(QueryOwnerRequest) returns (QueryOwnerResponse) {
     option (google.api.http).get = "/cosmos/nft/v1beta1/owner/{class_id}/{id}";
   }
 
-  // Supply queries the number of NFTs from the given class, same as totalSupply of ERC721.
+  // Supply truy vấn số lượng NFT từ class nhất định, tương tự totalSupply của ERC721.
   rpc Supply(QuerySupplyRequest) returns (QuerySupplyResponse) {
     option (google.api.http).get = "/cosmos/nft/v1beta1/supply/{class_id}";
   }
 
-  // NFTs queries all NFTs of a given class or owner,choose at least one of the two, similar to tokenByIndex in ERC721Enumerable
+  // NFTs truy vấn tất cả NFT của một class hoặc owner nhất định, chọn ít nhất một trong hai, tương tự tokenByIndex trong ERC721Enumerable
   rpc NFTs(QueryNFTsRequest) returns (QueryNFTsResponse) {
     option (google.api.http).get = "/cosmos/nft/v1beta1/nfts";
   }
 
-  // NFT queries an NFT based on its class and id.
+  // NFT truy vấn một NFT dựa trên class và id của nó.
   rpc NFT(QueryNFTRequest) returns (QueryNFTResponse) {
     option (google.api.http).get = "/cosmos/nft/v1beta1/nfts/{class_id}/{id}";
   }
 
-  // Class queries an NFT class based on its id
+  // Class truy vấn một NFT class dựa trên id của nó
   rpc Class(QueryClassRequest) returns (QueryClassResponse) {
     option (google.api.http).get = "/cosmos/nft/v1beta1/classes/{class_id}";
   }
 
-  // Classes queries all NFT classes
+  // Classes truy vấn tất cả NFT class
   rpc Classes(QueryClassesRequest) returns (QueryClassesResponse) {
     option (google.api.http).get = "/cosmos/nft/v1beta1/classes";
   }
 }
-
-// QueryBalanceRequest is the request type for the Query/Balance RPC method
-message QueryBalanceRequest {
-  string class_id = 1;
-  string owner    = 2;
-}
-
-// QueryBalanceResponse is the response type for the Query/Balance RPC method
-message QueryBalanceResponse {
-  uint64 amount = 1;
-}
-
-// QueryOwnerRequest is the request type for the Query/Owner RPC method
-message QueryOwnerRequest {
-  string class_id = 1;
-  string id       = 2;
-}
-
-// QueryOwnerResponse is the response type for the Query/Owner RPC method
-message QueryOwnerResponse {
-  string owner = 1;
-}
-
-// QuerySupplyRequest is the request type for the Query/Supply RPC method
-message QuerySupplyRequest {
-  string class_id = 1;
-}
-
-// QuerySupplyResponse is the response type for the Query/Supply RPC method
-message QuerySupplyResponse {
-  uint64 amount = 1;
-}
-
-// QueryNFTsRequest is the request type for the Query/NFTs RPC method
-message QueryNFTsRequest {
-  string                                class_id   = 1;
-  string                                owner      = 2;
-  cosmos.base.query.v1beta1.PageRequest pagination = 3;
-}
-
-// QueryNFTsResponse is the response type for the Query/NFTs RPC methods
-message QueryNFTsResponse {
-  repeated cosmos.nft.v1beta1.NFT        nfts       = 1;
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
-}
-
-// QueryNFTRequest is the request type for the Query/NFT RPC method
-message QueryNFTRequest {
-  string class_id = 1;
-  string id       = 2;
-}
-
-// QueryNFTResponse is the response type for the Query/NFT RPC method
-message QueryNFTResponse {
-  cosmos.nft.v1beta1.NFT nft = 1;
-}
-
-// QueryClassRequest is the request type for the Query/Class RPC method
-message QueryClassRequest {
-  string class_id = 1;
-}
-
-// QueryClassResponse is the response type for the Query/Class RPC method
-message QueryClassResponse {
-  cosmos.nft.v1beta1.Class class = 1;
-}
-
-// QueryClassesRequest is the request type for the Query/Classes RPC method
-message QueryClassesRequest {
-  // pagination defines an optional pagination for the request.
-  cosmos.base.query.v1beta1.PageRequest pagination = 1;
-}
-
-// QueryClassesResponse is the response type for the Query/Classes RPC method
-message QueryClassesResponse {
-  repeated cosmos.nft.v1beta1.Class      classes    = 1;
-  cosmos.base.query.v1beta1.PageResponse pagination = 2;
-}
 ```
 
-### Interoperability
+### Khả Năng Tương Tác
 
-Interoperability is all about reusing assets between modules and chains. The former one is achieved by ADR-33: Protobuf client - server communication. At the time of writing ADR-33 is not finalized. The latter is achieved by IBC. Here we will focus on the IBC side.
-IBC is implemented per module. Here, we aligned that NFTs will be recorded and managed in the x/nft. This requires creation of a new IBC standard and implementation of it.
+Khả năng tương tác là về việc tái sử dụng tài sản giữa các module và chain. Cái trước đạt được bởi ADR-33: Giao tiếp client-server Protobuf. Tại thời điểm viết ADR-33 chưa được hoàn thiện. Cái sau đạt được bởi IBC. Ở đây chúng ta sẽ tập trung vào phía IBC.
 
-For IBC interoperability, NFT custom modules MUST use the NFT object type understood by the IBC client. So, for x/nft interoperability, custom NFT implementations (example: x/cryptokitty) should use the canonical x/nft module and proxy all NFT balance keeping functionality to x/nft or else re-implement all functionality using the NFT object type understood by the IBC client. In other words: x/nft becomes the standard NFT registry for all Cosmos NFTs (example: x/cryptokitty will register a kitty NFT in x/nft and use x/nft for book keeping). This was [discussed](https://github.com/cosmos/cosmos-sdk/discussions/9065#discussioncomment-873206) in the context of using x/bank as a general asset balance book. Not using x/nft will require implementing another module for IBC.
+IBC được triển khai theo module. Ở đây, chúng ta đồng ý rằng NFT sẽ được ghi lại và quản lý trong x/nft. Điều này đòi hỏi việc tạo một tiêu chuẩn IBC mới và triển khai nó.
 
-## Consequences
+Để có khả năng tương tác IBC, các module NFT tùy chỉnh PHẢI sử dụng kiểu đối tượng NFT được hiểu bởi IBC client. Vì vậy, để có khả năng tương tác x/nft, các triển khai NFT tùy chỉnh (ví dụ: x/cryptokitty) nên sử dụng module x/nft canonical và proxy tất cả chức năng quản lý số dư NFT sang x/nft hoặc triển khai lại tất cả chức năng sử dụng kiểu đối tượng NFT được hiểu bởi IBC client. Nói cách khác: x/nft trở thành registry NFT tiêu chuẩn cho tất cả Cosmos NFT (ví dụ: x/cryptokitty sẽ đăng ký một kitty NFT trong x/nft và sử dụng x/nft để book keeping).
 
-### Backward Compatibility
+## Hậu Quả
 
-No backward incompatibilities.
+### Tương Thích Ngược
 
-### Forward Compatibility
+Không có sự không tương thích ngược.
 
-This specification conforms to the ERC-721 smart contract specification for NFT identifiers. Note that ERC-721 defines uniqueness based on (contract address, uint256 tokenId), and we conform to this implicitly because a single module is currently aimed to track NFT identifiers. Note: use of the (mutable) data field to determine uniqueness is not safe.
+### Tương Thích Tiến
 
-### Positive
+Đặc tả này tuân thủ đặc tả smart contract ERC-721 cho định danh NFT.
 
-* NFT identifiers available on Cosmos Hub.
-* Ability to build different NFT modules for the Cosmos Hub, e.g., ERC-721.
-* NFT module which supports interoperability with IBC and other cross-chain infrastructures like Gravity Bridge
+### Tích Cực
 
-### Negative
+* Định danh NFT có sẵn trên Cosmos Hub.
+* Khả năng xây dựng các module NFT khác nhau cho Cosmos Hub, ví dụ ERC-721.
+* Module NFT hỗ trợ khả năng tương tác với IBC và các cơ sở hạ tầng cross-chain khác như Gravity Bridge.
 
-* New IBC app is required for x/nft
-* CW721 adapter is required
+### Tiêu Cực
 
-### Neutral
+* Cần ứng dụng IBC mới cho x/nft.
+* Cần adapter CW721.
 
-* Other functions need more modules. For example, a custody module is needed for NFT trading function, a collectible module is needed for defining NFT properties.
+### Trung Lập
 
-## Further Discussions
+* Các chức năng khác cần nhiều module hơn. Ví dụ, cần module custody cho chức năng giao dịch NFT, cần module collectible để định nghĩa các thuộc tính NFT.
 
-For other kinds of applications on the Hub, more app-specific modules can be developed in the future:
+## Thảo Luận Thêm
 
-* `x/nft/custody`: custody of NFTs to support trading functionality.
-* `x/nft/marketplace`: selling and buying NFTs using sdk.Coins.
-* `x/fractional`: a module to split an ownership of an asset (NFT or other assets) for multiple stakeholder. `x/group`  should work for most of the cases.
+Đối với các loại ứng dụng khác trên Hub, có thể phát triển thêm nhiều module dành riêng cho ứng dụng trong tương lai:
 
-Other networks in the Cosmos ecosystem could design and implement their own NFT modules for specific NFT applications and use cases.
+* `x/nft/custody`: lưu ký NFT để hỗ trợ chức năng giao dịch.
+* `x/nft/marketplace`: bán và mua NFT sử dụng sdk.Coins.
+* `x/fractional`: module để chia quyền sở hữu tài sản (NFT hoặc tài sản khác) cho nhiều stakeholder. `x/group` nên phù hợp cho hầu hết các trường hợp.
 
-## References
+## Tài Liệu Tham Khảo
 
-* Initial discussion: https://github.com/cosmos/cosmos-sdk/discussions/9065
-* x/nft: initialize module: https://github.com/cosmos/cosmos-sdk/pull/9174
+* Thảo luận ban đầu: https://github.com/cosmos/cosmos-sdk/discussions/9065
+* x/nft: khởi tạo module: https://github.com/cosmos/cosmos-sdk/pull/9174
 * [ADR 033](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-033-protobuf-inter-module-comm.md)

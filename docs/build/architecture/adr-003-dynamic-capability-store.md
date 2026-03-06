@@ -2,50 +2,30 @@
 
 ## Changelog
 
-* 12 December 2019: Initial version
-* 02 April 2020: Memory Store Revisions
+* 12 tháng 12 năm 2019: Phiên bản đầu tiên
+* 02 tháng 4 năm 2020: Sửa đổi Memory Store
 
-## Context
+## Bối Cảnh
 
-Full implementation of the [IBC specification](https://github.com/cosmos/ibc) requires the ability to create and authenticate object-capability keys at runtime (i.e., during transaction execution),
-as described in [ICS 5](https://github.com/cosmos/ibc/tree/master/spec/core/ics-005-port-allocation#technical-specification). In the IBC specification, capability keys are created for each newly initialised
-port & channel, and are used to authenticate future usage of the port or channel. Since channels and potentially ports can be initialised during transaction execution, the state machine must be able to create
-object-capability keys at this time.
+Triển khai đầy đủ [đặc tả IBC](https://github.com/cosmos/ibc) yêu cầu khả năng tạo và xác thực các object-capability key tại runtime (tức là trong quá trình thực thi giao dịch), như được mô tả trong [ICS 5](https://github.com/cosmos/ibc/tree/master/spec/core/ics-005-port-allocation#technical-specification). Trong đặc tả IBC, các capability key được tạo cho mỗi port & channel được khởi tạo mới, và được dùng để xác thực việc sử dụng port hoặc channel trong tương lai. Vì các channel và có thể cả port có thể được khởi tạo trong quá trình thực thi giao dịch, state machine phải có khả năng tạo các object-capability key vào thời điểm này.
 
-At present, the Cosmos SDK does not have the ability to do this. Object-capability keys are currently pointers (memory addresses) of `StoreKey` structs created at application initialisation in `app.go` ([example](https://github.com/cosmos/gaia/blob/dcbddd9f04b3086c0ad07ee65de16e7adedc7da4/app/app.go#L132))
-and passed to Keepers as fixed arguments ([example](https://github.com/cosmos/gaia/blob/dcbddd9f04b3086c0ad07ee65de16e7adedc7da4/app/app.go#L160)). Keepers cannot create or store capability keys during transaction execution — although they could call `NewKVStoreKey` and take the memory address
-of the returned struct, storing this in the Merklised store would result in a consensus fault, since the memory address will be different on each machine (this is intentional — were this not the case, the keys would be predictable and couldn't serve as object capabilities).
+Hiện tại, Cosmos SDK không có khả năng này. Các object-capability key hiện là các con trỏ (địa chỉ bộ nhớ) của các struct `StoreKey` được tạo khi khởi tạo ứng dụng trong `app.go` ([ví dụ](https://github.com/cosmos/gaia/blob/dcbddd9f04b3086c0ad07ee65de16e7adedc7da4/app/app.go#L132)) và được truyền cho các Keeper làm đối số cố định ([ví dụ](https://github.com/cosmos/gaia/blob/dcbddd9f04b3086c0ad07ee65de16e7adedc7da4/app/app.go#L160)). Keeper không thể tạo hoặc lưu trữ capability key trong quá trình thực thi giao dịch — mặc dù chúng có thể gọi `NewKVStoreKey` và lấy địa chỉ bộ nhớ của struct được trả về, việc lưu trữ nó vào Merklised store sẽ dẫn đến consensus fault, vì địa chỉ bộ nhớ sẽ khác nhau trên mỗi máy (điều này là có chủ ý — nếu không phải như vậy, các khóa sẽ có thể đoán trước và không thể đóng vai trò là object capability).
 
-Keepers need a way to keep a private map of store keys which can be altered during transaction execution, along with a suitable mechanism for regenerating the unique memory addresses (capability keys) in this map whenever the application is started or restarted, along with a mechanism to revert capability creation on tx failure.
-This ADR proposes such an interface & mechanism.
+Keeper cần một cách để giữ một map riêng tư của các store key có thể được thay đổi trong quá trình thực thi giao dịch, cùng với cơ chế phù hợp để tái tạo các địa chỉ bộ nhớ duy nhất (capability key) trong map này bất cứ khi nào ứng dụng được khởi động hoặc khởi động lại, cùng với cơ chế để hoàn tác việc tạo capability khi tx thất bại. ADR này đề xuất interface và cơ chế như vậy.
 
-## Decision
+## Quyết Định
 
-The Cosmos SDK will include a new `CapabilityKeeper` abstraction, which is responsible for provisioning,
-tracking, and authenticating capabilities at runtime. During application initialisation in `app.go`,
-the `CapabilityKeeper` will be hooked up to modules through unique function references
-(by calling `ScopeToModule`, defined below) so that it can identify the calling module when later
-invoked.
+Cosmos SDK sẽ bao gồm một abstraction `CapabilityKeeper` mới, chịu trách nhiệm cung cấp, theo dõi và xác thực các capability tại runtime. Trong quá trình khởi tạo ứng dụng trong `app.go`, `CapabilityKeeper` sẽ được kết nối với các module thông qua các tham chiếu hàm duy nhất (bằng cách gọi `ScopeToModule`, được định nghĩa bên dưới) để nó có thể xác định module gọi khi được gọi sau này.
 
-When the initial state is loaded from disk, the `CapabilityKeeper`'s `Initialise` function will create
-new capability keys for all previously allocated capability identifiers (allocated during execution of
-past transactions and assigned to particular modes), and keep them in a memory-only store while the
-chain is running.
+Khi trạng thái ban đầu được tải từ đĩa, hàm `Initialise` của `CapabilityKeeper` sẽ tạo các capability key mới cho tất cả các capability identifier đã được cấp phát trước đó (được cấp phát trong quá trình thực thi các giao dịch trước đó và được gán cho các mode cụ thể), và giữ chúng trong một memory-only store trong khi chain đang chạy.
 
-The `CapabilityKeeper` will include a persistent `KVStore`, a `MemoryStore`, and an in-memory map.
-The persistent `KVStore` tracks which capability is owned by which modules.
-The `MemoryStore` stores a forward mapping that map from module name, capability tuples to capability names and
-a reverse mapping that map from module name, capability name to the capability index.
-Since we cannot marshal the capability into a `KVStore` and unmarshal without changing the memory location of the capability,
-the reverse mapping in the KVStore will simply map to an index. This index can then be used as a key in the ephemeral
-go-map to retrieve the capability at the original memory location.
+`CapabilityKeeper` sẽ bao gồm một `KVStore` persistent, một `MemoryStore`, và một map trong bộ nhớ. `KVStore` persistent theo dõi capability nào thuộc sở hữu của module nào. `MemoryStore` lưu trữ forward mapping ánh xạ từ tên module, tuple capability đến tên capability và reverse mapping ánh xạ từ tên module, tên capability đến chỉ số capability. Vì chúng ta không thể marshal capability vào `KVStore` và unmarshal mà không thay đổi vị trí bộ nhớ của capability, reverse mapping trong KVStore sẽ chỉ ánh xạ đến một chỉ số. Chỉ số này sau đó có thể được dùng như một khóa trong go-map tạm thời để lấy capability tại vị trí bộ nhớ gốc.
 
-The `CapabilityKeeper` will define the following types & functions:
+`CapabilityKeeper` sẽ định nghĩa các kiểu và hàm sau:
 
-The `Capability` is similar to `StoreKey`, but has a globally unique `Index()` instead of
-a name. A `String()` method is provided for debugging.
+`Capability` tương tự như `StoreKey`, nhưng có một `Index()` duy nhất toàn cục thay vì tên. Một phương thức `String()` được cung cấp để debug.
 
-A `Capability` is simply a struct, the address of which is taken for the actual capability.
+Một `Capability` đơn giản là một struct, địa chỉ của nó được lấy làm capability thực sự.
 
 ```go
 type Capability struct {
@@ -53,7 +33,7 @@ type Capability struct {
 }
 ```
 
-A `CapabilityKeeper` contains a persistent store key, memory store key, and mapping of allocated module names.
+Một `CapabilityKeeper` chứa một store key persistent, memory store key, và mapping của các tên module đã được cấp phát.
 
 ```go
 type CapabilityKeeper struct {
@@ -65,11 +45,7 @@ type CapabilityKeeper struct {
 }
 ```
 
-The `CapabilityKeeper` provides the ability to create *scoped* sub-keepers which are tied to a
-particular module name. These `ScopedCapabilityKeeper`s must be created at application initialisation
-and passed to modules, which can then use them to claim capabilities they receive and retrieve
-capabilities which they own by name, in addition to creating new capabilities & authenticating capabilities
-passed by other modules.
+`CapabilityKeeper` cung cấp khả năng tạo các sub-keeper *có phạm vi* được gắn với một tên module cụ thể. Các `ScopedCapabilityKeeper` này phải được tạo khi khởi tạo ứng dụng và được truyền cho các module, các module này sau đó có thể dùng chúng để claim các capability họ nhận được và lấy các capability mà họ sở hữu theo tên, ngoài việc tạo capability mới và xác thực capability được truyền bởi các module khác.
 
 ```go
 type ScopedCapabilityKeeper struct {
@@ -80,8 +56,7 @@ type ScopedCapabilityKeeper struct {
 }
 ```
 
-`ScopeToModule` is used to create a scoped sub-keeper with a particular name, which must be unique.
-It MUST be called before `InitialiseAndSeal`.
+`ScopeToModule` được dùng để tạo một scoped sub-keeper với một tên cụ thể, phải là duy nhất. Nó PHẢI được gọi trước `InitialiseAndSeal`.
 
 ```go
 func (ck CapabilityKeeper) ScopeToModule(moduleName string) ScopedCapabilityKeeper {
@@ -105,10 +80,7 @@ func (ck CapabilityKeeper) ScopeToModule(moduleName string) ScopedCapabilityKeep
 }
 ```
 
-`InitialiseAndSeal` MUST be called exactly once, after loading the initial state and creating all
-necessary `ScopedCapabilityKeeper`s, in order to populate the memory store with newly-created
-capability keys in accordance with the keys previously claimed by particular modules and prevent the
-creation of any new `ScopedCapabilityKeeper`s.
+`InitialiseAndSeal` PHẢI được gọi đúng một lần, sau khi tải trạng thái ban đầu và tạo tất cả các `ScopedCapabilityKeeper` cần thiết, để điền vào memory store với các capability key mới được tạo phù hợp với các khóa đã được claim trước đó bởi các module cụ thể và ngăn việc tạo bất kỳ `ScopedCapabilityKeeper` mới nào.
 
 ```go
 func (ck CapabilityKeeper) InitialiseAndSeal(ctx Context) {
@@ -119,7 +91,7 @@ func (ck CapabilityKeeper) InitialiseAndSeal(ctx Context) {
   persistentStore := ctx.KVStore(ck.persistentKey)
   map := ctx.KVStore(ck.memKey)
   
-  // initialise memory store for all names in persistent store
+  // khởi tạo memory store cho tất cả tên trong persistent store
   for index, value := range persistentStore.Iter() {
     capability = &CapabilityKey{index: index}
 
@@ -136,97 +108,88 @@ func (ck CapabilityKeeper) InitialiseAndSeal(ctx Context) {
 }
 ```
 
-`NewCapability` can be called by any module to create a new unique, unforgeable object-capability
-reference. The newly created capability is automatically persisted; the calling module need not
-call `ClaimCapability`.
+`NewCapability` có thể được gọi bởi bất kỳ module nào để tạo một tham chiếu object-capability mới, duy nhất và không thể giả mạo. Capability mới được tạo tự động được lưu trữ; module gọi không cần gọi `ClaimCapability`.
 
 ```go
 func (sck ScopedCapabilityKeeper) NewCapability(ctx Context, name string) (Capability, error) {
-  // check name not taken in memory store
+  // kiểm tra tên chưa được dùng trong memory store
   if capStore.Get("rev/" + name) != nil {
     return nil, errors.New("name already taken")
   }
 
-  // fetch the current index
+  // lấy chỉ số hiện tại
   index := persistentStore.Get("index")
   
-  // create a new capability
+  // tạo capability mới
   capability := &CapabilityKey{index: index}
   
-  // set persistent store
+  // đặt persistent store
   persistentStore.Set(index, Set.singleton(sck.moduleName + "/" + name))
   
-  // update the index
+  // cập nhật chỉ số
   index++
   persistentStore.Set("index", index)
   
-  // set forward mapping in memory store from capability to name
+  // đặt forward mapping trong memory store từ capability đến tên
   memStore.Set(sck.moduleName + "/fwd/" + capability, name)
   
-  // set reverse mapping in memory store from name to index
+  // đặt reverse mapping trong memory store từ tên đến chỉ số
   memStore.Set(sck.moduleName + "/rev/" + name, index)
 
-  // set the in-memory mapping from index to capability pointer
+  // đặt mapping trong bộ nhớ từ chỉ số đến con trỏ capability
   capMap[index] = capability
   
-  // return the newly created capability
+  // trả về capability mới được tạo
   return capability
 }
 ```
 
-`AuthenticateCapability` can be called by any module to check that a capability
-does in fact correspond to a particular name (the name can be untrusted user input)
-with which the calling module previously associated it.
+`AuthenticateCapability` có thể được gọi bởi bất kỳ module nào để kiểm tra xem một capability có thực sự tương ứng với một tên cụ thể hay không (tên có thể là đầu vào người dùng không đáng tin cậy) mà module gọi đã liên kết trước đó.
 
 ```go
 func (sck ScopedCapabilityKeeper) AuthenticateCapability(name string, capability Capability) bool {
-  // return whether forward mapping in memory store matches name
+  // trả về liệu forward mapping trong memory store có khớp với tên không
   return memStore.Get(sck.moduleName + "/fwd/" + capability) === name
 }
 ```
 
-`ClaimCapability` allows a module to claim a capability key which it has received from another module
-so that future `GetCapability` calls will succeed.
+`ClaimCapability` cho phép một module claim một capability key mà nó đã nhận từ module khác để các lần gọi `GetCapability` trong tương lai sẽ thành công.
 
-`ClaimCapability` MUST be called if a module which receives a capability wishes to access it by name
-in the future. Capabilities are multi-owner, so if multiple modules have a single `Capability` reference,
-they will all own it.
+`ClaimCapability` PHẢI được gọi nếu một module nhận được capability muốn truy cập nó theo tên trong tương lai. Capability là đa chủ sở hữu, vì vậy nếu nhiều module có một tham chiếu `Capability` duy nhất, tất cả họ đều sở hữu nó.
 
 ```go
 func (sck ScopedCapabilityKeeper) ClaimCapability(ctx Context, capability Capability, name string) error {
   persistentStore := ctx.KVStore(sck.persistentKey)
 
-  // set forward mapping in memory store from capability to name
+  // đặt forward mapping trong memory store từ capability đến tên
   memStore.Set(sck.moduleName + "/fwd/" + capability, name)
 
-  // set reverse mapping in memory store from name to capability
+  // đặt reverse mapping trong memory store từ tên đến capability
   memStore.Set(sck.moduleName + "/rev/" + name, capability)
 
-  // update owner set in persistent store
+  // cập nhật owner set trong persistent store
   owners := persistentStore.Get(capability.Index())
   owners.add(sck.moduleName + "/" + name)
   persistentStore.Set(capability.Index(), owners)
 }
 ```
 
-`GetCapability` allows a module to fetch a capability which it has previously claimed by name.
-The module is not allowed to retrieve capabilities which it does not own.
+`GetCapability` cho phép một module lấy một capability mà nó đã claim trước đó theo tên. Module không được phép lấy các capability mà nó không sở hữu.
 
 ```go
 func (sck ScopedCapabilityKeeper) GetCapability(ctx Context, name string) (Capability, error) {
-  // fetch the index of capability using reverse mapping in memstore
+  // lấy chỉ số của capability bằng reverse mapping trong memstore
   index := memStore.Get(sck.moduleName + "/rev/" + name)
 
-  // fetch capability from go-map using index
+  // lấy capability từ go-map bằng chỉ số
   capability := capMap[index]
 
-  // return the capability
+  // trả về capability
   return capability
 }
 ```
 
-`ReleaseCapability` allows a module to release a capability which it had previously claimed. If no
-more owners exist, the capability will be deleted globally.
+`ReleaseCapability` cho phép một module giải phóng một capability mà nó đã claim trước đó. Nếu không còn chủ sở hữu nào, capability sẽ bị xóa toàn cục.
 
 ```go
 func (sck ScopedCapabilityKeeper) ReleaseCapability(ctx Context, capability Capability) err {
@@ -237,65 +200,65 @@ func (sck ScopedCapabilityKeeper) ReleaseCapability(ctx Context, capability Capa
     return error("capability not owned by module")
   }
 
-  // delete forward mapping in memory store
+  // xóa forward mapping trong memory store
   memoryStore.Delete(sck.moduleName + "/fwd/" + capability, name)
 
-  // delete reverse mapping in memory store
+  // xóa reverse mapping trong memory store
   memoryStore.Delete(sck.moduleName + "/rev/" + name, capability)
 
-  // update owner set in persistent store
+  // cập nhật owner set trong persistent store
   owners := persistentStore.Get(capability.Index())
   owners.remove(sck.moduleName + "/" + name)
   if owners.size() > 0 {
-    // there are still other owners, keep the capability around
+    // vẫn còn chủ sở hữu khác, giữ capability
     persistentStore.Set(capability.Index(), owners)
   } else {
-    // no more owners, delete the capability
+    // không còn chủ sở hữu, xóa capability
     persistentStore.Delete(capability.Index())
     delete(capMap[capability.Index()])
   }
 }
 ```
 
-### Usage patterns
+### Mẫu Sử Dụng
 
-#### Initialisation
+#### Khởi Tạo
 
-Any modules which use dynamic capabilities must be provided a `ScopedCapabilityKeeper` in `app.go`:
+Bất kỳ module nào sử dụng dynamic capability đều phải được cung cấp một `ScopedCapabilityKeeper` trong `app.go`:
 
 ```go
 ck := NewCapabilityKeeper(persistentKey, memoryKey)
 mod1Keeper := NewMod1Keeper(ck.ScopeToModule("mod1"), ....)
 mod2Keeper := NewMod2Keeper(ck.ScopeToModule("mod2"), ....)
 
-// other initialisation logic ...
+// logic khởi tạo khác ...
 
-// load initial state...
+// tải trạng thái ban đầu...
 
 ck.InitialiseAndSeal(initialContext)
 ```
 
-#### Creating, passing, claiming and using capabilities
+#### Tạo, Truyền, Claim và Sử Dụng Capability
 
-Consider the case where `mod1` wants to create a capability, associate it with a resource (e.g. an IBC channel) by name, then pass it to `mod2` which will use it later:
+Xét trường hợp `mod1` muốn tạo một capability, liên kết nó với một tài nguyên (ví dụ: một kênh IBC) theo tên, rồi truyền nó cho `mod2` sẽ sử dụng sau này:
 
-Module 1 would have the following code:
+Module 1 sẽ có code sau:
 
 ```go
 capability := scopedCapabilityKeeper.NewCapability(ctx, "resourceABC")
 mod2Keeper.SomeFunction(ctx, capability, args...)
 ```
 
-`SomeFunction`, running in module 2, could then claim the capability:
+`SomeFunction`, chạy trong module 2, sau đó có thể claim capability:
 
 ```go
 func (k Mod2Keeper) SomeFunction(ctx Context, capability Capability) {
   k.sck.ClaimCapability(ctx, capability, "resourceABC")
-  // other logic...
+  // logic khác...
 }
 ```
 
-Later on, module 2 can retrieve that capability by name and pass it to module 1, which will authenticate it against the resource:
+Sau đó, module 2 có thể lấy capability đó theo tên và truyền nó cho module 1, module 1 sẽ xác thực nó với tài nguyên:
 
 ```go
 func (k Mod2Keeper) SomeOtherFunction(ctx Context, name string) {
@@ -304,41 +267,40 @@ func (k Mod2Keeper) SomeOtherFunction(ctx Context, name string) {
 }
 ```
 
-Module 1 will then check that this capability key is authenticated to use the resource before allowing module 2 to use it:
+Module 1 sau đó sẽ kiểm tra rằng capability key này đã được xác thực để sử dụng tài nguyên trước khi cho phép module 2 sử dụng nó:
 
 ```go
 func (k Mod1Keeper) UseResource(ctx Context, capability Capability, resource string) {
   if !k.sck.AuthenticateCapability(name, capability) {
     return errors.New("unauthenticated")
   }
-  // do something with the resource
+  // làm gì đó với tài nguyên
 }
 ```
 
-If module 2 passed the capability key to module 3, module 3 could then claim it and call module 1 just like module 2 did
-(in which case module 1, module 2, and module 3 would all be able to use this capability).
+Nếu module 2 truyền capability key cho module 3, module 3 có thể claim nó và gọi module 1 giống như module 2 đã làm (trong trường hợp đó module 1, module 2 và module 3 đều có thể sử dụng capability này).
 
-## Status
+## Trạng Thái
 
-Proposed.
+Đề Xuất.
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Dynamic capability support.
-* Allows CapabilityKeeper to return same capability pointer from go-map while reverting any writes to the persistent `KVStore` and in-memory `MemoryStore` on tx failure.
+* Hỗ trợ dynamic capability.
+* Cho phép CapabilityKeeper trả về cùng con trỏ capability từ go-map trong khi hoàn tác các ghi vào `KVStore` persistent và `MemoryStore` trong bộ nhớ khi tx thất bại.
 
-### Negative
+### Tiêu Cực
 
-* Requires an additional keeper.
-* Some overlap with existing `StoreKey` system (in the future they could be combined, since this is a superset functionality-wise).
-* Requires an extra level of indirection in the reverse mapping, since MemoryStore must map to index which must then be used as key in a go map to retrieve the actual capability
+* Yêu cầu một keeper bổ sung.
+* Có một số chồng lấp với hệ thống `StoreKey` hiện tại (trong tương lai chúng có thể được kết hợp, vì đây là chức năng superset).
+* Yêu cầu thêm một cấp độ indirection trong reverse mapping, vì MemoryStore phải ánh xạ đến chỉ số, chỉ số này sau đó phải được dùng làm khóa trong go-map để lấy capability thực sự.
 
-### Neutral
+### Trung Lập
 
-(none known)
+(không có gì đã biết)
 
-## References
+## Tài Liệu Tham Khảo
 
-* [Original discussion](https://github.com/cosmos/cosmos-sdk/pull/5230#discussion_r343978513)
+* [Thảo luận gốc](https://github.com/cosmos/cosmos-sdk/pull/5230#discussion_r343978513)

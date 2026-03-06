@@ -2,289 +2,270 @@
 
 ## Changelog
 
-* Feb 14, 2023: Initial Draft (@alexanderbez)
+* Feb 14, 2023: Bản nháp ban đầu (@alexanderbez)
 
-## Status
+## Trạng thái
 
-DRAFT
+BẢN NHÁP
 
-## Abstract
+## Tóm tắt
 
-The storage and state primitives that Cosmos SDK based applications have used have
-by and large not changed since the launch of the inaugural Cosmos Hub. The demands
-and needs of Cosmos SDK based applications, from both developer and client UX
-perspectives, have evolved and outgrown the ecosystem since these primitives
-were first introduced.
+Các primitive về lưu trữ và state mà các ứng dụng dựa trên Cosmos SDK sử dụng nhìn
+chung gần như không thay đổi kể từ khi Cosmos Hub đầu tiên ra mắt. Tuy nhiên, các
+đòi hỏi và nhu cầu của các ứng dụng dựa trên Cosmos SDK, từ cả góc nhìn UX của
+developer lẫn client, đã phát triển và mở rộng vượt khỏi hệ sinh thái kể từ khi
+các primitive này được giới thiệu lần đầu.
 
-Over time as these applications have gained significant adoption, many critical
-shortcomings and flaws have been exposed in the state and storage primitives of
-the Cosmos SDK.
+Theo thời gian, khi các ứng dụng này được chấp nhận rộng rãi, nhiều thiếu sót và
+khiếm khuyết nghiêm trọng đã bị bộc lộ trong các primitive về state và lưu trữ
+của Cosmos SDK.
 
-In order to keep up with the evolving demands and needs of both clients and developers,
-a major overhaul to these primitives is necessary.
+Để theo kịp nhu cầu đang tiến hoá của cả client lẫn developer, cần một cuộc đại
+tu (overhaul) lớn đối với các primitive này.
 
-## Context
+## Bối cảnh
 
-The Cosmos SDK provides application developers with various storage primitives
-for dealing with application state. Specifically, each module contains its own
-merkle commitment data structure -- an IAVL tree. In this data structure, a module
-can store and retrieve key-value pairs along with Merkle commitments, i.e. proofs,
-to those key-value pairs indicating that they do or do not exist in the global
-application state. This data structure is the base layer `KVStore`.
+Cosmos SDK cung cấp cho developer ứng dụng nhiều primitive lưu trữ khác nhau để
+làm việc với application state. Cụ thể, mỗi module có cấu trúc dữ liệu cam kết
+Merkle riêng — một cây IAVL. Trong cấu trúc dữ liệu này, một module có thể lưu và
+lấy các cặp khoá-giá trị (key-value) kèm các cam kết Merkle, tức các bằng chứng
+(proofs), cho các cặp khoá-giá trị đó để chỉ ra rằng chúng có hoặc không tồn tại
+trong application state toàn cục. Cấu trúc dữ liệu này là lớp nền tảng `KVStore`.
 
-In addition, the SDK provides abstractions on top of this Merkle data structure.
-Namely, a root multi-store (RMS) is a collection of each module's `KVStore`.
-Through the RMS, the application can serve queries and provide proofs to clients
-in addition to providing a module access to its own unique `KVStore` through the use
-of `StoreKey`, which is an OCAP primitive.
+Ngoài ra, SDK cung cấp các abstraction trên đỉnh cấu trúc dữ liệu Merkle này. Cụ thể,
+root multi-store (RMS) là một tập hợp các `KVStore` của mỗi module. Thông qua RMS,
+ứng dụng có thể phục vụ truy vấn và cung cấp proof cho client, đồng thời cung cấp
+cho module quyền truy cập `KVStore` riêng của nó thông qua `StoreKey`, một primitive OCAP.
 
-There are further layers of abstraction that sit between the RMS and the underlying
-IAVL `KVStore`. A `GasKVStore` is responsible for tracking gas IO consumption for
-state machine reads and writes. A `CacheKVStore` is responsible for providing a
-way to cache reads and buffer writes to make state transitions atomic, e.g.
-transaction execution or governance proposal execution.
+Có thêm các lớp abstraction nằm giữa RMS và `KVStore` IAVL bên dưới. `GasKVStore`
+chịu trách nhiệm theo dõi mức tiêu thụ gas cho IO (đọc/ghi) của state machine.
+`CacheKVStore` chịu trách nhiệm cung cấp cơ chế cache cho đọc và buffer cho ghi
+để các chuyển đổi state mang tính nguyên tử (atomic), ví dụ khi thực thi giao dịch
+hoặc thực thi đề xuất governance.
 
-There are a few critical drawbacks to these layers of abstraction and the overall
-design of storage in the Cosmos SDK:
+Có một vài nhược điểm then chốt trong các lớp abstraction này và trong thiết kế
+chung của storage trong Cosmos SDK:
 
-* Since each module has its own IAVL `KVStore`, commitments are not [atomic](https://github.com/cosmos/cosmos-sdk/issues/14625)
-    * Note, we can still allow modules to have their own IAVL `KVStore`, but the
-      IAVL library will need to support the ability to pass a DB instance as an
-      argument to various IAVL APIs.
-* Since IAVL is responsible for both state storage and commitment, running an 
-  archive node becomes increasingly expensive as disk space grows exponentially.
-* As the size of a network increases, various performance bottlenecks start to
-  emerge in many areas such as query performance, network upgrades, state
-  migrations, and general application performance.
-* Developer UX is poor as it does not allow application developers to experiment
-  with different types of approaches to storage and commitments, along with the
-  complications of many layers of abstractions referenced above.
+* Vì mỗi module có `KVStore` IAVL riêng, các cam kết không mang tính [nguyên tử](https://github.com/cosmos/cosmos-sdk/issues/14625)
+  * Lưu ý, ta vẫn có thể cho phép module có `KVStore` IAVL riêng, nhưng thư viện
+    IAVL sẽ cần hỗ trợ khả năng truyền một instance DB như một tham số cho nhiều API IAVL.
+* Vì IAVL chịu trách nhiệm cả lưu trữ state lẫn cam kết, việc chạy một archive node
+  ngày càng trở nên đắt đỏ khi dung lượng đĩa tăng theo cấp số nhân.
+* Khi kích thước mạng tăng, nhiều nút thắt hiệu năng bắt đầu xuất hiện ở nhiều khu vực
+  như hiệu năng truy vấn, nâng cấp mạng, migration state, và hiệu năng tổng thể của ứng dụng.
+* UX cho developer kém vì không cho phép developer thử nghiệm với các cách tiếp cận
+  khác nhau cho lưu trữ và cam kết, đồng thời bị phức tạp hoá bởi nhiều tầng abstraction
+  như đã nêu.
 
-See the [Storage Discussion](https://github.com/cosmos/cosmos-sdk/discussions/13545) for more information.
+Xem [Storage Discussion](https://github.com/cosmos/cosmos-sdk/discussions/13545) để biết thêm thông tin.
 
-## Alternatives
+## Phương án thay thế
 
-There was a previous attempt to refactor the storage layer described in [ADR-040](./adr-040-storage-and-smt-state-commitments.md).
-However, this approach mainly stems from the shortcomings of IAVL and various performance
-issues around it. While there was a (partial) implementation of [ADR-040](./adr-040-storage-and-smt-state-commitments.md),
-it was never adopted for a variety of reasons, such as the reliance on using an
-SMT, which was more in a research phase, and some design choices that couldn't
-be fully agreed upon, such as the snapshotting mechanism that would result in
-massive state bloat.
+Đã có một nỗ lực trước đó để refactor tầng storage được mô tả trong [ADR-040](./adr-040-storage-and-smt-state-commitments.md).
+Tuy nhiên, cách tiếp cận này chủ yếu xuất phát từ các thiếu sót của IAVL và các
+vấn đề hiệu năng xung quanh nó. Dù đã có một triển khai (một phần) của
+[ADR-040](./adr-040-storage-and-smt-state-commitments.md), nó chưa bao giờ được
+áp dụng vì nhiều lý do, chẳng hạn phụ thuộc vào SMT (vốn còn ở pha nghiên cứu),
+và một số lựa chọn thiết kế không thể đạt đồng thuận, ví dụ cơ chế snapshotting
+dẫn tới bùng nổ state (state bloat) rất lớn.
 
-## Decision
+## Quyết định
 
-We propose to build upon some of the great ideas introduced in [ADR-040](./adr-040-storage-and-smt-state-commitments.md),
-while being a bit more flexible with the underlying implementations and overall
-less intrusive. Specifically, we propose to:
+Chúng ta đề xuất xây dựng dựa trên một số ý tưởng tốt đã được giới thiệu trong
+[ADR-040](./adr-040-storage-and-smt-state-commitments.md), nhưng linh hoạt hơn
+với các triển khai nền tảng và ít “xâm lấn” hơn về tổng thể. Cụ thể, chúng ta đề xuất:
 
-* Separate the concerns of state commitment (**SC**), needed for consensus, and
-  state storage (**SS**), needed for state machine and clients.
-* Reduce layers of abstractions necessary between the RMS and underlying stores.
-* Provide atomic module store commitments by providing a batch database object
-  to core IAVL APIs.
-* Reduce complexities in the `CacheKVStore` implementation while also improving
-  performance<sup>[3]</sup>.
+* Tách biệt mối quan tâm giữa cam kết state (**SC**) — cần cho đồng thuận, và
+  lưu trữ state (**SS**) — cần cho state machine và client.
+* Giảm số lớp abstraction cần thiết giữa RMS và các store nền tảng.
+* Cung cấp cam kết store theo module mang tính nguyên tử bằng cách cung cấp một
+  đối tượng DB batch cho các API IAVL cốt lõi.
+* Giảm độ phức tạp trong triển khai `CacheKVStore` đồng thời cải thiện hiệu năng<sup>[3]</sup>.
 
-Furthermore, we will keep the IAVL is the backing [commitment](https://cryptography.fandom.com/wiki/Commitment_scheme)
-store for the time being. While we might not fully settle on the use of IAVL in
-the long term, we do not have strong empirical evidence to suggest a better
-alternative. Given that the SDK provides interfaces for stores, it should be sufficient
-to change the backing commitment store in the future should evidence arise to
-warrant a better alternative. However there is promising work being done to IAVL
-that should result in significant performance improvement <sup>[1,2]</sup>.
+Hơn nữa, trong thời gian hiện tại chúng ta vẫn giữ IAVL làm store [commitment](https://cryptography.fandom.com/wiki/Commitment_scheme)
+nền tảng. Dù có thể về dài hạn ta chưa hoàn toàn “chốt” việc dùng IAVL, hiện chưa
+có bằng chứng thực nghiệm mạnh mẽ để cho thấy một lựa chọn tốt hơn. Vì SDK cung
+cấp các interface cho store, điều này đủ để thay đổi backing commitment store
+trong tương lai nếu có bằng chứng biện minh cho một lựa chọn tốt hơn. Tuy nhiên,
+đang có những công việc hứa hẹn được thực hiện cho IAVL có thể mang lại cải thiện
+hiệu năng đáng kể <sup>[1,2]</sup>.
 
-### Separating SS and SC
+### Tách SS và SC
 
-By separating SS and SC, it will allow for us to optimize against primary use cases
-and access patterns to state. Specifically, The SS layer will be responsible for
-direct access to data in the form of (key, value) pairs, whereas the SC layer (IAVL)
-will be responsible for committing to data and providing Merkle proofs.
+Bằng cách tách SS và SC, chúng ta có thể tối ưu theo các use-case và access pattern
+chính để truy cập state. Cụ thể, lớp SS sẽ chịu trách nhiệm truy cập trực tiếp
+dữ liệu dưới dạng cặp (key, value), trong khi lớp SC (IAVL) sẽ chịu trách nhiệm
+cam kết dữ liệu và cung cấp Merkle proof.
 
-Note, the underlying physical storage database will be the same between both the
-SS and SC layers. So to avoid collisions between (key, value) pairs, both layers
-will be namespaced.
+Lưu ý, cơ sở dữ liệu lưu trữ vật lý (physical storage DB) nền tảng sẽ là cùng
+một DB cho cả hai lớp SS và SC. Vì vậy để tránh xung đột giữa các cặp (key, value),
+cả hai lớp sẽ được phân không gian tên (namespaced).
 
-#### State Commitment (SC)
+#### Cam kết state (SC)
 
-Given that the existing solution today acts as both SS and SC, we can simply
-repurpose it to act solely as the SC layer without any significant changes to
-access patterns or behavior. In other words, the entire collection of existing
-IAVL-backed module `KVStore`s will act as the SC layer.
+Vì giải pháp hiện tại vừa đóng vai trò SS vừa đóng vai trò SC, chúng ta có thể
+tái sử dụng nó để chỉ đóng vai trò lớp SC mà không cần thay đổi đáng kể về access
+pattern hay hành vi. Nói cách khác, toàn bộ tập hợp `KVStore` theo module dựa
+trên IAVL hiện có sẽ đóng vai trò lớp SC.
 
-However, in order for the SC layer to remain lightweight and not duplicate a
-majority of the data held in the SS layer, we encourage node operators to keep
-tight pruning strategies.
+Tuy nhiên, để lớp SC vẫn “nhẹ” và không nhân đôi phần lớn dữ liệu nằm trong lớp SS,
+chúng ta khuyến nghị operator chạy node duy trì chiến lược pruning chặt.
 
-#### State Storage (SS)
+#### Lưu trữ state (SS)
 
-In the RMS, we will expose a *single* `KVStore` backed by the same physical
-database that backs the SC layer. This `KVStore` will be explicitly namespaced
-to avoid collisions and will act as the primary storage for (key, value) pairs.
+Trong RMS, chúng ta sẽ expose một `KVStore` *duy nhất* được backing bởi cùng physical
+DB mà lớp SC dùng. `KVStore` này sẽ được namespaced rõ ràng để tránh xung đột và sẽ
+đóng vai trò lưu trữ chính cho các cặp (key, value).
 
-While we most likely will continue the use of `cosmos-db`, or some local interface,
-to allow for flexibility and iteration over preferred physical storage backends
-as research and benchmarking continues. However, we propose to hardcode the use
-of RocksDB as the primary physical storage backend.
+Trong khi có khả năng chúng ta vẫn tiếp tục dùng `cosmos-db` hoặc một interface
+local nào đó để linh hoạt và có thể lặp (iterate) về các backend lưu trữ vật lý
+ưa thích khi nghiên cứu và benchmark tiếp tục. Tuy nhiên, chúng ta đề xuất hardcode
+việc dùng RocksDB làm backend lưu trữ vật lý chính.
 
-Since the SS layer will be implemented as a `KVStore`, it will support the
-following functionality:
+Vì lớp SS sẽ được triển khai như một `KVStore`, nó sẽ hỗ trợ chức năng sau:
 
-* Range queries
-* CRUD operations
-* Historical queries and versioning
+* Range query
+* Thao tác CRUD
+* Truy vấn lịch sử và versioning
 * Pruning
 
-The RMS will keep track of all buffered writes using a dedicated and internal
-`MemoryListener` for each `StoreKey`. For each block height, upon `Commit`, the
-SS layer will write all buffered (key, value) pairs under a [RocksDB user-defined timestamp](https://github.com/facebook/rocksdb/wiki/User-defined-Timestamp-%28Experimental%29) column
-family using the block height as the timestamp, which is an unsigned integer.
-This will allow a client to fetch (key, value) pairs at historical and current
-heights along with making iteration and range queries relatively performant as
-the timestamp is the key suffix.
+RMS sẽ theo dõi tất cả buffered writes bằng một `MemoryListener` nội bộ chuyên
+dụng cho mỗi `StoreKey`. Với mỗi block height, khi `Commit`, lớp SS sẽ ghi tất
+cả các cặp (key, value) đã buffer vào một column family theo
+[RocksDB user-defined timestamp](https://github.com/facebook/rocksdb/wiki/User-defined-Timestamp-%28Experimental%29),
+dùng block height làm timestamp, một số nguyên không dấu. Điều này cho phép client
+fetch các cặp (key, value) ở height lịch sử và hiện tại, đồng thời giúp iteration
+và range query tương đối hiệu năng vì timestamp là hậu tố khoá (key suffix).
 
-Note, we choose not to use a more general approach of allowing any embedded key/value
-database, such as LevelDB or PebbleDB, using height key-prefixed keys to
-effectively version state because most of these databases use variable length
-keys which would effectively make actions likes iteration and range queries less
-performant.
+Lưu ý, chúng ta chọn không dùng cách tiếp cận tổng quát hơn cho phép bất kỳ
+embedded key/value DB nào, như LevelDB hay PebbleDB, bằng cách dùng khoá prefixed
+theo height để “version hoá” state, bởi vì phần lớn các DB này dùng khoá có độ
+dài biến thiên, làm cho các thao tác như iteration và range query kém hiệu năng hơn.
 
-Since operators might want pruning strategies to differ in SS compared to SC,
-e.g. having a very tight pruning strategy in SC while having a looser pruning
-strategy for SS, we propose to introduce an additional pruning configuration,
-with parameters that are identical to what exists in the SDK today, and allow
-operators to control the pruning strategy of the SS layer independently of the
-SC layer.
+Vì operator có thể muốn chiến lược pruning ở SS khác với SC, ví dụ SC pruning
+rất chặt trong khi SS pruning “lỏng” hơn, chúng ta đề xuất thêm một cấu hình pruning
+bổ sung với các tham số giống hệt các tham số đang có trong SDK hiện tại, và cho
+phép operator điều khiển chiến lược pruning của lớp SS độc lập với lớp SC.
 
-Note, the SC pruning strategy must be congruent with the operator's state sync
-configuration. This is so as to allow state sync snapshots to execute successfully,
-otherwise, a snapshot could be triggered on a height that is not available in SC.
+Lưu ý, chiến lược pruning SC phải tương thích (congruent) với cấu hình state sync
+của operator, để snapshot state sync có thể chạy thành công; nếu không, snapshot
+có thể bị kích hoạt tại một height không còn tồn tại trong SC.
 
 #### State Sync
 
-The state sync process should be largely unaffected by the separation of the SC
-and SS layers. However, if a node syncs via state sync, the SS layer of the node
-will not have the state synced height available, since the IAVL import process is
-not setup in way to easily allow direct key/value insertion. A modification of
-the IAVL import process would be necessary to facilitate having the state sync
-height available.
+Quy trình state sync nhìn chung sẽ không bị ảnh hưởng nhiều bởi việc tách lớp SC
+và SS. Tuy nhiên, nếu một node đồng bộ qua state sync, lớp SS của node sẽ không có
+height state đã sync sẵn, vì quy trình import IAVL không được thiết kế theo cách
+cho phép chèn key/value trực tiếp một cách dễ dàng. Cần sửa đổi quy trình import
+IAVL để có thể hỗ trợ việc có sẵn height state sync trong SS.
 
-Note, this is not problematic for the state machine itself because when a query
-is made, the RMS will automatically direct the query correctly (see [Queries](#queries)).
+Lưu ý, điều này không gây vấn đề cho chính state machine bởi vì khi một truy vấn
+được tạo, RMS sẽ tự động điều hướng truy vấn đúng (xem [Queries](#queries)).
 
-#### Queries
+#### Truy vấn (Queries)
 
-To consolidate the query routing between both the SC and SS layers, we propose to
-have a notion of a "query router" that is constructed in the RMS. This query router
-will be supplied to each `KVStore` implementation. The query router will route
-queries to either the SC layer or the SS layer based on a few parameters. If
-`prove: true`, then the query must be routed to the SC layer. Otherwise, if the
-query height is available in the SS layer, the query will be served from the SS
-layer. Otherwise, we fall back on the SC layer.
+Để hợp nhất việc điều hướng truy vấn giữa lớp SC và SS, chúng ta đề xuất có khái
+niệm “query router” được xây dựng trong RMS. Query router này sẽ được cung cấp
+cho mỗi triển khai `KVStore`. Query router sẽ điều hướng truy vấn tới lớp SC hoặc
+lớp SS dựa trên một vài tham số. Nếu `prove: true`, truy vấn phải được điều hướng
+tới lớp SC. Nếu không, nếu height truy vấn có sẵn trong lớp SS, truy vấn sẽ được
+phục vụ từ lớp SS. Nếu không nữa, ta fallback về lớp SC.
 
-If no height is provided, the SS layer will assume the latest height. The SS
-layer will store a reverse index to lookup `LatestVersion -> timestamp(version)`
-which is set on `Commit`.
+Nếu không cung cấp height, lớp SS sẽ giả định height mới nhất. Lớp SS sẽ lưu một
+reverse index để tra cứu `LatestVersion -> timestamp(version)`, được thiết lập khi `Commit`.
 
-#### Proofs
+#### Proof
 
-Since the SS layer is naturally a storage layer only, without any commitments
-to (key, value) pairs, it cannot provide Merkle proofs to clients during queries.
+Vì lớp SS tự nhiên chỉ là lớp lưu trữ, không có cam kết cho các cặp (key, value),
+nó không thể cung cấp Merkle proof cho client khi truy vấn.
 
-Since the pruning strategy against the SC layer is configured by the operator,
-we can therefore have the RMS route the query to the SC layer if the version exists and
-`prove: true`. Otherwise, the query will fall back to the SS layer without a proof.
+Vì chiến lược pruning đối với lớp SC do operator cấu hình, RMS có thể điều hướng
+truy vấn tới lớp SC nếu version tồn tại và `prove: true`. Nếu không, truy vấn sẽ
+fallback về lớp SS mà không có proof.
 
-We could explore the idea of using state snapshots to rebuild an in-memory IAVL
-tree in real time against a version closest to the one provided in the query.
-However, it is not clear what the performance implications will be of this approach.
+Chúng ta có thể khám phá ý tưởng dùng snapshot state để dựng lại một cây IAVL
+trong bộ nhớ theo thời gian thực dựa trên version gần nhất với version được cung
+cấp trong truy vấn. Tuy nhiên, chưa rõ tác động hiệu năng của cách tiếp cận này.
 
-### Atomic Commitment
+### Cam kết nguyên tử (Atomic Commitment)
 
-We propose to modify the existing IAVL APIs to accept a batch DB object instead
-of relying on an internal batch object in `nodeDB`. Since each underlying IAVL
-`KVStore` shares the same DB in the SC layer, this will allow commits to be
-atomic.
+Chúng ta đề xuất sửa các API IAVL hiện có để chấp nhận một đối tượng DB batch
+thay vì dựa vào một batch nội bộ trong `nodeDB`. Vì mỗi `KVStore` IAVL nền tảng
+chia sẻ cùng một DB trong lớp SC, điều này sẽ cho phép các commit mang tính nguyên tử.
 
-Specifically, we propose to:
+Cụ thể, chúng ta đề xuất:
 
-* Remove the `dbm.Batch` field from `nodeDB`
-* Update the `SaveVersion` method of the `MutableTree` IAVL type to accept a batch object
-* Update the `Commit` method of the `CommitKVStore` interface to accept a batch object
-* Create a batch object in the RMS during `Commit` and pass this object to each
-  `KVStore`
-* Write the database batch after all stores have committed successfully
+* Loại bỏ field `dbm.Batch` khỏi `nodeDB`
+* Cập nhật phương thức `SaveVersion` của kiểu IAVL `MutableTree` để chấp nhận một batch object
+* Cập nhật phương thức `Commit` của interface `CommitKVStore` để chấp nhận một batch object
+* Tạo một batch object trong RMS trong `Commit` và truyền batch này cho mỗi `KVStore`
+* Ghi database batch sau khi tất cả store commit thành công
 
-Note, this will require IAVL to be updated to not rely or assume on any batch
-being present during `SaveVersion`.
+Lưu ý, điều này sẽ yêu cầu IAVL được cập nhật để không phụ thuộc hay giả định có
+batch hiện diện trong `SaveVersion`.
 
-## Consequences
+## Hệ quả
 
-As a result of a new store V2 package, we should expect to see improved performance
-for queries and transactions due to the separation of concerns. We should also
-expect to see improved developer UX around experimentation of commitment schemes
-and storage backends for further performance, in addition to a reduced amount of
-abstraction around KVStores making operations such as caching and state branching
-more intuitive.
+Do có một gói store V2 mới, chúng ta kỳ vọng cải thiện hiệu năng cho truy vấn và
+giao dịch nhờ tách biệt mối quan tâm. Chúng ta cũng kỳ vọng cải thiện UX cho
+developer trong việc thử nghiệm các lược đồ cam kết (commitment scheme) và backend
+lưu trữ để tăng hiệu năng hơn nữa, đồng thời giảm bớt mức độ abstraction quanh
+KVStore để các thao tác như caching và state branching trực quan hơn.
 
-However, due to the proposed design, there are drawbacks around providing state
-proofs for historical queries.
+Tuy nhiên, do thiết kế đề xuất, sẽ có nhược điểm liên quan tới việc cung cấp
+proof state cho các truy vấn lịch sử.
 
-### Backwards Compatibility
+### Tương thích ngược
 
-This ADR proposes changes to the storage implementation in the Cosmos SDK through
-an entirely new package. Interfaces may be borrowed and extended from existing
-types that exist in `store`, but no existing implementations or interfaces will
-be broken or modified.
+ADR này đề xuất các thay đổi đối với triển khai storage trong Cosmos SDK thông
+qua một package mới hoàn toàn. Các interface có thể được mượn và mở rộng từ các
+kiểu hiện có trong `store`, nhưng sẽ không có triển khai hoặc interface hiện có
+nào bị phá vỡ hoặc bị sửa đổi.
 
-### Positive
+### Tích cực
 
-* Improved performance of independent SS and SC layers
-* Reduced layers of abstraction making storage primitives easier to understand
-* Atomic commitments for SC
-* Redesign of storage types and interfaces will allow for greater experimentation
-  such as different physical storage backends and different commitment schemes
-  for different application modules
+* Cải thiện hiệu năng của hai lớp SS và SC hoạt động độc lập
+* Giảm lớp abstraction giúp primitive lưu trữ dễ hiểu hơn
+* Cam kết nguyên tử cho SC
+* Thiết kế lại kiểu và interface lưu trữ cho phép thử nghiệm nhiều hơn, như các
+  backend lưu trữ vật lý khác nhau và các commitment scheme khác nhau cho các module khác nhau
 
-### Negative
+### Tiêu cực
 
-* Providing proofs for historical state is challenging
+* Việc cung cấp proof cho state lịch sử là thách thức
 
-### Neutral
+### Trung tính
 
-* Keeping IAVL as the primary commitment data structure, although drastic
-  performance improvements are being made
+* Giữ IAVL là cấu trúc dữ liệu cam kết chính, dù đang có những cải tiến hiệu năng mạnh
 
-## Further Discussions
+## Thảo luận thêm
 
-### Module Storage Control
+### Kiểm soát lưu trữ theo module
 
-Many modules store secondary indexes that are typically solely used to support
-client queries, but are actually not needed for the state machine's state
-transitions. What this means is that these indexes technically have no reason to
-exist in the SC layer at all, as they take up unnecessary space. It is worth
-exploring what an API would look like to allow modules to indicate what (key, value)
-pairs they want to be persisted in the SC layer, implicitly indicating the SS
-layer as well, as opposed to just persisting the (key, value) pair only in the
-SS layer.
+Nhiều module lưu các chỉ mục phụ (secondary index) thường chỉ dùng để hỗ trợ truy
+vấn client, nhưng thực tế không cần cho chuyển đổi state của state machine. Điều
+này nghĩa là các chỉ mục này về mặt kỹ thuật không có lý do tồn tại trong lớp SC,
+vì chúng chiếm không gian không cần thiết. Cần khám phá một API cho phép module
+chỉ định các cặp (key, value) nào họ muốn được lưu trong lớp SC (gián tiếp chỉ
+ra lớp SS), thay vì chỉ lưu cặp (key, value) trong lớp SS.
 
-### Historical State Proofs
+### Proof state lịch sử
 
-It is not clear what the importance or demand is within the community of providing
-commitment proofs for historical state. While solutions can be devised such as
-rebuilding trees on the fly based on state snapshots, it is not clear what the
-performance implications are for such solutions.
+Chưa rõ mức độ quan trọng hay nhu cầu trong cộng đồng đối với việc cung cấp proof
+cam kết cho state lịch sử. Dù có thể nghĩ ra giải pháp như dựng lại cây theo thời
+gian thực dựa trên snapshot state, nhưng chưa rõ tác động hiệu năng.
 
-### Physical DB Backends
+### Backend DB vật lý
 
-This ADR proposes usage of RocksDB to utilize user-defined timestamps as a
-versioning mechanism. However, other physical DB backends are available that may
-offer alternative ways to implement versioning while also providing performance
-improvements over RocksDB. E.g. PebbleDB supports MVCC timestamps as well, but
-we'll need to explore how PebbleDB handles compaction and state growth over time.
+ADR này đề xuất dùng RocksDB để tận dụng user-defined timestamp làm cơ chế versioning.
+Tuy nhiên, có các backend DB vật lý khác có thể cung cấp cách khác để triển khai
+versioning và cũng có thể cải thiện hiệu năng so với RocksDB. Ví dụ: PebbleDB cũng
+hỗ trợ MVCC timestamp, nhưng cần khám phá cách PebbleDB xử lý compaction và tăng trưởng
+state theo thời gian.
 
-## References
+## Tham khảo
 
 * [1] https://github.com/cosmos/iavl/pull/676
 * [2] https://github.com/cosmos/iavl/pull/664
 * [3] https://github.com/cosmos/cosmos-sdk/issues/14990
+

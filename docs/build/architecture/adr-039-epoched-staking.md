@@ -1,122 +1,121 @@
-# ADR 039: Epoched Staking
+# ADR 039: Epoched Staking (Staking Theo Epoch)
 
-## Changelog
+## Nhật Ký Thay Đổi
 
-* 10-Feb-2021: Initial Draft
+* 10-02-2021: Bản nháp đầu tiên
 
-## Authors
+## Tác Giả
 
 * Dev Ojha (@valardragon)
 * Sunny Aggarwal (@sunnya97)
 
-## Status
+## Trạng Thái
 
-Proposed
+Đề Xuất
 
-## Abstract
+## Tóm Tắt
 
-This ADR updates the proof of stake module to buffer the staking weight updates for a number of blocks before updating the consensus' staking weights. The length of the buffer is dubbed an epoch. The prior functionality of the staking module is then a special case of the abstracted module, with the epoch being set to 1 block.
+ADR này cập nhật module proof of stake để đệm các cập nhật trọng số staking trong một số block trước khi cập nhật trọng số staking của đồng thuận. Độ dài của bộ đệm được gọi là epoch. Chức năng trước đó của module staking sau đó là một trường hợp đặc biệt của module được trừu tượng hóa, với epoch được đặt là 1 block.
 
-## Context
+## Bối Cảnh
 
-The current proof of stake module takes the design decision to apply staking weight changes to the consensus engine immediately. This means that delegations and unbonds get applied immediately to the validator set. This decision was primarily done as it was the simplest from an implementation perspective, and because we at the time believed that this would lead to better UX for clients.
+Module proof of stake hiện tại đưa ra quyết định thiết kế áp dụng các thay đổi trọng số staking cho engine đồng thuận ngay lập tức. Điều này có nghĩa là các delegation và unbond được áp dụng ngay lập tức cho tập validator. Quyết định này chủ yếu được thực hiện vì nó đơn giản nhất từ góc độ triển khai, và vì vào thời điểm đó chúng ta tin rằng điều này sẽ dẫn đến UX tốt hơn cho các client.
 
-An alternative design choice is to allow buffering staking updates (delegations, unbonds, validators joining) for a number of blocks. This epoched proof of stake consensus provides the guarantee that the consensus weights for validators will not change mid-epoch, except in the event of a slash condition.
+Một lựa chọn thiết kế thay thế là cho phép đệm các cập nhật staking (delegation, unbond, validator tham gia) trong một số block. Proof of stake theo epoch này cung cấp đảm bảo rằng trọng số đồng thuận cho các validator sẽ không thay đổi trong giữa epoch, ngoại trừ trường hợp có điều kiện slash.
 
-Additionally, the UX hurdle may not be as significant as was previously thought. This is because it is possible to provide users immediate acknowledgement that their bond was recorded and will be executed.
+Ngoài ra, rào cản UX có thể không đáng kể như đã nghĩ trước đây. Điều này là vì có thể cung cấp cho người dùng xác nhận ngay lập tức rằng bond của họ đã được ghi lại và sẽ được thực thi.
 
-Furthermore, it has become clearer over time that immediate execution of staking events comes with limitations, such as:
+Hơn nữa, theo thời gian ngày càng rõ ràng rằng việc thực thi ngay lập tức các sự kiện staking đi kèm với các hạn chế, chẳng hạn như:
 
-* Threshold based cryptography. One of the main limitations is that because the validator set can change so regularly, it makes the running of multiparty computation by a fixed validator set difficult. Many threshold-based cryptographic features for blockchains such as randomness beacons and threshold decryption require a computationally-expensive DKG process (will take much longer than 1 block to create). To productively use these, we need to guarantee that the result of the DKG will be used for a reasonably long time. It wouldn't be feasible to rerun the DKG every block. By epoching staking, it guarantees we'll only need to run a new DKG once every epoch.
+* **Mật mã học dựa trên ngưỡng.** Một trong những hạn chế chính là vì tập validator có thể thay đổi thường xuyên, nó làm cho việc chạy tính toán đa bên bởi một tập validator cố định trở nên khó khăn. Nhiều tính năng mật mã học dựa trên ngưỡng cho blockchain như đèn hiệu ngẫu nhiên và giải mã ngưỡng đòi hỏi quy trình DKG tốn kém tính toán (sẽ mất nhiều hơn 1 block để tạo). Để sử dụng hiệu quả những điều này, chúng ta cần đảm bảo rằng kết quả của DKG sẽ được sử dụng trong một thời gian hợp lý. Sẽ không khả thi để chạy lại DKG mỗi block. Bằng cách epoch hóa staking, nó đảm bảo chúng ta chỉ cần chạy DKG mới một lần mỗi epoch.
 
-* Light client efficiency. This would lessen the overhead for IBC when there is high churn in the validator set. In the Tendermint light client bisection algorithm, the number of headers you need to verify is related to bounding the difference in validator sets between a trusted header and the latest header. If the difference is too great, you verify more headers in between the two. By limiting the frequency of validator set changes, we can reduce the worst case size of IBC lite client proofs, which occurs when a validator set has high churn.
+* **Hiệu quả light client.** Điều này sẽ giảm bớt overhead cho IBC khi có sự biến động cao trong tập validator. Trong thuật toán bisection light client Tendermint, số lượng header bạn cần xác minh liên quan đến việc giới hạn sự khác biệt trong tập validator giữa header được tin cậy và header mới nhất. Nếu sự khác biệt quá lớn, bạn xác minh nhiều header hơn ở giữa. Bằng cách hạn chế tần suất thay đổi tập validator, chúng ta có thể giảm kích thước trường hợp xấu nhất của các bằng chứng lite client IBC, xảy ra khi tập validator có biến động cao.
 
-* Fairness of deterministic leader election. Currently we have no ways of reasoning about fairness of deterministic leader election in the presence of staking changes without epochs (tendermint/spec#217). Breaking fairness of leader election is profitable for validators, as they earn additional rewards from being the proposer. Adding epochs at least makes it easier for our deterministic leader election to match something we can prove secure. (Albeit, we still haven’t proven if our current algorithm is fair with > 2 validators in the presence of stake changes)
+* **Sự công bằng trong bầu leader xác định.** Hiện tại chúng ta không có cách nào để lý luận về sự công bằng của bầu leader xác định khi có thay đổi staking mà không có epoch (tendermint/spec#217). Phá vỡ sự công bằng của bầu leader có lợi nhuận cho các validator, vì họ kiếm thêm phần thưởng từ việc là người đề xuất. Việc thêm epoch ít nhất làm cho bầu leader xác định của chúng ta dễ dàng khớp với một điều gì đó chúng ta có thể chứng minh là an toàn. (Mặc dù vậy, chúng ta vẫn chưa chứng minh liệu thuật toán hiện tại có công bằng với > 2 validator khi có thay đổi stake hay không)
 
-* Staking derivative design. Currently, reward distribution is done lazily using the F1 fee distribution. While saving computational complexity, lazy accounting requires a more stateful staking implementation. Right now, each delegation entry has to track the time of last withdrawal. Handling this can be a challenge for some staking derivatives designs that seek to provide fungibility for all tokens staked to a single validator. Force-withdrawing rewards to users can help solve this, however it is infeasible to force-withdraw rewards to users on a per block basis. With epochs, a chain could more easily alter the design to have rewards be forcefully withdrawn (iterating over delegator accounts only once per-epoch), and can thus remove delegation timing from state. This may be useful for certain staking derivative designs.
+* **Thiết kế dẫn xuất staking.** Hiện tại, phân phối phần thưởng được thực hiện lười biếng sử dụng phân phối phí F1. Trong khi tiết kiệm độ phức tạp tính toán, kế toán lười biếng đòi hỏi triển khai staking có nhiều trạng thái hơn. Hiện tại, mỗi mục delegation phải theo dõi thời gian rút tiền lần cuối. Việc xử lý điều này có thể là thách thức đối với một số thiết kế dẫn xuất staking tìm kiếm tính fungibility cho tất cả các token được staked cho một validator duy nhất. Buộc rút tiền phần thưởng có thể giúp giải quyết điều này, tuy nhiên không khả thi để buộc rút tiền phần thưởng cho người dùng trên cơ sở mỗi block. Với epoch, một chain có thể dễ dàng thay đổi thiết kế để có phần thưởng được rút bắt buộc (chỉ lặp qua các tài khoản delegator một lần mỗi epoch), và do đó có thể loại bỏ thời gian delegation khỏi trạng thái. Điều này có thể hữu ích cho một số thiết kế dẫn xuất staking nhất định.
 
-## Design considerations
+## Cân Nhắc Thiết Kế
 
-### Slashing
+### Slash
 
-There is a design consideration for whether to apply a slash immediately or at the end of an epoch. A slash event should apply to only members who are actually staked during the time of the infraction, namely during the epoch the slash event occurred.
+Có một cân nhắc thiết kế về việc áp dụng slash ngay lập tức hay vào cuối epoch. Một sự kiện slash nên chỉ áp dụng cho các thành viên thực sự được staked trong thời gian của vi phạm, cụ thể là trong epoch xảy ra sự kiện slash.
 
-Applying it immediately can be viewed as offering greater consensus layer security, at potential costs to the aforementioned use cases. The benefits of immediate slashing for consensus layer security can be all be obtained by executing the validator jailing immediately (thus removing it from the validator set), and delaying the actual slash change to the validator's weight until the epoch boundary. For the use cases mentioned above, workarounds can be integrated to avoid problems, as follows:
+Việc áp dụng ngay lập tức có thể được coi là cung cấp bảo mật lớp đồng thuận cao hơn, với chi phí tiềm năng cho các trường hợp sử dụng đã đề cập. Lợi ích của việc slash ngay lập tức cho bảo mật lớp đồng thuận đều có thể đạt được bằng cách thực thi việc jail validator ngay lập tức (do đó loại bỏ nó khỏi tập validator), và trì hoãn thay đổi slash thực sự đối với trọng số của validator cho đến ranh giới epoch. Đối với các trường hợp sử dụng được đề cập ở trên, các cách giải quyết có thể được tích hợp để tránh các vấn đề, như sau:
 
-* For threshold based cryptography, this setting will have the threshold cryptography use the original epoch weights, while consensus has an update that lets it more rapidly benefit from additional security. If the threshold based cryptography blocks liveness of the chain, then we have effectively raised the liveness threshold of the remaining validators for the rest of the epoch. (Alternatively, jailed nodes could still contribute shares) This plan will fail in the extreme case that more than 1/3rd of the validators have been jailed within a single epoch. For such an extreme scenario, the chain already have its own custom incident response plan, and defining how to handle the threshold cryptography should be a part of that.
-* For light client efficiency, there can be a bit included in the header indicating an intra-epoch slash (ala https://github.com/tendermint/spec/issues/199).
-* For fairness of deterministic leader election, applying a slash or jailing within an epoch would break the guarantee we were seeking to provide. This then re-introduces a new (but significantly simpler) problem for trying to provide fairness guarantees. Namely, that validators can adversarially elect to remove themselves from the set of proposers. From a security perspective, this could potentially be handled by two different mechanisms (or prove to still be too difficult to achieve). One is making a security statement acknowledging the ability for an adversary to force an ahead-of-time fixed threshold of users to drop out of the proposer set within an epoch. The second method would be to parameterize such that the cost of a slash within the epoch far outweighs benefits due to being a proposer. However, this latter criterion is quite dubious, since being a proposer can have many advantageous side-effects in chains with complex state machines. (Namely, DeFi games such as Fomo3D)
-* For staking derivative design, there is no issue introduced. This does not increase the state size of staking records, since whether a slash has occurred is fully queryable given the validator address.
+* Đối với mật mã học dựa trên ngưỡng, thiết lập này sẽ sử dụng trọng số epoch gốc, trong khi đồng thuận có một cập nhật cho phép nó hưởng lợi nhanh hơn từ bảo mật bổ sung.
+* Đối với hiệu quả light client, có thể có một bit được bao gồm trong header chỉ ra slash trong epoch (ala https://github.com/tendermint/spec/issues/199).
+* Đối với sự công bằng trong bầu leader xác định, áp dụng slash hoặc jail trong epoch sẽ phá vỡ đảm bảo chúng ta tìm cách cung cấp.
+* Đối với thiết kế dẫn xuất staking, không có vấn đề gì được giới thiệu. Điều này không tăng kích thước trạng thái của các bản ghi staking, vì liệu có xảy ra slash hay không là hoàn toàn có thể truy vấn được dựa trên địa chỉ validator.
 
-### Token lockup
+### Khóa Token
 
-When someone makes a transaction to delegate, even though they are not immediately staked, their tokens should be moved into a pool managed by the staking module which will then be used at the end of an epoch. This prevents concerns where they stake, and then spend those tokens not realizing they were already allocated for staking, and thus having their staking tx fail.
+Khi ai đó thực hiện giao dịch để delegation, mặc dù họ không được staked ngay lập tức, token của họ nên được chuyển vào pool được quản lý bởi module staking, pool này sau đó sẽ được sử dụng vào cuối epoch. Điều này ngăn ngừa các mối lo ngại nơi họ stake, và sau đó chi tiêu những token đó mà không nhận ra chúng đã được phân bổ cho staking, và do đó làm cho tx staking của họ thất bại.
 
-### Pipelining the epochs
+### Pipeline Epoch
 
-For threshold based cryptography in particular, we need a pipeline for epoch changes. This is because when we are in epoch N, we want the epoch N+1 weights to be fixed so that the validator set can do the DKG accordingly. So if we are currently in epoch N, the stake weights for epoch N+1 should already be fixed, and new stake changes should be getting applied to epoch N + 2.
+Đặc biệt đối với mật mã học dựa trên ngưỡng, chúng ta cần một pipeline cho các thay đổi epoch. Điều này là vì khi chúng ta ở trong epoch N, chúng ta muốn trọng số epoch N+1 được cố định để tập validator có thể thực hiện DKG tương ứng. Vì vậy, nếu chúng ta hiện đang ở epoch N, trọng số stake cho epoch N+1 nên đã được cố định, và các thay đổi stake mới nên được áp dụng cho epoch N + 2.
 
-This can be handled by making a parameter for the epoch pipeline length. This parameter should not be alterable except during hard forks, to mitigate implementation complexity of switching the pipeline length.
+Điều này có thể được xử lý bằng cách tạo tham số cho độ dài pipeline epoch. Tham số này không nên thay đổi được ngoại trừ trong các hard fork, để giảm thiểu độ phức tạp triển khai khi chuyển đổi độ dài pipeline.
 
-With pipeline length 1, if I redelegate during epoch N, then my redelegation is applied prior to the beginning of epoch N+1.
-With pipeline length 2, if I redelegate during epoch N, then my redelegation is applied prior to the beginning of epoch N+2.
+Với độ dài pipeline 1, nếu tôi redelegate trong epoch N, thì redelegation của tôi được áp dụng trước khi bắt đầu epoch N+1.
+Với độ dài pipeline 2, nếu tôi redelegate trong epoch N, thì redelegation của tôi được áp dụng trước khi bắt đầu epoch N+2.
 
-### Rewards
+### Phần Thưởng
 
-Even though all staking updates are applied at epoch boundaries, rewards can still be distributed immediately when they are claimed. This is because they do not affect the current stake weights, as we do not implement auto-bonding of rewards. If such a feature were to be implemented, it would have to be setup so that rewards are auto-bonded at the epoch boundary.
+Mặc dù tất cả các cập nhật staking được áp dụng tại ranh giới epoch, phần thưởng vẫn có thể được phân phối ngay lập tức khi chúng được yêu cầu. Điều này là vì chúng không ảnh hưởng đến trọng số stake hiện tại, vì chúng ta không triển khai auto-bonding phần thưởng. Nếu tính năng như vậy được triển khai, nó sẽ phải được thiết lập sao cho phần thưởng được auto-bonded tại ranh giới epoch.
 
-### Parameterizing the epoch length
+### Tham Số Hóa Độ Dài Epoch
 
-When choosing the epoch length, there is a trade-off between queued state/computation buildup, and countering the previously discussed limitations of immediate execution if they apply to a given chain.
+Khi chọn độ dài epoch, có sự đánh đổi giữa tích lũy trạng thái/tính toán trong hàng đợi, và chống lại các hạn chế đã thảo luận trước đó của việc thực thi ngay lập tức nếu chúng áp dụng cho một chain nhất định.
 
-Until an ABCI mechanism for variable block times is introduced, it is ill-advised to be using high epoch lengths due to the computation buildup. This is because when a block's execution time is greater than the expected block time from Tendermint, rounds may increment.
+Cho đến khi một cơ chế ABCI cho thời gian block thay đổi được giới thiệu, không khuyến nghị sử dụng độ dài epoch cao do tích lũy tính toán. Điều này là vì khi thời gian thực thi của một block lớn hơn thời gian block mong đợi từ Tendermint, các vòng có thể tăng lên.
 
-## Decision
+## Quyết Định
 
-**Step-1**:  Implement buffering of all staking and slashing messages.
+**Bước 1**: Triển khai đệm tất cả các message staking và slashing.
 
-First we create a pool for storing tokens that are being bonded, but should be applied at the epoch boundary called the `EpochDelegationPool`. Then, we have two separate queues, one for staking, one for slashing. We describe what happens on each message being delivered below:
+Đầu tiên chúng ta tạo một pool để lưu trữ các token đang được bonded, nhưng nên được áp dụng tại ranh giới epoch gọi là `EpochDelegationPool`. Sau đó, chúng ta có hai hàng đợi riêng biệt, một cho staking, một cho slashing. Chúng ta mô tả những gì xảy ra khi mỗi message được giao dưới đây:
 
-### Staking messages
+### Các Message Staking
 
-* **MsgCreateValidator**: Move user's self-bond to `EpochDelegationPool` immediately. Queue a message for the epoch boundary to handle the self-bond, taking the funds from the `EpochDelegationPool`. If Epoch execution fails, return back funds from `EpochDelegationPool` to user's account.
-* **MsgEditValidator**: Validate message and if valid queue the message for execution at the end of the Epoch.
-* **MsgDelegate**: Move user's funds to `EpochDelegationPool` immediately. Queue a message for the epoch boundary to handle the delegation, taking the funds from the `EpochDelegationPool`. If Epoch execution fails, return back funds from `EpochDelegationPool` to user's account.
-* **MsgBeginRedelegate**: Validate message and if valid queue the message for execution at the end of the Epoch.
-* **MsgUndelegate**: Validate message and if valid queue the message for execution at the end of the Epoch.
+* **MsgCreateValidator**: Chuyển tự-bond của người dùng vào `EpochDelegationPool` ngay lập tức. Xếp hàng một message cho ranh giới epoch để xử lý tự-bond, lấy tiền từ `EpochDelegationPool`. Nếu thực thi Epoch thất bại, trả lại tiền từ `EpochDelegationPool` về tài khoản người dùng.
+* **MsgEditValidator**: Xác nhận message và nếu hợp lệ xếp hàng message để thực thi vào cuối Epoch.
+* **MsgDelegate**: Chuyển tiền của người dùng vào `EpochDelegationPool` ngay lập tức. Xếp hàng một message cho ranh giới epoch để xử lý delegation, lấy tiền từ `EpochDelegationPool`. Nếu thực thi Epoch thất bại, trả lại tiền từ `EpochDelegationPool` về tài khoản người dùng.
+* **MsgBeginRedelegate**: Xác nhận message và nếu hợp lệ xếp hàng message để thực thi vào cuối Epoch.
+* **MsgUndelegate**: Xác nhận message và nếu hợp lệ xếp hàng message để thực thi vào cuối Epoch.
 
-### Slashing messages
+### Các Message Slashing
 
-* **MsgUnjail**: Validate message and if valid queue the message for execution at the end of the Epoch.
-* **Slash Event**: Whenever a slash event is created, it gets queued in the slashing module to apply at the end of the epoch. The queues should be set up such that this slash applies immediately.
+* **MsgUnjail**: Xác nhận message và nếu hợp lệ xếp hàng message để thực thi vào cuối Epoch.
+* **Sự kiện Slash**: Bất cứ khi nào một sự kiện slash được tạo ra, nó được xếp hàng trong module slashing để áp dụng vào cuối epoch. Các hàng đợi nên được thiết lập sao cho slash này được áp dụng ngay lập tức.
 
-### Evidence Messages
+### Các Message Bằng Chứng
 
-* **MsgSubmitEvidence**: This gets executed immediately, and the validator gets jailed immediately. However in slashing, the actual slash event gets queued.
+* **MsgSubmitEvidence**: Được thực thi ngay lập tức, và validator bị jail ngay lập tức. Tuy nhiên trong slashing, sự kiện slash thực tế được xếp hàng.
 
-Then we add methods to the end blockers, to ensure that at the epoch boundary the queues are cleared and delegation updates are applied.
+Sau đó chúng ta thêm các phương thức vào end blockers, để đảm bảo rằng tại ranh giới epoch các hàng đợi được xóa và cập nhật delegation được áp dụng.
 
-**Step-2**: Implement querying of queued staking txs.
+**Bước 2**: Triển khai truy vấn các tx staking trong hàng đợi.
 
-When querying the staking activity of a given address, the status should return not only the amount of tokens staked, but also if there are any queued stake events for that address. This will require more work to be done in the querying logic, to trace the queued upcoming staking events.
+Khi truy vấn hoạt động staking của một địa chỉ đã cho, trạng thái nên trả về không chỉ số lượng token được staked, mà còn nếu có bất kỳ sự kiện stake nào trong hàng đợi cho địa chỉ đó. Điều này sẽ đòi hỏi nhiều công việc hơn trong logic truy vấn, để theo dõi các sự kiện staking sắp tới trong hàng đợi.
 
-As an initial implementation, this can be implemented as a linear search over all queued staking events. However, for chains that need long epochs, they should eventually build additional support for nodes that support querying to be able to produce results in constant time. (This is doable by maintaining an auxiliary hashmap for indexing upcoming staking events by address)
+Như triển khai ban đầu, điều này có thể được triển khai như một tìm kiếm tuyến tính qua tất cả các sự kiện staking trong hàng đợi. Tuy nhiên, đối với các chain cần epoch dài, cuối cùng chúng nên xây dựng hỗ trợ bổ sung cho các node hỗ trợ truy vấn để có thể tạo ra kết quả trong thời gian không đổi. (Điều này có thể thực hiện bằng cách duy trì một hashmap phụ trợ để lập chỉ mục các sự kiện staking sắp tới theo địa chỉ)
 
-**Step-3**: Adjust gas
+**Bước 3**: Điều chỉnh gas
 
-Currently gas represents the cost of executing a transaction when its done immediately. (Merging together costs of p2p overhead, state access overhead, and computational overhead) However, now a transaction can cause computation in a future block, namely at the epoch boundary.
+Hiện tại gas đại diện cho chi phí thực thi một giao dịch khi được thực hiện ngay lập tức. (Gộp chi phí của p2p overhead, chi phí truy cập trạng thái và chi phí tính toán) Tuy nhiên, bây giờ một giao dịch có thể gây ra tính toán trong một block tương lai, cụ thể là tại ranh giới epoch.
 
-To handle this, we should initially include parameters for estimating the amount of future computation (denominated in gas), and add that as a flat charge needed for the message.
-We leave it out of scope for how to weight future computation versus current computation in gas pricing, and have it set such that they are weighted equally for now.
+Để xử lý điều này, chúng ta ban đầu nên bao gồm các tham số để ước tính lượng tính toán trong tương lai (tính theo gas), và thêm điều đó như một khoản phí cố định cần thiết cho message. Chúng ta để ngoài phạm vi cách tính trọng số tính toán trong tương lai so với tính toán hiện tại trong giá gas, và đặt cho chúng được tính trọng số bằng nhau hiện tại.
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Abstracts the proof of stake module that allows retaining the existing functionality
-* Enables new features such as validator-set based threshold cryptography
+* Trừu tượng hóa module proof of stake cho phép giữ nguyên chức năng hiện có
+* Cho phép các tính năng mới như mật mã học dựa trên ngưỡng cho tập validator
 
-### Negative
+### Tiêu Cực
 
-* Increases complexity of integrating more complex gas pricing mechanisms, as they now have to consider future execution costs as well.
-* When epoch > 1, validators can no longer leave the network immediately, and must wait until an epoch boundary.
+* Tăng độ phức tạp của việc tích hợp các cơ chế giá gas phức tạp hơn, vì chúng giờ phải xem xét cả chi phí thực thi trong tương lai.
+* Khi epoch > 1, các validator không thể rời mạng ngay lập tức và phải chờ đến ranh giới epoch.

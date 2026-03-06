@@ -4,17 +4,26 @@ sidebar_position: 1
 
 # `x/protocolpool`
 
-## Concepts
+## Khái niệm
 
-`x/protocolpool` is a supplemental Cosmos SDK module that handles functionality for community pool funds. The module provides a separate module account for the community pool making it easier to track the pool assets. Starting with v0.53 of the Cosmos SDK, community funds can be tracked using this module instead of the `x/distribution` module. Funds are migrated from the `x/distribution` module's community pool to `x/protocolpool`'s module account automatically.
+`x/protocolpool` là một module bổ trợ (supplemental) của Cosmos SDK xử lý các chức
+năng liên quan tới quỹ community pool. Module cung cấp một module account riêng
+cho community pool, giúp dễ theo dõi tài sản trong pool. Từ Cosmos SDK v0.53,
+community funds có thể được theo dõi bằng module này thay vì module `x/distribution`.
+Quỹ sẽ được migrate tự động từ community pool của `x/distribution` sang module
+account của `x/protocolpool`.
 
-This module is `supplemental`; it is not required to run a Cosmos SDK chain. `x/protocolpool` enhances the community pool functionality provided by `x/distribution` and enables custom modules to further extend the community pool.
+Module này là `supplemental`, không bắt buộc để chạy một chain Cosmos SDK.
+`x/protocolpool` nâng cao chức năng community pool do `x/distribution` cung cấp
+và cho phép các module tuỳ biến mở rộng thêm community pool.
 
-Note: _as long as an external community pool keeper (here, `x/protocolpool`) is wired in DI configs, `x/distribution` will automatically use it for its external pool._
+Lưu ý: _miễn là external community pool keeper (ở đây là `x/protocolpool`) được
+wiring trong cấu hình DI, `x/distribution` sẽ tự động dùng nó như external pool._
 
-## Usage Limitations
+## Giới hạn khi sử dụng
 
-The following `x/distribution` handlers will now return an error when the `protocolpool` module is used with `x/distribution`:
+Các handler `x/distribution` sau sẽ trả lỗi khi module `protocolpool` được dùng
+cùng `x/distribution`:
 
 **QueryService**
 
@@ -25,13 +34,15 @@ The following `x/distribution` handlers will now return an error when the `proto
 * `CommunityPoolSpend`
 * `FundCommunityPool`
 
-If you have services that rely on this functionality from `x/distribution`, please update them to use the `x/protocolpool` equivalents.
+Nếu bạn có các dịch vụ phụ thuộc các chức năng này từ `x/distribution`, hãy cập
+nhật chúng để dùng các chức năng tương đương của `x/protocolpool`.
 
-## State Transitions
+## Chuyển trạng thái (State transitions)
 
 ### FundCommunityPool
 
-FundCommunityPool can be called by any valid account to send funds to the `x/protocolpool` module account.
+FundCommunityPool có thể được gọi bởi bất kỳ tài khoản hợp lệ nào để gửi quỹ vào
+module account của `x/protocolpool`.
 
 ```protobuf
   // FundCommunityPool defines a method to allow an account to directly
@@ -41,7 +52,9 @@ FundCommunityPool can be called by any valid account to send funds to the `x/pro
 
 ### CommunityPoolSpend
 
-CommunityPoolSpend can be called by the module authority (default governance module account) or any account with authorization to spend funds from the `x/protocolpool` module account to a receiver address.
+CommunityPoolSpend có thể được gọi bởi authority của module (mặc định là tài khoản
+module governance) hoặc bất kỳ tài khoản nào có uỷ quyền để chi quỹ từ module account
+của `x/protocolpool` đến một địa chỉ nhận.
 
 ```protobuf
   // CommunityPoolSpend defines a governance  operation for sending tokens from
@@ -53,8 +66,11 @@ CommunityPoolSpend can be called by the module authority (default governance mod
 
 ### CreateContinuousFund
 
-CreateContinuousFund is a message used to initiate a continuous fund for a specific recipient. The proposed percentage of funds will be distributed only on withdraw request for the recipient. The fund distribution continues until expiry time is reached or continuous fund request is canceled.
-NOTE:  This feature is designed to work with the SDK's default bond denom. 
+CreateContinuousFund là message dùng để khởi tạo một “quỹ liên tục” (continuous fund)
+cho một người nhận cụ thể. Tỷ lệ % quỹ được đề xuất sẽ chỉ được phân phối khi người
+nhận yêu cầu rút (withdraw). Việc phân phối quỹ tiếp tục cho tới khi hết thời gian
+hết hạn (expiry time) hoặc yêu cầu continuous fund bị huỷ.
+LƯU Ý: Tính năng này được thiết kế để hoạt động với bond denom mặc định của SDK.
 
 ```protobuf
   // CreateContinuousFund defines a method to distribute a percentage of funds to an address continuously.
@@ -66,28 +82,31 @@ NOTE:  This feature is designed to work with the SDK's default bond denom.
 
 ### CancelContinuousFund
 
-CancelContinuousFund is a message used to cancel an existing continuous fund proposal for a specific recipient. Cancelling a continuous fund stops further distribution of funds, and the state object is removed from storage.
+CancelContinuousFund là message dùng để huỷ một đề xuất continuous fund hiện có cho
+một người nhận cụ thể. Huỷ continuous fund sẽ dừng phân phối quỹ trong tương lai,
+và đối tượng state sẽ bị xoá khỏi storage.
 
 ```protobuf
   // CancelContinuousFund defines a method for cancelling continuous fund.
   rpc CancelContinuousFund(MsgCancelContinuousFund) returns (MsgCancelContinuousFundResponse);
 ```
 
-## Messages
+## Message
 
 ### MsgFundCommunityPool
 
-This message sends coins directly from the sender to the community pool.
+Message này gửi coin trực tiếp từ người gửi vào community pool.
 
-:::tip
-If you know the `x/protocolpool` module account address, you can directly use bank `send` transaction instead.
-:::
+::::tip
+Nếu bạn biết địa chỉ module account của `x/protocolpool`, bạn có thể dùng trực tiếp
+giao dịch bank `send` thay thế.
+::::
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/release/v0.53.x/proto/cosmos/protocolpool/v1/tx.proto#L43-L53
 ```
 
-* The msg will fail if the amount cannot be transferred from the sender to the `x/protocolpool` module account.
+* Message sẽ thất bại nếu số coin không thể được chuyển từ người gửi sang module account `x/protocolpool`.
 
 ```go
 func (k Keeper) FundCommunityPool(ctx context.Context, amount sdk.Coins, sender sdk.AccAddress) error {
@@ -97,16 +116,17 @@ func (k Keeper) FundCommunityPool(ctx context.Context, amount sdk.Coins, sender 
 
 ### MsgCommunityPoolSpend
 
-This message distributes funds from the `x/protocolpool` module account to the recipient using `DistributeFromCommunityPool` keeper method.
+Message này phân phối quỹ từ module account `x/protocolpool` tới người nhận bằng
+phương thức keeper `DistributeFromCommunityPool`.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/release/v0.53.x/proto/cosmos/protocolpool/v1/tx.proto#L58-L69
 ```
 
-The message will fail under the following conditions:
+Message sẽ thất bại nếu:
 
-* The amount cannot be transferred to the recipient from the `x/protocolpool` module account.
-* The `recipient` address is restricted
+* Không thể chuyển coin tới người nhận từ module account `x/protocolpool`.
+* Địa chỉ `recipient` bị hạn chế.
 
 ```go
 func (k Keeper) DistributeFromCommunityPool(ctx context.Context, amount sdk.Coins, receiveAddr sdk.AccAddress) error {
@@ -116,21 +136,24 @@ func (k Keeper) DistributeFromCommunityPool(ctx context.Context, amount sdk.Coin
 
 ### MsgCreateContinuousFund
 
-This message is used to create a continuous fund for a specific recipient. The proposed percentage of funds will be distributed only on withdraw request for the recipient. This fund distribution continues until expiry time is reached or continuous fund request is canceled.
+Message này dùng để tạo continuous fund cho một người nhận cụ thể. Tỷ lệ % quỹ
+được đề xuất chỉ được phân phối khi người nhận yêu cầu rút. Việc phân phối tiếp
+tục cho tới khi hết hạn hoặc bị huỷ.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/release/v0.53.x/proto/cosmos/protocolpool/v1/tx.proto#L114-L130
 ```
 
-The message will fail under the following conditions:
+Message sẽ thất bại nếu:
 
-* The recipient address is empty or restricted.
-* The percentage is zero/negative/greater than one.
-* The Expiry time is less than the current block time.
+* Địa chỉ người nhận rỗng hoặc bị hạn chế.
+* Tỷ lệ % bằng 0/âm/lớn hơn 1.
+* Thời gian hết hạn nhỏ hơn thời gian block hiện tại.
 
-:::warning
-If two continuous fund proposals to the same address are created, the previous ContinuousFund will be updated with the new ContinuousFund.
-:::
+::::warning
+Nếu tạo hai đề xuất continuous fund cho cùng một địa chỉ, ContinuousFund trước đó
+sẽ bị cập nhật bằng ContinuousFund mới.
+::::
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/release/v0.53.x/x/protocolpool/keeper/msg_server.go#L103-L166
@@ -138,16 +161,18 @@ https://github.com/cosmos/cosmos-sdk/blob/release/v0.53.x/x/protocolpool/keeper/
 
 ### MsgCancelContinuousFund
 
-This message is used to cancel an existing continuous fund proposal for a specific recipient. Once canceled, the continuous fund will no longer distribute funds at each begin block, and the state object will be removed. 
+Message này dùng để huỷ một đề xuất continuous fund hiện có cho một người nhận cụ thể.
+Khi đã huỷ, continuous fund sẽ không còn phân phối quỹ ở mỗi begin block, và đối
+tượng state sẽ bị xoá.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/release/v0.53.x/x/protocolpool/proto/cosmos/protocolpool/v1/tx.proto#L136-L161
 ```
 
-The message will fail under the following conditions:
+Message sẽ thất bại nếu:
 
-* The recipient address is empty or restricted.
-* The ContinuousFund for the recipient does not exist.
+* Địa chỉ người nhận rỗng hoặc bị hạn chế.
+* ContinuousFund cho người nhận không tồn tại.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/release/v0.53.x/x/protocolpool/keeper/msg_server.go#L188-L226
@@ -155,8 +180,9 @@ https://github.com/cosmos/cosmos-sdk/blob/release/v0.53.x/x/protocolpool/keeper/
 
 ## Client
 
-It takes the advantage of `AutoCLI`
+Module này tận dụng `AutoCLI`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/release/v0.53.x/x/protocolpool/autocli.go
 ```
+

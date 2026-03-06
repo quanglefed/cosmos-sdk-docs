@@ -2,62 +2,63 @@
 sidebar_position: 0
 ---
 
-# List of Modules
+# Danh sách module
 
-Here are some production-grade modules that can be used in Cosmos SDK applications, along with their respective documentation:
+Dưới đây là một số module “production-grade” có thể dùng trong các ứng dụng Cosmos SDK, kèm theo tài liệu tương ứng:
 
-## Essential Modules
+## Module thiết yếu
 
-Essential modules include functionality that _must_ be included in your Cosmos SDK blockchain.
-These modules provide the core behaviors that are needed for users and operators such as balance tracking,
-proof-of-stake capabilities and governance.
+Module thiết yếu bao gồm các chức năng _bắt buộc_ phải có trong blockchain Cosmos SDK của bạn.
+Các module này cung cấp các hành vi cốt lõi cần thiết cho người dùng và operator như theo dõi số dư,
+khả năng proof-of-stake và governance.
 
-* [Auth](./auth/README.md) - Authentication of accounts and transactions for Cosmos SDK applications.
-* [Bank](./bank/README.md) - Token transfer functionalities.
-* [Circuit](./circuit/README.md) - Circuit breaker module for pausing messages.
-* [Consensus](./consensus/README.md) - Consensus module for modifying CometBFT's ABCI consensus params.
-* [Distribution](./distribution/README.md) - Fee distribution, and staking token provision distribution.
-* [Evidence](./evidence/README.md) - Evidence handling for double signing, misbehaviour, etc.
-* [Governance](./gov/README.md) - On-chain proposals and voting.
-* [Genutil](./genutil/README.md) - Genesis utilities for the Cosmos SDK.
-* [Mint](./mint/README.md) - Creation of new units of staking token.
-* [Slashing](./slashing/README.md) - Validator punishment mechanisms.
-* [Staking](./staking/README.md) - Proof-of-Stake layer for public blockchains.
-* [Upgrade](./upgrade/README.md) - Software upgrades handling and coordination.
+* [Auth](./auth/README.md) - Xác thực tài khoản và giao dịch cho các ứng dụng Cosmos SDK.
+* [Bank](./bank/README.md) - Chức năng chuyển token.
+* [Circuit](./circuit/README.md) - Module “cầu dao” (circuit breaker) để tạm dừng các message.
+* [Consensus](./consensus/README.md) - Module consensus để sửa các tham số đồng thuận ABCI của CometBFT.
+* [Distribution](./distribution/README.md) - Phân phối phí và phân phối phần cung ứng token staking.
+* [Evidence](./evidence/README.md) - Xử lý bằng chứng cho double signing, hành vi sai trái, v.v.
+* [Governance](./gov/README.md) - Proposal và bỏ phiếu on-chain.
+* [Genutil](./genutil/README.md) - Tiện ích genesis cho Cosmos SDK.
+* [Mint](./mint/README.md) - Tạo các đơn vị mới của token staking.
+* [Slashing](./slashing/README.md) - Cơ chế trừng phạt validator.
+* [Staking](./staking/README.md) - Tầng Proof-of-Stake cho blockchain công khai.
+* [Upgrade](./upgrade/README.md) - Xử lý và điều phối nâng cấp phần mềm.
 
-## Supplementary Modules
+## Module bổ trợ
 
-Supplementary modules are modules that are maintained in the Cosmos SDK but are not necessary for
-the core functionality of your blockchain.  They can be thought of as ways to extend the 
-capabilities of your blockchain or further specialize it.
+Module bổ trợ là các module được duy trì trong Cosmos SDK nhưng không cần thiết cho
+chức năng cốt lõi của blockchain. Có thể xem chúng như các cách để mở rộng khả năng
+của blockchain hoặc chuyên biệt hoá thêm.
 
-* [Authz](./authz/README.md) - Authorization for accounts to perform actions on behalf of other accounts.
-* [Epochs](./epochs/README.md) - Registration so SDK modules can have logic to be executed at the timed tickers.
-* [Feegrant](./feegrant/README.md) - Grant fee allowances for executing transactions.
-* [ProtocolPool](./protocolpool/README.md) - Extended management of community pool functionality.
+* [Authz](./authz/README.md) - Uỷ quyền để tài khoản thực hiện hành động thay mặt tài khoản khác.
+* [Epochs](./epochs/README.md) - Đăng ký để các module SDK có thể có logic được thực thi theo các “nhịp” theo thời gian.
+* [Feegrant](./feegrant/README.md) - Cấp hạn mức trả phí để thực thi giao dịch.
+* [ProtocolPool](./protocolpool/README.md) - Quản lý mở rộng cho chức năng community pool.
 
-## Deprecated Modules
+## Module đã bị deprecate
 
-The following modules are deprecated.  They will no longer be maintained and eventually will be removed
-in an upcoming release of the Cosmos SDK per our [release process](https://github.com/cosmos/cosmos-sdk/blob/main/RELEASE_PROCESS.md).
+Các module sau đã bị deprecate. Chúng sẽ không còn được duy trì và cuối cùng sẽ bị
+loại bỏ trong một bản phát hành sắp tới của Cosmos SDK theo [quy trình phát hành](https://github.com/cosmos/cosmos-sdk/blob/main/RELEASE_PROCESS.md).
 
-* [Crisis](./crisis/README.md) - _Deprecated_ halting the blockchain under certain circumstances (e.g. if an invariant is broken).
-* [Params](./params/README.md) - _Deprecated_ Globally available parameter store.
-* [NFT](./nft/README.md) - _Deprecated_ NFT module implemented based on [ADR43](https://docs.cosmos.network/main/build/architecture/adr-043-nft-module).  This module will be moved to the `cosmos-sdk-legacy` repo for use.
-* [Group](./group/README.md) - _Deprecated_ Allows for the creation and management of on-chain multisig accounts.  This module will be moved to the `cosmos-sdk-legacy` repo for legacy use.
+* [Crisis](./crisis/README.md) - _Deprecated_ dừng blockchain trong một số trường hợp nhất định (ví dụ nếu một invariant bị phá vỡ).
+* [Params](./params/README.md) - _Deprecated_ kho tham số toàn cục.
+* [NFT](./nft/README.md) - _Deprecated_ module NFT triển khai dựa trên [ADR43](https://docs.cosmos.network/main/build/architecture/adr-043-nft-module). Module này sẽ được chuyển sang repo `cosmos-sdk-legacy` để sử dụng.
+* [Group](./group/README.md) - _Deprecated_ cho phép tạo và quản lý tài khoản multisig on-chain. Module này sẽ được chuyển sang repo `cosmos-sdk-legacy` để sử dụng “legacy”.
 
-To learn more about the process of building modules, visit the [building modules reference documentation](https://docs.cosmos.network/main/building-modules/intro).
+Để tìm hiểu thêm về quy trình xây dựng module, hãy xem [tài liệu tham chiếu về xây dựng module](https://docs.cosmos.network/main/building-modules/intro).
 
 ## IBC
 
-The IBC module for the SDK is maintained by the IBC Go team in its [own repository](https://github.com/cosmos/ibc-go).
+Module IBC cho SDK được đội IBC Go duy trì trong [repo riêng](https://github.com/cosmos/ibc-go).
 
-Additionally, the [capability module](https://github.com/cosmos/ibc-go/tree/fdd664698d79864f1e00e147f9879e58497b5ef1/modules/capability) is from v0.50+ maintained by the IBC Go team in its [own repository](https://github.com/cosmos/ibc-go/tree/fdd664698d79864f1e00e147f9879e58497b5ef1/modules/capability).
+Ngoài ra, [module capability](https://github.com/cosmos/ibc-go/tree/fdd664698d79864f1e00e147f9879e58497b5ef1/modules/capability) từ v0.50+ được đội IBC Go duy trì trong [repo riêng](https://github.com/cosmos/ibc-go/tree/fdd664698d79864f1e00e147f9879e58497b5ef1/modules/capability).
 
 ## CosmWasm
 
-The CosmWasm module enables smart contracts, learn more by going to their [documentation site](https://book.cosmwasm.com/), or visit [the repository](https://github.com/CosmWasm/cosmwasm).
+Module CosmWasm cho phép smart contract; tìm hiểu thêm tại [trang tài liệu](https://book.cosmwasm.com/) hoặc xem [repo](https://github.com/CosmWasm/cosmwasm).
 
 ## EVM
 
-Read more about writing smart contracts with solidity at the official [`evm` documentation page](https://evm.cosmos.network/).
+Đọc thêm về viết smart contract bằng Solidity tại trang tài liệu chính thức của [`evm`](https://evm.cosmos.network/).
+

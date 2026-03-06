@@ -4,53 +4,59 @@ sidebar_position: 1
 
 # `x/authz`
 
-## Abstract
+## Tóm tắt
 
-`x/authz` is an implementation of a Cosmos SDK module, per [ADR 30](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-030-authz-module.md), that allows
-granting arbitrary privileges from one account (the granter) to another account (the grantee). Authorizations must be granted for a particular Msg service method one by one using an implementation of the `Authorization` interface.
+`x/authz` là một hiện thực module Cosmos SDK theo [ADR 30](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-030-authz-module.md),
+cho phép cấp (grant) các đặc quyền tuỳ ý từ một tài khoản (granter) sang một tài khoản khác (grantee).
+Authorization phải được cấp cho từng phương thức Msg service (Msg service method) một cách riêng lẻ,
+bằng một hiện thực của interface `Authorization`.
 
-## Contents
+## Nội dung
 
-* [Concepts](#concepts)
-    * [Authorization and Grant](#authorization-and-grant)
-    * [Built-in Authorizations](#built-in-authorizations)
-    * [Gas](#gas)
+* [Khái niệm](#khái-niệm)
+  * [Authorization và Grant](#authorization-và-grant)
+  * [Authorization tích hợp sẵn](#authorization-tích-hợp-sẵn)
+  * [Gas](#gas)
 * [State](#state)
-    * [Grant](#grant)
-    * [GrantQueue](#grantqueue)
+  * [Grant](#grant)
+  * [GrantQueue](#grantqueue)
 * [Messages](#messages)
-    * [MsgGrant](#msggrant)
-    * [MsgRevoke](#msgrevoke)
-    * [MsgExec](#msgexec)
+  * [MsgGrant](#msggrant)
+  * [MsgRevoke](#msgrevoke)
+  * [MsgExec](#msgexec)
 * [Events](#events)
 * [Client](#client)
-    * [CLI](#cli)
-    * [gRPC](#grpc)
-    * [REST](#rest)
+  * [CLI](#cli)
+  * [gRPC](#grpc)
+  * [REST](#rest)
 
-## Concepts
+## Khái niệm
 
-### Authorization and Grant
+### Authorization và Grant
 
-The `x/authz` module defines interfaces and messages grant authorizations to perform actions
-on behalf of one account to other accounts. The design is defined in the [ADR 030](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-030-authz-module.md).
+Module `x/authz` định nghĩa các interface và message để cấp authorization nhằm thực hiện
+hành động thay mặt một tài khoản cho tài khoản khác. Thiết kế được mô tả trong
+[ADR 030](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-030-authz-module.md).
 
-A *grant* is an allowance to execute a Msg by the grantee on behalf of the granter.
-Authorization is an interface that must be implemented by a concrete authorization logic to validate and execute grants. Authorizations are extensible and can be defined for any Msg service method even outside of the module where the Msg method is defined. See the `SendAuthorization` example in the next section for more details.
+Một *grant* là một “hạn mức/cho phép” để grantee thực thi một Msg thay mặt granter.
+Authorization là một interface cần được hiện thực bởi logic authorization cụ thể để validate và thực thi grant.
+Authorization có thể mở rộng và có thể được định nghĩa cho bất kỳ phương thức Msg service nào, kể cả bên ngoài module nơi phương thức Msg đó được định nghĩa.
+Xem ví dụ `SendAuthorization` ở phần tiếp theo để biết thêm.
 
-**Note:** The authz module is different from the [auth (authentication)](../auth/) module that is responsible for specifying the base transaction and account types.
+**Lưu ý:** module authz khác với module [auth (authentication)](../auth/) chịu trách nhiệm xác định các kiểu transaction và account cơ sở.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/x/authz/authorizations.go#L11-L25
 ```
 
-### Built-in Authorizations
+### Authorization tích hợp sẵn
 
-The Cosmos SDK `x/authz` module comes with following authorization types:
+Module `x/authz` của Cosmos SDK cung cấp các loại authorization sau:
 
 #### GenericAuthorization
 
-`GenericAuthorization` implements the `Authorization` interface that gives unrestricted permission to execute the provided Msg on behalf of granter's account.
+`GenericAuthorization` hiện thực interface `Authorization`, cho phép không hạn chế (unrestricted)
+để thực thi Msg được cung cấp thay mặt tài khoản granter.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/authz/v1beta1/authz.proto#L14-L22
@@ -60,14 +66,14 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/authz/v1beta1
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/x/authz/generic_authorization.go#L16-L29
 ```
 
-* `msg` stores Msg type URL.
+* `msg` lưu Msg type URL.
 
 #### SendAuthorization
 
-`SendAuthorization` implements the `Authorization` interface for the `cosmos.bank.v1beta1.MsgSend` Msg.
+`SendAuthorization` hiện thực interface `Authorization` cho Msg `cosmos.bank.v1beta1.MsgSend`.
 
-* It takes a (positive) `SpendLimit` that specifies the maximum amount of tokens the grantee can spend. The `SpendLimit` is updated as the tokens are spent.
-* It takes an (optional) `AllowList` that specifies to which addresses a grantee can send token.
+* Nhận một `SpendLimit` (dương) chỉ định lượng token tối đa mà grantee có thể chi. `SpendLimit` sẽ được cập nhật khi token được chi.
+* Nhận một `AllowList` (tuỳ chọn) chỉ định grantee có thể gửi token tới các địa chỉ nào.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/bank/v1beta1/authz.proto#L11-L30
@@ -77,12 +83,15 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/bank/v1beta1/
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/x/bank/types/send_authorization.go#L29-L62
 ```
 
-* `spend_limit` keeps track of how many coins are left in the authorization.
-* `allow_list` specifies an optional list of addresses to whom the grantee can send tokens on behalf of the granter.
+* `spend_limit` theo dõi còn bao nhiêu coin còn lại trong authorization.
+* `allow_list` chỉ định danh sách địa chỉ (tuỳ chọn) mà grantee có thể gửi token tới thay mặt granter.
 
 #### StakeAuthorization
 
-`StakeAuthorization` implements the `Authorization` interface for messages in the [staking module](https://docs.cosmos.network/v0.53/build/modules/staking). It takes an `AuthorizationType` to specify whether you want to authorise delegating, undelegating or redelegating (i.e. these have to be authorised separately). It also takes an optional `MaxTokens` that keeps track of a limit to the amount of tokens that can be delegated/undelegated/redelegated. If left empty, the amount is unlimited. Additionally, this Msg takes an `AllowList` or a `DenyList`, which allows you to select which validators you allow or deny grantees to stake with.
+`StakeAuthorization` hiện thực interface `Authorization` cho các message trong [module staking](https://docs.cosmos.network/v0.53/build/modules/staking).
+Nó nhận một `AuthorizationType` để chỉ định bạn muốn uỷ quyền cho delegating, undelegating hay redelegating (tức là các hành động này phải được uỷ quyền riêng).
+Nó cũng nhận một `MaxTokens` (tuỳ chọn) để theo dõi giới hạn lượng token có thể delegate/undelegate/redelegate. Nếu để trống thì không giới hạn.
+Ngoài ra, Msg này nhận `AllowList` hoặc `DenyList` để bạn chọn validator nào cho phép hoặc cấm grantee stake cùng.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/authz.proto#L11-L35
@@ -94,19 +103,24 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/x/staking/types/authz.go#L
 
 ### Gas
 
-In order to prevent DoS attacks, granting `StakeAuthorization`s with `x/authz` incurs gas. `StakeAuthorization` allows you to authorize another account to delegate, undelegate, or redelegate to validators. The authorizer can define a list of validators they allow or deny delegations to. The Cosmos SDK iterates over these lists and charge 10 gas for each validator in both of the lists.
+Để ngăn tấn công DoS, việc cấp `StakeAuthorization` bằng `x/authz` sẽ tốn gas.
+`StakeAuthorization` cho phép bạn uỷ quyền cho tài khoản khác delegate/undelegate/redelegate tới validator.
+Người uỷ quyền có thể định nghĩa danh sách validator cho phép hoặc cấm. Cosmos SDK sẽ lặp qua các danh sách
+và tính 10 gas cho mỗi validator trong mỗi danh sách.
 
-Since the state maintaining a list for granter, grantee pair with same expiration, we are iterating over the list to remove the grant (in case of any revoke of particular `msgType`) from the list and we are charging 20 gas per iteration.
+Vì state duy trì danh sách cho cặp granter/grantee có cùng expiration, ta phải lặp qua danh sách để xoá grant
+(trong trường hợp revoke một `msgType` cụ thể) và tính 20 gas cho mỗi lần lặp.
 
 ## State
 
 ### Grant
 
-Grants are identified by combining granter address (the address bytes of the granter), grantee address (the address bytes of the grantee) and Authorization type (its type URL). Hence we only allow one grant for the (granter, grantee, Authorization) triple.
+Grant được định danh bằng cách kết hợp: địa chỉ granter (bytes), địa chỉ grantee (bytes),
+và loại Authorization (type URL). Vì vậy ta chỉ cho phép một grant cho bộ ba (granter, grantee, Authorization).
 
 * Grant: `0x01 | granter_address_len (1 byte) | granter_address_bytes | grantee_address_len (1 byte) | grantee_address_bytes |  msgType_bytes -> ProtocolBuffer(AuthorizationGrant)`
 
-The grant object encapsulates an `Authorization` type and an expiration timestamp:
+Đối tượng grant đóng gói một loại `Authorization` và một expiration timestamp:
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/authz/v1beta1/authz.proto#L24-L32
@@ -114,9 +128,12 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/authz/v1beta1
 
 ### GrantQueue
 
-We are maintaining a queue for authz pruning. Whenever a grant is created, an item will be added to `GrantQueue` with a key of expiration, granter, grantee.
+Ta duy trì một hàng đợi (queue) để pruning authz. Mỗi khi tạo grant, một item sẽ được thêm vào
+`GrantQueue` với key gồm expiration, granter, grantee.
 
-In `EndBlock` (which runs for every block) we continuously check and prune the expired grants by forming a prefix key with current blocktime that passed the stored expiration in `GrantQueue`, we iterate through all the matched records from `GrantQueue` and delete them from the `GrantQueue` & `Grant`s store.
+Trong `EndBlock` (chạy ở mọi block), ta liên tục kiểm tra và prune các grant hết hạn bằng cách tạo
+prefix key từ blocktime hiện tại đã vượt expiration được lưu trong `GrantQueue`, lặp qua tất cả record
+khớp từ `GrantQueue` và xoá chúng khỏi `GrantQueue` và store `Grant`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/5f4ddc6f80f9707320eec42182184207fff3833a/x/authz/keeper/keeper.go#L378-L403
@@ -124,76 +141,77 @@ https://github.com/cosmos/cosmos-sdk/blob/5f4ddc6f80f9707320eec42182184207fff383
 
 * GrantQueue: `0x02 | expiration_bytes | granter_address_len (1 byte) | granter_address_bytes | grantee_address_len (1 byte) | grantee_address_bytes -> ProtocolBuffer(GrantQueueItem)`
 
-The `expiration_bytes` are the expiration date in UTC with the format `"2006-01-02T15:04:05.000000000"`.
+`expiration_bytes` là ngày hết hạn theo UTC theo định dạng `"2006-01-02T15:04:05.000000000"`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/x/authz/keeper/keys.go#L77-L93
 ```
 
-The `GrantQueueItem` object contains the list of type urls between granter and grantee that expire at the time indicated in the key.
+Đối tượng `GrantQueueItem` chứa danh sách type URL giữa granter và grantee sẽ hết hạn tại thời điểm được chỉ ra trong key.
 
 ## Messages
 
-In this section we describe the processing of messages for the authz module.
+Phần này mô tả xử lý message cho module authz.
 
 ### MsgGrant
 
-An authorization grant is created using the `MsgGrant` message.
-If there is already a grant for the `(granter, grantee, Authorization)` triple, then the new grant overwrites the previous one. To update or extend an existing grant, a new grant with the same `(granter, grantee, Authorization)` triple should be created.
+Tạo một authorization grant bằng message `MsgGrant`.
+Nếu đã tồn tại grant cho bộ ba `(granter, grantee, Authorization)`, grant mới sẽ ghi đè grant cũ.
+Để cập nhật hoặc gia hạn một grant hiện có, hãy tạo một grant mới với cùng bộ ba `(granter, grantee, Authorization)`.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/authz/v1beta1/tx.proto#L35-L45
 ```
 
-The message handling should fail if:
+Xử lý message nên thất bại nếu:
 
-* both granter and grantee have the same address.
-* provided `Expiration` time is less than current unix timestamp (but a grant will be created if no `expiration` time is provided since `expiration` is optional).
-* provided `Grant.Authorization` is not implemented.
-* `Authorization.MsgTypeURL()` is not defined in the router (there is no defined handler in the app router to handle that Msg types).
+* granter và grantee có cùng địa chỉ.
+* `Expiration` được cung cấp nhỏ hơn unix timestamp hiện tại (nhưng nếu không cung cấp `expiration` thì vẫn tạo grant vì `expiration` là tuỳ chọn).
+* `Grant.Authorization` được cung cấp không được hiện thực.
+* `Authorization.MsgTypeURL()` không được định nghĩa trong router (không có handler trong app router để xử lý Msg type đó).
 
 ### MsgRevoke
 
-A grant can be removed with the `MsgRevoke` message.
+Một grant có thể bị xoá bằng message `MsgRevoke`.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/authz/v1beta1/tx.proto#L69-L78
 ```
 
-The message handling should fail if:
+Xử lý message nên thất bại nếu:
 
-* both granter and grantee have the same address.
-* provided `MsgTypeUrl` is empty.
+* granter và grantee có cùng địa chỉ.
+* `MsgTypeUrl` được cung cấp rỗng.
 
-NOTE: The `MsgExec` message removes a grant if the grant has expired.
+LƯU Ý: Message `MsgExec` sẽ xoá grant nếu grant đã hết hạn.
 
 ### MsgExec
 
-When a grantee wants to execute a transaction on behalf of a granter, they must send `MsgExec`.
+Khi grantee muốn thực thi một giao dịch thay mặt granter, họ phải gửi `MsgExec`.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/authz/v1beta1/tx.proto#L52-L63
 ```
 
-The message handling should fail if:
+Xử lý message nên thất bại nếu:
 
-* provided `Authorization` is not implemented.
-* grantee doesn't have permission to run the transaction.
-* if granted authorization is expired.
+* `Authorization` được cung cấp không được hiện thực.
+* grantee không có quyền chạy giao dịch.
+* authorization được cấp đã hết hạn.
 
 ## Events
 
-The authz module emits proto events defined in [the Protobuf reference](https://buf.build/cosmos/cosmos-sdk/docs/main/cosmos.authz.v1beta1#cosmos.authz.v1beta1.EventGrant).
+Module authz phát ra proto event được định nghĩa trong [tham chiếu Protobuf](https://buf.build/cosmos/cosmos-sdk/docs/main/cosmos.authz.v1beta1#cosmos.authz.v1beta1.EventGrant).
 
 ## Client
 
 ### CLI
 
-A user can query and interact with the `authz` module using the CLI.
+Người dùng có thể truy vấn và tương tác với module `authz` bằng CLI.
 
 #### Query
 
-The `query` commands allow users to query `authz` state.
+Các lệnh `query` cho phép truy vấn state của `authz`.
 
 ```bash
 simd query authz --help
@@ -201,19 +219,20 @@ simd query authz --help
 
 ##### grants
 
-The `grants` command allows users to query grants for a granter-grantee pair. If the message type URL is set, it selects grants only for that message type.
+Lệnh `grants` cho phép truy vấn grant theo cặp granter-grantee. Nếu đặt message type URL,
+nó chỉ chọn grant cho message type đó.
 
 ```bash
 simd query authz grants [granter-addr] [grantee-addr] [msg-type-url]? [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 simd query authz grants cosmos1.. cosmos1.. /cosmos.bank.v1beta1.MsgSend
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 grants:
@@ -228,7 +247,7 @@ pagination: null
 
 #### Transactions
 
-The `tx` commands allow users to interact with the `authz` module.
+Các lệnh `tx` cho phép tương tác với module `authz`.
 
 ```bash
 simd tx authz --help
@@ -236,13 +255,13 @@ simd tx authz --help
 
 ##### exec
 
-The `exec` command allows a grantee to execute a transaction on behalf of granter.
+Lệnh `exec` cho phép grantee thực thi một giao dịch thay mặt granter.
 
 ```bash
   simd tx authz exec [tx-json-file] --from [grantee] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 simd tx authz exec tx.json --from=cosmos1..
@@ -250,35 +269,35 @@ simd tx authz exec tx.json --from=cosmos1..
 
 ##### grant
 
-The `grant` command allows a granter to grant an authorization to a grantee.
+Lệnh `grant` cho phép granter cấp authorization cho grantee.
 
 ```bash
 simd tx authz grant <grantee> <authorization_type="send"|"generic"|"delegate"|"unbond"|"redelegate"> --from <granter> [flags]
 ```
 
-*  The `send` authorization_type refers to the built-in `SendAuthorization` type. The custom flags available are `spend-limit` (required) and `allow-list` (optional) , documented [here](#sendauthorization)
+* `send` là authorization_type trỏ tới loại tích hợp sẵn `SendAuthorization`. Các cờ tuỳ biến là `spend-limit` (bắt buộc) và `allow-list` (tuỳ chọn), mô tả [tại đây](#sendauthorization)
 
-Example:
+Ví dụ:
 
 ```bash
     simd tx authz grant cosmos1.. send --spend-limit=100stake --allow-list=cosmos1...,cosmos2... --from=cosmos1..
 ```
 
-* The `generic` authorization_type refers to the built-in `GenericAuthorization` type. The custom flag available is `msg-type` (required) documented [here](#genericauthorization).
+* `generic` là authorization_type trỏ tới loại tích hợp sẵn `GenericAuthorization`. Cờ tuỳ biến là `msg-type` (bắt buộc), mô tả [tại đây](#genericauthorization).
 
-> Note: `msg-type` is any valid Cosmos SDK `Msg` type url.
+> Lưu ý: `msg-type` là bất kỳ Cosmos SDK `Msg` type URL hợp lệ nào.
 
-Example:
+Ví dụ:
 
 ```bash
     simd tx authz grant cosmos1.. generic --msg-type=/cosmos.bank.v1beta1.MsgSend --from=cosmos1..
 ```
 
-* The `delegate`,`unbond`,`redelegate` authorization_types refer to the built-in `StakeAuthorization` type. The custom flags available are `spend-limit` (optional), `allowed-validators` (optional) and `deny-validators` (optional) documented [here](#stakeauthorization).
+* `delegate`, `unbond`, `redelegate` là authorization_type trỏ tới loại tích hợp sẵn `StakeAuthorization`. Các cờ tuỳ biến gồm `spend-limit` (tuỳ chọn), `allowed-validators` (tuỳ chọn) và `deny-validators` (tuỳ chọn) mô tả [tại đây](#stakeauthorization).
 
-> Note: `allowed-validators` and `deny-validators` cannot both be empty. `spend-limit` represents the `MaxTokens`
+> Lưu ý: `allowed-validators` và `deny-validators` không thể đồng thời rỗng. `spend-limit` đại diện cho `MaxTokens`.
 
-Example:
+Ví dụ:
 
 ```bash
 simd tx authz grant cosmos1.. delegate --spend-limit=100stake --allowed-validators=cosmos...,cosmos... --deny-validators=cosmos... --from=cosmos1..
@@ -286,13 +305,13 @@ simd tx authz grant cosmos1.. delegate --spend-limit=100stake --allowed-validato
 
 ##### revoke
 
-The `revoke` command allows a granter to revoke an authorization from a grantee.
+Lệnh `revoke` cho phép granter thu hồi authorization từ grantee.
 
 ```bash
 simd tx authz revoke [grantee] [msg-type-url] --from=[granter] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 simd tx authz revoke cosmos1.. /cosmos.bank.v1beta1.MsgSend --from=cosmos1..
@@ -300,17 +319,18 @@ simd tx authz revoke cosmos1.. /cosmos.bank.v1beta1.MsgSend --from=cosmos1..
 
 ### gRPC
 
-A user can query the `authz` module using gRPC endpoints.
+Người dùng có thể truy vấn module `authz` qua các endpoint gRPC.
 
 #### Grants
 
-The `Grants` endpoint allows users to query grants for a granter-grantee pair. If the message type URL is set, it selects grants only for that message type.
+Endpoint `Grants` cho phép truy vấn grant theo cặp granter-grantee. Nếu đặt message type URL,
+nó chỉ chọn grant cho message type đó.
 
 ```bash
 cosmos.authz.v1beta1.Query/Grants
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 grpcurl -plaintext \
@@ -319,7 +339,7 @@ grpcurl -plaintext \
     cosmos.authz.v1beta1.Query/Grants
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 {
@@ -342,19 +362,19 @@ Example Output:
 
 ### REST
 
-A user can query the `authz` module using REST endpoints.
+Người dùng có thể truy vấn module `authz` qua các endpoint REST.
 
 ```bash
 /cosmos/authz/v1beta1/grants
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 curl "localhost:1317/cosmos/authz/v1beta1/grants?granter=cosmos1..&grantee=cosmos1..&msg_type_url=/cosmos.bank.v1beta1.MsgSend"
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 {
@@ -375,3 +395,4 @@ Example Output:
   "pagination": null
 }
 ```
+

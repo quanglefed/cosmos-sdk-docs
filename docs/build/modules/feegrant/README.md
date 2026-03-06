@@ -4,49 +4,55 @@ sidebar_position: 1
 
 # `x/feegrant`
 
-## Abstract
+## Tóm tắt
 
-This document specifies the fee grant module. For the full ADR, please see [Fee Grant ADR-029](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-029-fee-grant-module.md).
+Tài liệu này mô tả module fee grant. Để xem đầy đủ ADR, xem [Fee Grant ADR-029](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-029-fee-grant-module.md).
 
-This module allows accounts to grant fee allowances and to use fees from their accounts. Grantees can execute any transaction without the need to maintain sufficient fees.
+Module này cho phép tài khoản cấp “hạn mức trả phí” (fee allowance) và cho phép sử dụng phí từ tài khoản của họ.
+Grantee có thể thực thi bất kỳ giao dịch nào mà không cần duy trì đủ phí.
 
-## Contents
+## Nội dung
 
-* [Concepts](#concepts)
+* [Khái niệm](#khái-niệm)
 * [State](#state)
-    * [FeeAllowance](#feeallowance)
-    * [FeeAllowanceQueue](#feeallowancequeue)
+  * [FeeAllowance](#feeallowance)
+  * [FeeAllowanceQueue](#feeallowancequeue)
 * [Messages](#messages)
-    * [Msg/GrantAllowance](#msggrantallowance)
-    * [Msg/RevokeAllowance](#msgrevokeallowance)
+  * [Msg/GrantAllowance](#msggrantallowance)
+  * [Msg/RevokeAllowance](#msgrevokeallowance)
 * [Events](#events)
 * [Msg Server](#msg-server)
-    * [MsgGrantAllowance](#msggrantallowance-1)
-    * [MsgRevokeAllowance](#msgrevokeallowance-1)
-    * [Exec fee allowance](#exec-fee-allowance)
+  * [MsgGrantAllowance](#msggrantallowance-1)
+  * [MsgRevokeAllowance](#msgrevokeallowance-1)
+  * [Thực thi fee allowance](#exec-fee-allowance)
 * [Client](#client)
-    * [CLI](#cli)
-    * [gRPC](#grpc)
+  * [CLI](#cli)
+  * [gRPC](#grpc)
 
-## Concepts
+## Khái niệm
 
 ### Grant
 
-`Grant` is stored in the KVStore to record a grant with full context. Every grant will contain `granter`, `grantee` and what kind of `allowance` is granted. `granter` is an account address who is giving permission to `grantee` (the beneficiary account address) to pay for some or all of `grantee`'s transaction fees. `allowance` defines what kind of fee allowance (`BasicAllowance` or `PeriodicAllowance`, see below) is granted to `grantee`. `allowance` accepts an interface which implements `FeeAllowanceI`, encoded as `Any` type. There can be only one existing fee grant allowed for a `grantee` and `granter`, self grants are not allowed.
+`Grant` được lưu trong KVStore để ghi lại một grant với đầy đủ ngữ cảnh. Mỗi grant sẽ chứa `granter`,
+`grantee` và loại `allowance` được cấp. `granter` là địa chỉ tài khoản cấp quyền cho `grantee`
+(địa chỉ tài khoản thụ hưởng) để trả một phần hoặc toàn bộ phí giao dịch của `grantee` bằng tài
+khoản của `granter`. `allowance` định nghĩa loại hạn mức trả phí (`BasicAllowance` hoặc `PeriodicAllowance`,
+xem bên dưới) được cấp cho `grantee`. `allowance` nhận một interface hiện thực `FeeAllowanceI`,
+được encode dưới dạng `Any`. Mỗi cặp `granter`/`grantee` chỉ có thể có một fee grant; không cho phép self grant.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/feegrant/v1beta1/feegrant.proto#L83-L93
 ```
 
-`FeeAllowanceI` looks like:
+`FeeAllowanceI` như sau:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/x/feegrant/fees.go#L9-L32
 ```
 
-### Fee Allowance types
+### Các loại fee allowance
 
-There are two types of fee allowances present at the moment:
+Hiện có các loại fee allowance sau:
 
 * `BasicAllowance`
 * `PeriodicAllowance`
@@ -54,51 +60,52 @@ There are two types of fee allowances present at the moment:
 
 ### BasicAllowance
 
-`BasicAllowance` is permission for `grantee` to use fee from a `granter`'s account. If any of the `spend_limit` or `expiration` reaches its limit, the grant will be removed from the state.
+`BasicAllowance` là quyền cho `grantee` sử dụng phí từ tài khoản `granter`. Nếu một trong các giới hạn
+`spend_limit` hoặc `expiration` chạm ngưỡng, grant sẽ bị xoá khỏi state.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/feegrant/v1beta1/feegrant.proto#L15-L28
 ```
 
-* `spend_limit` is the limit of coins that are allowed to be used from the `granter` account. If it is empty, it assumes there's no spend limit, `grantee` can use any number of available coins from `granter` account address before the expiration.
+* `spend_limit` là giới hạn số coin cho phép dùng từ tài khoản `granter`. Nếu rỗng, hiểu là không giới hạn,
+  `grantee` có thể dùng bất kỳ lượng coin khả dụng nào từ tài khoản `granter` trước thời điểm hết hạn.
 
-* `expiration` specifies an optional time when this allowance expires. If the value is left empty, there is no expiry for the grant.
+* `expiration` chỉ định thời điểm tuỳ chọn khi allowance hết hạn. Nếu để trống, grant không hết hạn.
 
-* When a grant is created with empty values for `spend_limit` and `expiration`, it is still a valid grant. It won't restrict the `grantee` to use any number of coins from `granter` and it won't have any expiration. The only way to restrict the `grantee` is by revoking the grant.
+* Khi tạo grant với `spend_limit` và `expiration` đều trống, grant vẫn hợp lệ. Nó sẽ không hạn chế lượng coin
+  `grantee` có thể dùng từ `granter` và cũng không có hết hạn. Cách duy nhất để hạn chế `grantee` là revoke grant.
 
 ### PeriodicAllowance
 
-`PeriodicAllowance` is a repeating fee allowance for the mentioned period, we can mention when the grant can expire as well as when a period can reset. We can also define the maximum number of coins that can be used in a mentioned period of time.
+`PeriodicAllowance` là hạn mức trả phí lặp lại theo chu kỳ. Ta có thể chỉ định khi nào grant hết hạn,
+cũng như khi nào chu kỳ được reset. Ta cũng có thể định nghĩa lượng coin tối đa có thể dùng trong một chu kỳ.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/feegrant/v1beta1/feegrant.proto#L34-L68
 ```
 
-* `basic` is the instance of `BasicAllowance` which is optional for periodic fee allowance. If empty, the grant will have no `expiration` and no `spend_limit`.
-
-* `period` is the specific period of time, after each period passes, `period_can_spend` will be reset.
-
-* `period_spend_limit` specifies the maximum number of coins that can be spent in the period.
-
-* `period_can_spend` is the number of coins left to be spent before the period_reset time.
-
-* `period_reset` keeps track of when a next period reset should happen.
+* `basic` là một instance của `BasicAllowance`, tuỳ chọn đối với periodic fee allowance. Nếu rỗng, grant sẽ không có `expiration` và không có `spend_limit`.
+* `period` là độ dài chu kỳ; sau mỗi chu kỳ, `period_can_spend` sẽ được reset.
+* `period_spend_limit` chỉ định lượng coin tối đa có thể chi trong một chu kỳ.
+* `period_can_spend` là lượng coin còn lại có thể chi trước thời điểm period_reset.
+* `period_reset` theo dõi thời điểm reset chu kỳ tiếp theo.
 
 ### AllowedMsgAllowance
 
-`AllowedMsgAllowance` is a fee allowance, it can be any of `BasicFeeAllowance`, `PeriodicAllowance` but restricted only to the allowed messages mentioned by the granter.
+`AllowedMsgAllowance` là một fee allowance; nó có thể là `BasicFeeAllowance` hoặc `PeriodicAllowance`,
+nhưng bị giới hạn chỉ áp dụng cho các message mà granter cho phép.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/feegrant/v1beta1/feegrant.proto#L70-L81
 ```
 
-* `allowance` is either `BasicAllowance` or `PeriodicAllowance`.
+* `allowance` là `BasicAllowance` hoặc `PeriodicAllowance`.
+* `allowed_messages` là mảng message được phép thực thi theo allowance đã cấp.
 
-* `allowed_messages` is array of messages allowed to execute the given allowance.
+### Cờ FeeGranter
 
-### FeeGranter flag
-
-`feegrant` module introduces a `FeeGranter` flag for CLI for the sake of executing transactions with fee granter. When this flag is set, `clientCtx` will append the granter account address for transactions generated through CLI.
+Module `feegrant` giới thiệu cờ `FeeGranter` cho CLI để thực thi giao dịch với fee granter.
+Khi cờ này được đặt, `clientCtx` sẽ gắn địa chỉ tài khoản granter vào các giao dịch được tạo qua CLI.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/client/cmd.go#L249-L260
@@ -116,33 +123,39 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/x/auth/tx/builder.go#L275-
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/tx/v1beta1/tx.proto#L203-L224
 ```
 
-Example cmd:
+Ví dụ lệnh:
 
 ```go
 ./simd tx gov submit-proposal --title="Test Proposal" --description="My awesome proposal" --type="Text" --from validator-key --fee-granter=cosmos1xh44hxt7spr67hqaa7nyx5gnutrz5fraw6grxn --chain-id=testnet --fees="10stake"
 ```
 
-### Granted Fee Deductions
+### Khấu trừ phí từ grant
 
-Fees are deducted from grants in the `x/auth` ante handler. To learn more about how ante handlers work, read the [Auth Module AnteHandlers Guide](../auth/README.md#antehandlers).
+Phí được trừ từ grant trong ante handler `x/auth`. Để hiểu thêm ante handler hoạt động thế nào,
+hãy đọc [Auth Module AnteHandlers Guide](../auth/README.md#antehandlers).
 
 ### Gas
 
-In order to prevent DoS attacks, using a filtered `x/feegrant` incurs gas. The SDK must assure that the `grantee`'s transactions all conform to the filter set by the `granter`. The SDK does this by iterating over the allowed messages in the filter and charging 10 gas per filtered message. The SDK will then iterate over the messages being sent by the `grantee` to ensure the messages adhere to the filter, also charging 10 gas per message. The SDK will stop iterating and fail the transaction if it finds a message that does not conform to the filter.
+Để ngăn DoS, việc dùng `x/feegrant` với filter sẽ tốn gas. SDK phải đảm bảo các giao dịch của `grantee`
+tuân theo filter do `granter` đặt. SDK làm điều này bằng cách lặp qua các allowed message trong filter
+và tính 10 gas cho mỗi message được filter. Sau đó SDK lặp qua các message mà `grantee` đang gửi để đảm
+bảo các message tuân theo filter, cũng tính 10 gas cho mỗi message. SDK sẽ dừng lặp và làm giao dịch thất
+bại nếu phát hiện một message không tuân theo filter.
 
-**WARNING**: The gas is charged against the granted allowance. Ensure your messages conform to the filter, if any, before sending transactions using your allowance.
+**CẢNH BÁO**: Gas được tính vào allowance được cấp. Hãy đảm bảo message của bạn tuân theo filter (nếu có)
+trước khi gửi giao dịch dùng allowance.
 
 ### Pruning
 
-A queue in the state maintained with the prefix of expiration of the grants and checks them on EndBlock with the current block time for every block to prune.
+Một queue trong state được duy trì với prefix theo expiration của grant và được kiểm tra ở EndBlock theo block time hiện tại cho mỗi block để prune.
 
 ## State
 
 ### FeeAllowance
 
-Fee Allowances are identified by combining `Grantee` (the account address of fee allowance grantee) with the `Granter` (the account address of fee allowance granter).
+Fee Allowance được định danh bằng cách kết hợp `Grantee` (địa chỉ tài khoản grantee) với `Granter` (địa chỉ tài khoản granter).
 
-Fee allowance grants are stored in the state as follows:
+Grant fee allowance được lưu trong state như sau:
 
 * Grant: `0x00 | grantee_addr_len (1 byte) | grantee_addr_bytes |  granter_addr_len (1 byte) | granter_addr_bytes -> ProtocolBuffer(Grant)`
 
@@ -152,9 +165,11 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/x/feegrant/feegrant.pb.go#
 
 ### FeeAllowanceQueue
 
-Fee Allowances queue items are identified by combining the `FeeAllowancePrefixQueue` (i.e., 0x01), `expiration`, `grantee` (the account address of fee allowance grantee), `granter` (the account address of fee allowance granter). Endblocker checks `FeeAllowanceQueue` state for the expired grants and prunes them from `FeeAllowance` if there are any found.
+Item trong Fee Allowances queue được định danh bằng cách kết hợp `FeeAllowancePrefixQueue` (tức 0x01),
+`expiration`, `grantee` và `granter`. EndBlocker kiểm tra state `FeeAllowanceQueue` để tìm các grant hết hạn
+và prune chúng khỏi `FeeAllowance` nếu tìm thấy.
 
-Fee allowance queue keys are stored in the state as follows:
+Key của fee allowance queue được lưu như sau:
 
 * Grant: `0x01 | expiration_bytes | grantee_addr_len (1 byte) | grantee_addr_bytes |  granter_addr_len (1 byte) | granter_addr_bytes -> EmptyBytes`
 
@@ -162,7 +177,7 @@ Fee allowance queue keys are stored in the state as follows:
 
 ### Msg/GrantAllowance
 
-A fee allowance grant will be created with the `MsgGrantAllowance` message.
+Fee allowance grant được tạo bằng message `MsgGrantAllowance`.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/feegrant/v1beta1/tx.proto#L25-L39
@@ -170,7 +185,7 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/feegrant/v1be
 
 ### Msg/RevokeAllowance
 
-An allowed grant fee allowance can be removed with the `MsgRevokeAllowance` message.
+Một fee allowance grant có thể bị xoá bằng message `MsgRevokeAllowance`.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/feegrant/v1beta1/tx.proto#L41-L54
@@ -178,7 +193,7 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/feegrant/v1be
 
 ## Events
 
-The feegrant module emits the following events:
+Module feegrant phát ra các event sau:
 
 ## Msg Server
 
@@ -198,7 +213,7 @@ The feegrant module emits the following events:
 | message | granter       | {granterAddress} |
 | message | grantee       | {granteeAddress} |
 
-### Exec fee allowance
+### Thực thi fee allowance
 
 | Type    | Attribute Key | Attribute Value  |
 | ------- | ------------- | ---------------- |
@@ -206,23 +221,22 @@ The feegrant module emits the following events:
 | message | granter       | {granterAddress} |
 | message | grantee       | {granteeAddress} |
 
-### Prune fee allowances
+### Prune fee allowance
 
 | Type    | Attribute Key | Attribute Value  |
 | ------- | ------------- | ---------------- |
 | message | action        |  prune_feegrant  |
 | message | pruner        | {prunerAddress}  |
 
-
 ## Client
 
 ### CLI
 
-A user can query and interact with the `feegrant` module using the CLI.
+Người dùng có thể truy vấn và tương tác với module `feegrant` bằng CLI.
 
 #### Query
 
-The `query` commands allow users to query `feegrant` state.
+Các lệnh `query` cho phép truy vấn state của `feegrant`.
 
 ```shell
 simd query feegrant --help
@@ -230,19 +244,19 @@ simd query feegrant --help
 
 ##### grant
 
-The `grant` command allows users to query a grant for a given granter-grantee pair.
+Lệnh `grant` cho phép truy vấn một grant theo cặp granter-grantee.
 
 ```shell
 simd query feegrant grant [granter] [grantee] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query feegrant grant cosmos1.. cosmos1..
 ```
 
-Example Output:
+Ví dụ output:
 
 ```yml
 allowance:
@@ -257,19 +271,19 @@ granter: cosmos1..
 
 ##### grants
 
-The `grants` command allows users to query all grants for a given grantee.
+Lệnh `grants` cho phép truy vấn tất cả grant của một grantee.
 
 ```shell
 simd query feegrant grants [grantee] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query feegrant grants cosmos1..
 ```
 
-Example Output:
+Ví dụ output:
 
 ```yml
 allowances:
@@ -288,7 +302,7 @@ pagination:
 
 #### Transactions
 
-The `tx` commands allow users to interact with the `feegrant` module.
+Các lệnh `tx` cho phép tương tác với module `feegrant`.
 
 ```shell
 simd tx feegrant --help
@@ -296,19 +310,20 @@ simd tx feegrant --help
 
 ##### grant
 
-The `grant` command allows users to grant fee allowances to another account. The fee allowance can have an expiration date, a total spend limit, and/or a periodic spend limit.
+Lệnh `grant` cho phép cấp fee allowance cho tài khoản khác. Fee allowance có thể có ngày hết hạn,
+giới hạn tổng chi, và/hoặc giới hạn chi theo chu kỳ.
 
 ```shell
 simd tx feegrant grant [granter] [grantee] [flags]
 ```
 
-Example (one-time spend limit):
+Ví dụ (giới hạn chi một lần):
 
 ```shell
 simd tx feegrant grant cosmos1.. cosmos1.. --spend-limit 100stake
 ```
 
-Example (periodic spend limit):
+Ví dụ (giới hạn chi theo chu kỳ):
 
 ```shell
 simd tx feegrant grant cosmos1.. cosmos1.. --period 3600 --period-limit 10stake
@@ -316,13 +331,13 @@ simd tx feegrant grant cosmos1.. cosmos1.. --period 3600 --period-limit 10stake
 
 ##### revoke
 
-The `revoke` command allows users to revoke a granted fee allowance.
+Lệnh `revoke` cho phép thu hồi một fee allowance đã cấp.
 
 ```shell
 simd tx feegrant revoke [granter] [grantee] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd tx feegrant revoke cosmos1.. cosmos1..
@@ -330,17 +345,17 @@ simd tx feegrant revoke cosmos1.. cosmos1..
 
 ### gRPC
 
-A user can query the `feegrant` module using gRPC endpoints.
+Người dùng có thể truy vấn module `feegrant` qua các endpoint gRPC.
 
 #### Allowance
 
-The `Allowance` endpoint allows users to query a granted fee allowance.
+Endpoint `Allowance` cho phép truy vấn một fee allowance đã được cấp.
 
 ```shell
 cosmos.feegrant.v1beta1.Query/Allowance
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -349,7 +364,7 @@ grpcurl -plaintext \
     cosmos.feegrant.v1beta1.Query/Allowance
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -363,13 +378,13 @@ Example Output:
 
 #### Allowances
 
-The `Allowances` endpoint allows users to query all granted fee allowances for a given grantee.
+Endpoint `Allowances` cho phép truy vấn tất cả fee allowance đã cấp cho một grantee.
 
 ```shell
 cosmos.feegrant.v1beta1.Query/Allowances
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -378,7 +393,7 @@ grpcurl -plaintext \
     cosmos.feegrant.v1beta1.Query/Allowances
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -394,3 +409,4 @@ Example Output:
   }
 }
 ```
+

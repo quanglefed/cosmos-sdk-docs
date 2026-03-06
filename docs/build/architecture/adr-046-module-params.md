@@ -1,184 +1,87 @@
-# ADR 046: Module Params
+# ADR 046: Tham Số Module
 
 ## Changelog
 
-* Sep 22, 2021: Initial Draft
+* 22 tháng 9 năm 2021: Bản nháp đầu tiên
 
-## Status
+## Trạng Thái
 
-Proposed
+Đề Xuất
 
-## Abstract
+## Tóm Tắt
 
-This ADR describes an alternative approach to how Cosmos SDK modules use, interact,
-and store their respective parameters.
+ADR này mô tả một cách tiếp cận thay thế về cách các module Cosmos SDK sử dụng, tương tác và lưu trữ các tham số tương ứng của chúng.
 
-## Context
+## Bối Cảnh
 
-Currently, in the Cosmos SDK, modules that require the use of parameters use the
-`x/params` module. The `x/params` works by having modules define parameters,
-typically via a simple `Params` structure, and registering that structure in
-the `x/params` module via a unique `Subspace` that belongs to the respective
-registering module. The registering module then has unique access to its respective
-`Subspace`. Through this `Subspace`, the module can get and set its `Params`
-structure.
+Hiện tại, trong Cosmos SDK, các module yêu cầu sử dụng các tham số dùng module `x/params`. Module `x/params` hoạt động bằng cách yêu cầu các module định nghĩa các tham số, thường thông qua một struct `Params` đơn giản, và đăng ký struct đó trong module `x/params` thông qua một `Subspace` duy nhất thuộc về module đăng ký tương ứng. Module đăng ký sau đó có quyền truy cập duy nhất vào `Subspace` tương ứng của nó. Thông qua `Subspace` này, module có thể lấy và đặt struct `Params` của nó.
 
-In addition, the Cosmos SDK's `x/gov` module has direct support for changing
-parameters on-chain via a `ParamChangeProposal` governance proposal type, where
-stakeholders can vote on suggested parameter changes.
+Ngoài ra, module `x/gov` của Cosmos SDK có hỗ trợ trực tiếp để thay đổi tham số on-chain thông qua loại đề xuất governance `ParamChangeProposal`, nơi các stakeholder có thể bỏ phiếu về các thay đổi tham số được đề xuất.
 
-There are various tradeoffs to using the `x/params` module to manage individual
-module parameters. Namely, managing parameters essentially comes for "free" in
-that developers only need to define the `Params` struct, the `Subspace`, and the
-various auxiliary functions, e.g. `ParamSetPairs`, on the `Params` type. However,
-there are some notable drawbacks. These drawbacks include the fact that parameters
-are serialized in state via JSON which is extremely slow. In addition, parameter
-changes via `ParamChangeProposal` governance proposals have no way of reading from
-or writing to state. In other words, it is currently not possible to have any
-state transitions in the application during an attempt to change param(s).
+Có nhiều đánh đổi khi sử dụng module `x/params` để quản lý các tham số module riêng lẻ. Cụ thể, việc quản lý tham số về cơ bản đến "miễn phí" ở chỗ nhà phát triển chỉ cần định nghĩa struct `Params`, `Subspace` và các hàm phụ trợ khác nhau, ví dụ `ParamSetPairs`, trên kiểu `Params`. Tuy nhiên, có một số hạn chế đáng chú ý. Những hạn chế này bao gồm thực tế là các tham số được tuần tự hóa trong state thông qua JSON, rất chậm. Ngoài ra, các thay đổi tham số thông qua đề xuất governance `ParamChangeProposal` không có cách đọc từ hoặc ghi vào state. Nói cách khác, hiện tại không thể có bất kỳ chuyển đổi trạng thái nào trong ứng dụng trong khi cố gắng thay đổi tham số.
 
-## Decision
+## Quyết Định
 
-We will build off of the alignment of `x/gov` and `x/authz` work per
-[#9810](https://github.com/cosmos/cosmos-sdk/pull/9810). Namely, module developers
-will create one or more unique parameter data structures that must be serialized
-to state. The Param data structures must implement `sdk.Msg` interface with respective
-Protobuf Msg service method which will validate and update the parameters with all
-necessary changes. The `x/gov` module via the work done in
-[#9810](https://github.com/cosmos/cosmos-sdk/pull/9810), will dispatch Param
-messages, which will be handled by Protobuf Msg services.
+Chúng ta sẽ xây dựng dựa trên sự liên kết của công việc `x/gov` và `x/authz` theo [#9810](https://github.com/cosmos/cosmos-sdk/pull/9810). Cụ thể, nhà phát triển module sẽ tạo một hoặc nhiều cấu trúc dữ liệu tham số duy nhất phải được tuần tự hóa vào state. Cấu trúc dữ liệu Param phải triển khai interface `sdk.Msg` với phương thức dịch vụ Protobuf Msg tương ứng sẽ xác thực và cập nhật các tham số với tất cả các thay đổi cần thiết. Module `x/gov` thông qua công việc được thực hiện trong [#9810](https://github.com/cosmos/cosmos-sdk/pull/9810), sẽ dispatch các message Param, sẽ được xử lý bởi các dịch vụ Protobuf Msg.
 
-Note, it is up to developers to decide how to structure their parameters and
-the respective `sdk.Msg` messages. Consider the parameters currently defined in
-`x/auth` using the `x/params` module for parameter management:
-
-```protobuf
-message Params {
-  uint64 max_memo_characters       = 1;
-  uint64 tx_sig_limit              = 2;
-  uint64 tx_size_cost_per_byte     = 3;
-  uint64 sig_verify_cost_ed25519   = 4;
-  uint64 sig_verify_cost_secp256k1 = 5;
-}
-```
-
-Developers can choose to either create a unique data structure for every field in
-`Params` or they can create a single `Params` structure as outlined above in the
-case of `x/auth`.
-
-In the former, `x/params`, approach, a `sdk.Msg` would need to be created for every single
-field along with a handler. This can become burdensome if there are a lot of
-parameter fields. In the latter case, there is only a single data structure and
-thus only a single message handler, however, the message handler might have to be
-more sophisticated in that it might need to understand what parameters are being
-changed vs what parameters are untouched.
-
-Params change proposals are made using the `x/gov` module. Execution is done through
-`x/authz` authorization to the root `x/gov` module's account.
-
-Continuing to use `x/auth`, we demonstrate a more complete example:
+Ví dụ các tham số được định nghĩa trong `x/auth`:
 
 ```go
 type Params struct {
-	MaxMemoCharacters      uint64
-	TxSigLimit             uint64
-	TxSizeCostPerByte      uint64
-	SigVerifyCostED25519   uint64
-	SigVerifyCostSecp256k1 uint64
+    MaxMemoCharacters      uint64
+    TxSigLimit             uint64
+    TxSizeCostPerByte      uint64
+    SigVerifyCostED25519   uint64
+    SigVerifyCostSecp256k1 uint64
 }
 
 type MsgUpdateParams struct {
-	MaxMemoCharacters      uint64
-	TxSigLimit             uint64
-	TxSizeCostPerByte      uint64
-	SigVerifyCostED25519   uint64
-	SigVerifyCostSecp256k1 uint64
+    MaxMemoCharacters      uint64
+    TxSigLimit             uint64
+    TxSizeCostPerByte      uint64
+    SigVerifyCostED25519   uint64
+    SigVerifyCostSecp256k1 uint64
 }
-
-type MsgUpdateParamsResponse struct {}
 
 func (ms msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
   ctx := sdk.UnwrapSDKContext(goCtx)
-
-  // verification logic...
-
-  // persist params
   params := ParamsFromMsg(msg)
   ms.SaveParams(ctx, params)
-
   return &types.MsgUpdateParamsResponse{}, nil
-}
-
-func ParamsFromMsg(msg *types.MsgUpdateParams) Params {
-  // ...
 }
 ```
 
-A gRPC `Service` query should also be provided, for example:
+Cũng nên cung cấp một gRPC `Service` query:
 
 ```protobuf
 service Query {
-  // ...
-  
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (google.api.http).get = "/cosmos/<module>/v1beta1/params";
   }
 }
-
-message QueryParamsResponse {
-  Params params = 1 [(gogoproto.nullable) = false];
-}
 ```
 
-## Consequences
+## Hậu Quả
 
-As a result of implementing the module parameter methodology, we gain the ability
-for module parameter changes to be stateful and extensible to fit nearly every
-application's use case. We will be able to emit events (and trigger hooks registered
-to that events using the work proposed in [event hooks](https://github.com/cosmos/cosmos-sdk/discussions/9656)),
-call other Msg service methods or perform migration.
-In addition, there will be significant gains in performance when it comes to reading
-and writing parameters from and to state, especially if a specific set of parameters
-are read on a consistent basis.
+Kết quả của việc triển khai phương pháp tham số module này, chúng ta có được khả năng thay đổi tham số module có trạng thái và có thể mở rộng để phù hợp với gần như mọi use case của ứng dụng. Chúng ta sẽ có thể phát sự kiện, gọi các phương thức dịch vụ Msg khác hoặc thực hiện migration. Ngoài ra, sẽ có những cải thiện đáng kể về hiệu suất khi đọc và ghi tham số từ và vào state.
 
-However, this methodology will require developers to implement more types and
-Msg service methods which can become burdensome if many parameters exist. In addition,
-developers are required to implement persistence logics of module parameters.
-However, this should be trivial.
+Tuy nhiên, phương pháp này sẽ yêu cầu nhà phát triển triển khai nhiều kiểu và phương thức dịch vụ Msg hơn. Ngoài ra, nhà phát triển phải triển khai logic lưu trữ của các tham số module.
 
-### Backwards Compatibility
+### Tương Thích Ngược
 
-The new method for working with module parameters is naturally not backwards
-compatible with the existing `x/params` module. However, the `x/params` will
-remain in the Cosmos SDK and will be marked as deprecated with no additional
-functionality being added apart from potential bug fixes. Note, the `x/params`
-module may be removed entirely in a future release.
+Phương thức mới để làm việc với tham số module không tương thích ngược với module `x/params` hiện tại. Tuy nhiên, `x/params` sẽ vẫn còn trong Cosmos SDK và sẽ được đánh dấu là deprecated.
 
-### Positive
+### Tích Cực
 
-* Module parameters are serialized more efficiently
-* Modules are able to react on parameters changes and perform additional actions.
-* Special events can be emitted, allowing hooks to be triggered.
+* Tham số module được tuần tự hóa hiệu quả hơn.
+* Các module có thể phản ứng với các thay đổi tham số và thực hiện các hành động bổ sung.
+* Có thể phát các sự kiện đặc biệt, cho phép các hook được kích hoạt.
 
-### Negative
+### Tiêu Cực
 
-* Module parameters become slightly more burdensome for module developers:
-    * Modules are now responsible for persisting and retrieving parameter state
-    * Modules are now required to have unique message handlers to handle parameter
-      changes per unique parameter data structure.
+* Tham số module trở nên phức tạp hơn một chút cho nhà phát triển module.
 
-### Neutral
-
-* Requires [#9810](https://github.com/cosmos/cosmos-sdk/pull/9810) to be reviewed
-  and merged.
-
-<!-- ## Further Discussions
-
-While an ADR is in the DRAFT or PROPOSED stage, this section should contain a summary of issues to be solved in future iterations (usually referencing comments from a pull-request discussion).
-Later, this section can optionally list ideas or improvements the author or reviewers found during the analysis of this ADR. -->
-
-## References
+## Tài Liệu Tham Khảo
 
 * https://github.com/cosmos/cosmos-sdk/pull/9810
 * https://github.com/cosmos/cosmos-sdk/issues/9438
-* https://github.com/cosmos/cosmos-sdk/discussions/9913

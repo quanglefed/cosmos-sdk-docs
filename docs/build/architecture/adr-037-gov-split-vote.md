@@ -1,26 +1,26 @@
-# ADR 037: Governance split votes
+# ADR 037: Phiếu Bầu Quản Trị Chia Phần
 
-## Changelog
+## Nhật Ký Thay Đổi
 
-* 2020/10/28: Initial draft
+* 28/10/2020: Bản nháp đầu tiên
 
-## Status
+## Trạng Thái
 
-Accepted
+Đã Chấp Nhận
 
-## Abstract
+## Tóm Tắt
 
-This ADR defines a modification to the governance module that would allow a staker to split their votes into several voting options. For example, it could use 70% of its voting power to vote Yes and 30% of its voting power to vote No.
+ADR này định nghĩa một sửa đổi cho module quản trị sẽ cho phép người stake chia phiếu bầu của họ thành nhiều tùy chọn bầu. Ví dụ, có thể sử dụng 70% quyền bầu để bỏ phiếu Có và 30% quyền bầu để bỏ phiếu Không.
 
-## Context
+## Bối Cảnh
 
-Currently, an address can cast a vote with only one option (Yes/No/Abstain/NoWithVeto) and use their full voting power behind that choice.
+Hiện tại, một địa chỉ chỉ có thể đặt phiếu với một tùy chọn (Có/Không/Kiêm/KhôngKèmVeto) và sử dụng toàn bộ quyền bầu phía sau lựa chọn đó.
 
-However, oftentimes the entity owning that address might not be a single individual.  For example, a company might have different stakeholders who want to vote differently, and so it makes sense to allow them to split their voting power.  Another example use case is exchanges.  Many centralized exchanges often stake a portion of their users' tokens in their custody.  Currently, it is not possible for them to do "passthrough voting" and giving their users voting rights over their tokens.  However, with this system, exchanges can poll their users for voting preferences, and then vote on-chain proportionally to the results of the poll.
+Tuy nhiên, thực thể sở hữu địa chỉ đó thường có thể không phải là một cá nhân. Ví dụ, một công ty có thể có các bên liên quan khác nhau muốn bầu khác nhau, và vì vậy việc cho phép họ chia quyền bầu sẽ có ý nghĩa. Một trường hợp sử dụng ví dụ khác là các sàn giao dịch. Nhiều sàn giao dịch tập trung thường stake một phần token của người dùng trong sự giám hộ của họ. Hiện tại, không thể thực hiện "bỏ phiếu hộ" và trao quyền bầu cho người dùng đối với token của họ. Tuy nhiên, với hệ thống này, các sàn giao dịch có thể thăm dò người dùng về sở thích bầu chọn, và sau đó bầu on-chain theo tỷ lệ với kết quả của cuộc thăm dò.
 
-## Decision
+## Quyết Định
 
-We modify the vote structs to be
+Chúng ta sửa đổi các struct phiếu thành
 
 ```go
 type WeightedVoteOption struct {
@@ -35,7 +35,7 @@ type Vote struct {
 }
 ```
 
-And for backwards compatibility, we introduce `MsgVoteWeighted` while keeping `MsgVote`.
+Và để tương thích ngược, chúng ta giới thiệu `MsgVoteWeighted` trong khi vẫn giữ `MsgVote`.
 
 ```go
 type MsgVote struct {
@@ -51,12 +51,12 @@ type MsgVoteWeighted struct {
 }
 ```
 
-The `ValidateBasic` of a `MsgVoteWeighted` struct would require that
+`ValidateBasic` của struct `MsgVoteWeighted` sẽ yêu cầu rằng
 
-1. The sum of all the rates is equal to 1.0
-2. No Option is repeated
+1. Tổng của tất cả các tỷ lệ bằng 1.0
+2. Không có Option nào bị lặp lại
 
-The governance tally function will iterate over all the options in a vote and add to the tally the result of the voter's voting power * the rate for that option.
+Hàm tally quản trị sẽ lặp qua tất cả các tùy chọn trong một phiếu và thêm vào tally kết quả của quyền bầu của voter * tỷ lệ cho tùy chọn đó.
 
 ```go
 tally() {
@@ -70,42 +70,42 @@ tally() {
 }
 ```
 
-The CLI command for creating a multi-option vote would be as such:
+Lệnh CLI để tạo phiếu đa tùy chọn sẽ như sau:
 
 ```shell
 simd tx gov vote 1 "yes=0.6,no=0.3,abstain=0.05,no_with_veto=0.05" --from mykey
 ```
 
-To create a single-option vote a user can do either
+Để tạo phiếu một tùy chọn, người dùng có thể thực hiện theo hai cách:
 
 ```shell
 simd tx gov vote 1 "yes=1" --from mykey
 ```
 
-or
+hoặc
 
 ```shell
 simd tx gov vote 1 yes --from mykey
 ```
 
-to maintain backwards compatibility.
+để duy trì tương thích ngược.
 
-## Consequences
+## Hậu Quả
 
-### Backwards Compatibility
+### Tương Thích Ngược
 
-* Previous VoteMsg types will remain the same and so clients will not have to update their procedure unless they want to support the WeightedVoteMsg feature.
-* When querying a Vote struct from state, its structure will be different, and so clients wanting to display all voters and their respective votes will have to handle the new format and the fact that a single voter can have split votes.
-* The result of querying the tally function should have the same API for clients.
+* Các kiểu VoteMsg trước đây sẽ giữ nguyên và do đó các client sẽ không phải cập nhật quy trình của họ trừ khi họ muốn hỗ trợ tính năng WeightedVoteMsg.
+* Khi truy vấn struct Vote từ trạng thái, cấu trúc của nó sẽ khác, và do đó các client muốn hiển thị tất cả voters và phiếu bầu tương ứng của họ sẽ phải xử lý định dạng mới và thực tế rằng một voter có thể có phiếu bầu chia.
+* Kết quả của việc truy vấn hàm tally nên có cùng API với các client.
 
-### Positive
+### Tích Cực
 
-* Can make the voting process more accurate for addresses representing multiple stakeholders, often some of the largest addresses.
+* Có thể làm cho quá trình bầu chính xác hơn đối với các địa chỉ đại diện cho nhiều bên liên quan, thường là một trong những địa chỉ lớn nhất.
 
-### Negative
+### Tiêu Cực
 
-* Is more complex than simple voting, and so may be harder to explain to users.  However, this is mostly mitigated because the feature is opt-in.
+* Phức tạp hơn so với bầu đơn giản, và vì vậy có thể khó giải thích cho người dùng hơn. Tuy nhiên, điều này phần lớn được giảm nhẹ vì tính năng là tùy chọn.
 
-### Neutral
+### Trung Lập
 
-* Relatively minor change to governance tally function.
+* Thay đổi tương đối nhỏ đối với hàm tally quản trị.

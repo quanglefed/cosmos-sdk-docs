@@ -4,4 +4,5 @@ sidebar_position: 1
 
 # `x/consensus`
 
-Functionality to modify CometBFT's ABCI consensus params.
+Chức năng để sửa các tham số đồng thuận ABCI của CometBFT.
+

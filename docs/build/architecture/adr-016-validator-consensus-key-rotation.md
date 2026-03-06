@@ -1,58 +1,58 @@
-# ADR 016: Validator Consensus Key Rotation
+# ADR 016: Xoay Vòng Khóa Consensus Validator
 
 ## Changelog
 
-* 2019 Oct 23: Initial draft
-* 2019 Nov 28: Add key rotation fee
+* 23 tháng 10 năm 2019: Bản nháp đầu tiên
+* 28 tháng 11 năm 2019: Thêm phí xoay vòng khóa
 
-## Context
+## Bối Cảnh
 
-Validator consensus key rotation feature has been discussed and requested for a long time, for the sake of safer validator key management policy (e.g. https://github.com/tendermint/tendermint/issues/1136). So, we suggest one of the simplest form of validator consensus key rotation implementation mostly onto Cosmos SDK.
+Tính năng xoay vòng khóa consensus validator đã được thảo luận và yêu cầu trong một thời gian dài, vì mục đích chính sách quản lý khóa validator an toàn hơn (ví dụ: https://github.com/tendermint/tendermint/issues/1136). Vì vậy, chúng tôi đề xuất một trong những hình thức triển khai xoay vòng khóa consensus validator đơn giản nhất chủ yếu vào Cosmos SDK.
 
-We don't need to make any update on consensus logic in Tendermint because Tendermint does not have any mapping information of consensus key and validator operator key, meaning that from Tendermint's point of view, a consensus key rotation of a validator is simply a replacement of a consensus key to another.
+Chúng ta không cần thực hiện bất kỳ cập nhật nào về logic đồng thuận trong Tendermint vì Tendermint không có bất kỳ thông tin ánh xạ nào về khóa consensus và khóa operator validator, có nghĩa là từ góc độ của Tendermint, xoay vòng khóa consensus của validator chỉ đơn giản là thay thế khóa consensus bằng khóa khác.
 
-Also, it should be noted that this ADR includes only the simplest form of consensus key rotation without considering the multiple consensus keys concept. Such multiple consensus keys concept shall remain a long term goal of Tendermint and Cosmos SDK.
+Ngoài ra, cần lưu ý rằng ADR này chỉ bao gồm hình thức xoay vòng khóa consensus đơn giản nhất mà không xem xét khái niệm nhiều khóa consensus. Khái niệm nhiều khóa consensus như vậy vẫn là mục tiêu dài hạn của Tendermint và Cosmos SDK.
 
-## Decision
+## Quyết Định
 
-### Pseudo procedure for consensus key rotation
+### Quy Trình Giả Cho Xoay Vòng Khóa Consensus
 
-* create new random consensus key.
-* create and broadcast a transaction with a `MsgRotateConsPubKey` that states the new consensus key is now coupled with the validator operator with a signature from the validator's operator key.
-* old consensus key becomes unable to participate on consensus immediately after the update of key mapping state on-chain.
-* start validating with new consensus key.
-* validators using HSM and KMS should update the consensus key in HSM to use the new rotated key after the height `h` when `MsgRotateConsPubKey` is committed to the blockchain.
+* tạo cặp khóa consensus ngẫu nhiên mới.
+* tạo và broadcast một giao dịch với `MsgRotateConsPubKey` nêu rõ khóa consensus mới hiện được ghép với operator validator với chữ ký từ khóa operator của validator.
+* khóa consensus cũ trở nên không thể tham gia đồng thuận ngay sau khi cập nhật trạng thái ánh xạ khóa on-chain.
+* bắt đầu xác thực với khóa consensus mới.
+* các validator sử dụng HSM và KMS nên cập nhật khóa consensus trong HSM để sử dụng khóa đã xoay vòng mới sau chiều cao `h` khi `MsgRotateConsPubKey` được cam kết vào blockchain.
 
-### Considerations
+### Các Cân Nhắc
 
-* consensus key mapping information management strategy
-    * store history of each key mapping changes in the kvstore.
-    * the state machine can search corresponding consensus key paired with the given validator operator for any arbitrary height in a recent unbonding period.
-    * the state machine does not need any historical mapping information which is past more than unbonding period.
-* key rotation costs related to LCD and IBC
-    * LCD and IBC will have a traffic/computation burden when there exists frequent power changes
-    * In current Tendermint design, consensus key rotations are seen as power changes from LCD or IBC perspective
-    * Therefore, to minimize unnecessary frequent key rotation behavior, we limited the maximum number of rotation in recent unbonding period and also applied exponentially increasing rotation fee
-* limits
-    * a validator cannot rotate its consensus key more than `MaxConsPubKeyRotations` time for any unbonding period, to prevent spam.
-    * parameters can be decided by governance and stored in genesis file.
-* key rotation fee
-    * a validator should pay `KeyRotationFee` to rotate the consensus key which is calculated as below
-    * `KeyRotationFee` = (max(`VotingPowerPercentage` *100, 1)* `InitialKeyRotationFee`) * 2^(number of rotations in `ConsPubKeyRotationHistory` in recent unbonding period)
-* evidence module
-    * evidence module can search corresponding consensus key for any height from slashing keeper so that it can decide which consensus key is supposed to be used for the given height.
+* chiến lược quản lý thông tin ánh xạ khóa consensus
+    * lưu lịch sử của mỗi thay đổi ánh xạ khóa trong kvstore.
+    * state machine có thể tìm kiếm khóa consensus tương ứng được ghép với operator validator nhất định cho bất kỳ chiều cao tùy ý nào trong unbonding period gần đây.
+    * state machine không cần bất kỳ thông tin ánh xạ lịch sử nào cũ hơn unbonding period.
+* chi phí xoay vòng khóa liên quan đến LCD và IBC
+    * LCD và IBC sẽ có gánh nặng traffic/tính toán khi có thay đổi power thường xuyên
+    * Trong thiết kế Tendermint hiện tại, xoay vòng khóa consensus được coi là thay đổi power từ góc độ LCD hoặc IBC
+    * Do đó, để giảm thiểu hành vi xoay vòng khóa thường xuyên không cần thiết, chúng ta giới hạn số lần xoay vòng tối đa trong unbonding period gần đây và cũng áp dụng phí xoay vòng tăng theo cấp số nhân
+* giới hạn
+    * một validator không thể xoay vòng khóa consensus hơn `MaxConsPubKeyRotations` lần trong bất kỳ unbonding period nào, để ngăn spam.
+    * tham số có thể được quyết định bởi quản trị và lưu trong genesis file.
+* phí xoay vòng khóa
+    * một validator nên trả `KeyRotationFee` để xoay vòng khóa consensus được tính như sau
+    * `KeyRotationFee` = (max(`VotingPowerPercentage` *100, 1)* `InitialKeyRotationFee`) * 2^(số lần xoay vòng trong `ConsPubKeyRotationHistory` trong unbonding period gần đây)
+* module evidence
+    * module evidence có thể tìm kiếm khóa consensus tương ứng cho bất kỳ chiều cao nào từ slashing keeper để có thể quyết định khóa consensus nào được cho là được sử dụng cho chiều cao đã cho.
 * abci.ValidatorUpdate
-    * tendermint already has ability to change a consensus key by ABCI communication(`ValidatorUpdate`).
-    * validator consensus key update can be done via creating new + delete old by change the power to zero.
-    * therefore, we expect we do not even need to change Tendermint codebase at all to implement this feature.
-* new genesis parameters in `staking` module
-    * `MaxConsPubKeyRotations` : maximum number of rotation can be executed by a validator in recent unbonding period. default value 10 is suggested(11th key rotation will be rejected)
-    * `InitialKeyRotationFee` : the initial key rotation fee when no key rotation has happened in recent unbonding period. default value 1atom is suggested(1atom fee for the first key rotation in recent unbonding period)
+    * tendermint đã có khả năng thay đổi khóa consensus bằng giao tiếp ABCI (`ValidatorUpdate`).
+    * cập nhật khóa consensus validator có thể được thực hiện bằng cách tạo mới + xóa cũ bằng cách thay đổi power về không.
+    * do đó, chúng ta kỳ vọng thậm chí không cần thay đổi codebase Tendermint để triển khai tính năng này.
+* tham số genesis mới trong module `staking`
+    * `MaxConsPubKeyRotations`: số lần xoay vòng tối đa có thể được thực hiện bởi validator trong unbonding period gần đây. Giá trị mặc định 10 được đề xuất (lần xoay vòng khóa thứ 11 sẽ bị từ chối)
+    * `InitialKeyRotationFee`: phí xoay vòng khóa ban đầu khi không có xoay vòng khóa nào xảy ra trong unbonding period gần đây. Giá trị mặc định 1atom được đề xuất (phí 1atom cho lần xoay vòng khóa đầu tiên trong unbonding period gần đây)
 
-### Workflow
+### Quy Trình Làm Việc
 
-1. The validator generates a new consensus keypair.
-2. The validator generates and signs a `MsgRotateConsPubKey` tx with their operator key and new ConsPubKey
+1. Validator tạo một cặp keypair consensus mới.
+2. Validator tạo và ký một `MsgRotateConsPubKey` với khóa operator và ConsPubKey mới của họ
 
     ```go
     type MsgRotateConsPubKey struct {
@@ -61,16 +61,16 @@ Also, it should be noted that this ADR includes only the simplest form of consen
     }
     ```
 
-3. `handleMsgRotateConsPubKey` gets `MsgRotateConsPubKey`, calls `RotateConsPubKey` with emits event
+3. `handleMsgRotateConsPubKey` nhận `MsgRotateConsPubKey`, gọi `RotateConsPubKey` với phát sự kiện
 4. `RotateConsPubKey`
-    * checks if `NewPubKey` is not duplicated on `ValidatorsByConsAddr`
-    * checks if the validator is does not exceed parameter `MaxConsPubKeyRotations` by iterating `ConsPubKeyRotationHistory`
-    * checks if the signing account has enough balance to pay `KeyRotationFee`
-    * pays `KeyRotationFee` to community fund
-    * overwrites `NewPubKey` in `validator.ConsPubKey`
-    * deletes old `ValidatorByConsAddr`
-    * `SetValidatorByConsAddr` for `NewPubKey`
-    * Add `ConsPubKeyRotationHistory` for tracking rotation
+    * kiểm tra xem `NewPubKey` không bị trùng lặp trong `ValidatorsByConsAddr`
+    * kiểm tra xem validator không vượt quá tham số `MaxConsPubKeyRotations` bằng cách iterate `ConsPubKeyRotationHistory`
+    * kiểm tra xem tài khoản ký có đủ số dư để trả `KeyRotationFee` không
+    * trả `KeyRotationFee` vào quỹ cộng đồng
+    * ghi đè `NewPubKey` trong `validator.ConsPubKey`
+    * xóa `ValidatorByConsAddr` cũ
+    * `SetValidatorByConsAddr` cho `NewPubKey`
+    * Thêm `ConsPubKeyRotationHistory` để theo dõi xoay vòng
 
     ```go
     type ConsPubKeyRotationHistory struct {
@@ -81,7 +81,7 @@ Also, it should be noted that this ADR includes only the simplest form of consen
     }
     ```
 
-5. `ApplyAndReturnValidatorSetUpdates` checks if there is `ConsPubKeyRotationHistory` with `ConsPubKeyRotationHistory.RotatedHeight == ctx.BlockHeight()` and if so, generates 2 `ValidatorUpdate` , one for a remove validator and one for create new validator
+5. `ApplyAndReturnValidatorSetUpdates` kiểm tra xem có `ConsPubKeyRotationHistory` với `ConsPubKeyRotationHistory.RotatedHeight == ctx.BlockHeight()` không và nếu có, tạo 2 `ValidatorUpdate`, một để xóa validator và một để tạo validator mới
 
     ```go
     abci.ValidatorUpdate{
@@ -95,31 +95,31 @@ Also, it should be noted that this ADR includes only the simplest form of consen
     }
     ```
 
-6. at `previousVotes` Iteration logic of `AllocateTokens`,  `previousVote` using `OldConsPubKey` match up with `ConsPubKeyRotationHistory`, and replace validator for token allocation
-7. Migrate `ValidatorSigningInfo` and `ValidatorMissedBlockBitArray` from `OldConsPubKey` to `NewConsPubKey`
+6. tại logic iterate `previousVotes` của `AllocateTokens`, `previousVote` sử dụng `OldConsPubKey` khớp với `ConsPubKeyRotationHistory`, và thay thế validator để phân bổ token
+7. Di chuyển `ValidatorSigningInfo` và `ValidatorMissedBlockBitArray` từ `OldConsPubKey` sang `NewConsPubKey`
 
-* Note : All above features shall be implemented in `staking` module.
+* Lưu ý: Tất cả các tính năng trên sẽ được triển khai trong module `staking`.
 
-## Status
+## Trạng Thái
 
-Proposed
+Đề Xuất
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Validators can immediately or periodically rotate their consensus key to have a better security policy
-* improved security against Long-Range attacks (https://nearprotocol.com/blog/long-range-attacks-and-a-new-fork-choice-rule) given a validator throws away the old consensus key(s)
+* Validator có thể ngay lập tức hoặc định kỳ xoay vòng khóa consensus của họ để có chính sách bảo mật tốt hơn
+* cải thiện bảo mật chống lại các cuộc tấn công Long-Range (https://nearprotocol.com/blog/long-range-attacks-and-a-new-fork-choice-rule) khi validator bỏ đi (các) khóa consensus cũ
 
-### Negative
+### Tiêu Cực
 
-* Slash module needs more computation because it needs to look up the corresponding consensus key of validators for each height
-* frequent key rotations will make light client bisection less efficient
+* Module Slash cần tính toán nhiều hơn vì nó cần tra cứu khóa consensus tương ứng của validator cho mỗi chiều cao
+* xoay vòng khóa thường xuyên sẽ làm cho bisection client nhẹ kém hiệu quả hơn
 
-### Neutral
+### Trung Lập
 
-## References
+## Tài Liệu Tham Khảo
 
-* on tendermint repo : https://github.com/tendermint/tendermint/issues/1136
-* on cosmos-sdk repo : https://github.com/cosmos/cosmos-sdk/issues/5231
-* about multiple consensus keys : https://github.com/tendermint/tendermint/issues/1758#issuecomment-545291698
+* trên tendermint repo: https://github.com/tendermint/tendermint/issues/1136
+* trên cosmos-sdk repo: https://github.com/cosmos/cosmos-sdk/issues/5231
+* về nhiều khóa consensus: https://github.com/tendermint/tendermint/issues/1758#issuecomment-545291698

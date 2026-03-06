@@ -2,113 +2,76 @@
 
 ## Changelog
 
-* 2022-04-27: First draft
+* 2022-04-27: Bản nháp đầu tiên
 
-## Status
+## Trạng Thái
 
-ACCEPTED Implemented
+ACCEPTED Đã Triển Khai
 
-## Abstract
+## Tóm Tắt
 
-In order to make it easier for developers to build Cosmos SDK modules and for clients to query, index and verify proofs
-against state data, we have implemented an ORM (object-relational mapping) layer for the Cosmos SDK.
+Để giúp nhà phát triển dễ dàng hơn trong việc xây dựng các module Cosmos SDK và để client truy vấn, lập index và xác minh bằng chứng đối với dữ liệu state, chúng tôi đã triển khai một lớp ORM (object-relational mapping) cho Cosmos SDK.
 
-## Context
+## Bối Cảnh
 
-Historically modules in the Cosmos SDK have always used the key-value store directly and created various handwritten
-functions for managing key format as well as constructing secondary indexes. This consumes a significant amount of
-time when building a module and is error-prone. Because key formats are non-standard, sometimes poorly documented,
-and subject to change, it is hard for clients to generically index, query and verify merkle proofs against state data.
+Về mặt lịch sử, các module trong Cosmos SDK luôn sử dụng trực tiếp key-value store và tạo ra các hàm viết tay khác nhau để quản lý định dạng key cũng như xây dựng các secondary index. Điều này tốn nhiều thời gian khi xây dựng một module và dễ mắc lỗi. Vì các định dạng key không chuẩn, đôi khi được tài liệu hóa kém và có thể thay đổi, rất khó để client lập index chung, truy vấn và xác minh bằng chứng merkle đối với dữ liệu state.
 
-The known first instance of an "ORM" in the Cosmos ecosystem was in [weave](https://github.com/iov-one/weave/tree/master/orm).
-A later version was built for [regen-ledger](https://github.com/regen-network/regen-ledger/tree/157181f955823149e1825263a317ad8e16096da4/orm) for
-use in the group module and later [ported to the SDK](https://github.com/cosmos/cosmos-sdk/tree/35d3312c3be306591fcba39892223f1244c8d108/x/group/internal/orm)
-just for that purpose.
+Trường hợp đầu tiên được biết đến của "ORM" trong hệ sinh thái Cosmos là trong [weave](https://github.com/iov-one/weave/tree/master/orm). Phiên bản sau được xây dựng cho [regen-ledger](https://github.com/regen-network/regen-ledger/tree/157181f955823149e1825263a317ad8e16096da4/orm) để sử dụng trong group module và sau đó được [chuyển sang SDK](https://github.com/cosmos/cosmos-sdk/tree/35d3312c3be306591fcba39892223f1244c8d108/x/group/internal/orm) chỉ cho mục đích đó.
 
-While these earlier designs made it significantly easier to write state machines, they still required a lot of manual
-configuration, didn't expose state format directly to clients, and were limited in their support of different types
-of index keys, composite keys, and range queries.
+## Quyết Định
 
-Discussions about the design continued in https://github.com/cosmos/cosmos-sdk/discussions/9156 and more
-sophisticated proofs of concept were created in https://github.com/allinbits/cosmos-sdk-poc/tree/master/runtime/orm
-and https://github.com/cosmos/cosmos-sdk/pull/10454.
+Các nỗ lực trước đây đã dẫn đến việc tạo ra go module `orm` của Cosmos SDK sử dụng các annotation protobuf để chỉ định định nghĩa bảng ORM. ORM này dựa trên API `google.golang.org/protobuf/reflect/protoreflect` mới và hỗ trợ:
 
-## Decision
+* Sorted index cho tất cả các kiểu protobuf đơn giản (ngoại trừ `bytes`, `enum`, `float`, `double`) cũng như `Timestamp` và `Duration`
+* Unsorted `bytes` và `enum` index
+* Composite primary và secondary key
+* Unique index
+* Auto-incrementing `uint64` primary key
+* Complex prefix và range query
+* Paginated query
+* Giải mã logic đầy đủ của dữ liệu KV-store
 
-These prior efforts culminated in the creation of the Cosmos SDK `orm` go module which uses protobuf annotations
-for specifying ORM table definitions. This ORM is based on the new `google.golang.org/protobuf/reflect/protoreflect`
-API and supports:
+Gần như tất cả thông tin cần thiết để giải mã state trực tiếp được chỉ định trong các file .proto. Mỗi định nghĩa bảng chỉ định một ID duy nhất theo file .proto và mỗi index trong một bảng là duy nhất trong bảng đó.
 
-* sorted indexes for all simple protobuf types (except `bytes`, `enum`, `float`, `double`) as well as `Timestamp` and `Duration`
-* unsorted `bytes` and `enum` indexes
-* composite primary and secondary keys
-* unique indexes
-* auto-incrementing `uint64` primary keys
-* complex prefix and range queries
-* paginated queries
-* complete logical decoding of KV-store data
+ORM tối ưu hóa xung quanh dung lượng lưu trữ bằng cách không lặp lại các giá trị trong primary key trong key value khi lưu trữ các bản ghi primary key. Ví dụ, nếu đối tượng `{"a":0,"b":1}` có primary key `a`, nó sẽ được lưu trữ trong key value store là `Key: '0', Value: {"b":1}`.
 
-Almost all the information needed to decode state directly is specified in .proto files. Each table definition specifies
-an ID which is unique per .proto file and each index within a table is unique within that table. Clients then only need
-to know the name of a module and the prefix ORM data for a specific .proto file within that module in order to decode
-state data directly. This additional information will be exposed directly through app configs which will be explained
-in a future ADR related to app wiring.
+Một code generator được bao gồm với ORM tạo ra các wrapper type-safe xung quanh triển khai `Table` động của ORM và là cách được khuyến nghị cho các module sử dụng ORM.
 
-The ORM makes optimizations around storage space by not repeating values in the primary key in the key value
-when storing primary key records. For example, if the object `{"a":0,"b":1}` has the primary key `a`, it will
-be stored in the key value store as `Key: '0', Value: {"b":1}` (with more efficient protobuf binary encoding).
-Also, the generated code from https://github.com/cosmos/cosmos-proto does optimizations around the
-`google.golang.org/protobuf/reflect/protoreflect` API to improve performance.
+Các test ORM cung cấp một demo module bank đơn giản hóa minh họa:
 
-A code generator is included with the ORM which creates type safe wrappers around the ORM's dynamic `Table`
-implementation and is the recommended way for modules to use the ORM.
+* [Tùy chọn proto ORM](https://github.com/cosmos/cosmos-sdk/blob/0d846ae2f0424b2eb640f6679a703b52d407813d/orm/internal/testpb/bank.proto)
+* [Code Được Tạo](https://github.com/cosmos/cosmos-sdk/blob/0d846ae2f0424b2eb640f6679a703b52d407813d/orm/internal/testpb/bank.cosmos_orm.go)
+* [Ví Dụ Sử Dụng trong Module Keeper](https://github.com/cosmos/cosmos-sdk/blob/0d846ae2f0424b2eb640f6679a703b52d407813d/orm/model/ormdb/module_test.go)
 
-The ORM tests provide a simplified bank module demonstration which illustrates:
+## Hậu Quả
 
-* [ORM proto options](https://github.com/cosmos/cosmos-sdk/blob/0d846ae2f0424b2eb640f6679a703b52d407813d/orm/internal/testpb/bank.proto)
-* [Generated Code](https://github.com/cosmos/cosmos-sdk/blob/0d846ae2f0424b2eb640f6679a703b52d407813d/orm/internal/testpb/bank.cosmos_orm.go)
-* [Example Usage in a Module Keeper](https://github.com/cosmos/cosmos-sdk/blob/0d846ae2f0424b2eb640f6679a703b52d407813d/orm/model/ormdb/module_test.go)
+### Tương Thích Ngược
 
-## Consequences
+Code state machine áp dụng ORM sẽ cần migration vì bố cục state nói chung không tương thích ngược. Các state machine này cũng sẽ cần migrate sang https://github.com/cosmos/cosmos-proto ít nhất cho dữ liệu state.
 
-### Backwards Compatibility
+### Tích Cực
 
-State machine code that adopts the ORM will need migrations as the state layout is generally backwards incompatible.
-These state machines will also need to migrate to https://github.com/cosmos/cosmos-proto at least for state data.
+* Dễ dàng hơn để xây dựng module.
+* Dễ dàng hơn để thêm secondary index vào state.
+* Có thể viết một indexer chung cho ORM state.
+* Dễ dàng hơn để viết client thực hiện state proof.
+* Có thể tự động viết các query layer thay vì cần triển khai gRPC query thủ công.
 
-### Positive
+### Tiêu Cực
 
-* easier to build modules
-* easier to add secondary indexes to state
-* possible to write a generic indexer for ORM state
-* easier to write clients that do state proofs
-* possible to automatically write query layers rather than needing to manually implement gRPC queries
+* Hiệu suất kém hơn so với các key viết tay (hiện tại).
 
-### Negative
+## Thảo Luận Thêm
 
-* worse performance than handwritten keys (for now). See [Further Discussions](#further-discussions)
-for potential improvements
+Các công việc đang được lên kế hoạch và tiếp tục bao gồm:
 
-### Neutral
+* Tự động tạo query layer phía client.
+* Thư viện query phía client tự động xác minh bằng chứng light client.
+* Index dữ liệu ORM vào cơ sở dữ liệu SQL.
+* Cải thiện hiệu suất.
 
-## Further Discussions
+## Tài Liệu Tham Khảo
 
-Further discussions will happen within the Cosmos SDK Framework Working Group. Current planned and ongoing work includes:
-
-* automatically generate client-facing query layer
-* client-side query libraries that transparently verify light client proofs
-* index ORM data to SQL databases
-* improve performance by:
-    * optimizing existing reflection based code to avoid unnecessary gets when doing deletes & updates of simple tables
-    * more sophisticated code generation such as making fast path reflection even faster (avoiding `switch` statements),
-  or even fully generating code that equals handwritten performance
-
-
-## References
-
-* https://github.com/iov-one/weave/tree/master/orm).
-* https://github.com/regen-network/regen-ledger/tree/157181f955823149e1825263a317ad8e16096da4/orm
-* https://github.com/cosmos/cosmos-sdk/tree/35d3312c3be306591fcba39892223f1244c8d108/x/group/internal/orm
+* https://github.com/iov-one/weave/tree/master/orm
 * https://github.com/cosmos/cosmos-sdk/discussions/9156
-* https://github.com/allinbits/cosmos-sdk-poc/tree/master/runtime/orm
 * https://github.com/cosmos/cosmos-sdk/pull/10454

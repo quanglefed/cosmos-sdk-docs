@@ -4,62 +4,60 @@ sidebar_position: 1
 
 # `x/mint`
 
-The `x/mint` module handles the regular minting of new tokens in a configurable manner.
+Module `x/mint` xử lý việc mint đều đặn các token mới theo cách có thể cấu hình.
 
-## Contents
+## Nội dung
 
 * [State](#state)
-    * [Minter](#minter)
-    * [Params](#params)
+  * [Minter](#minter)
+  * [Params](#params)
 * [Begin-Block](#begin-block)
-    * [NextInflationRate](#nextinflationrate)
-    * [NextAnnualProvisions](#nextannualprovisions)
-    * [BlockProvision](#blockprovision)
+  * [NextInflationRate](#nextinflationrate)
+  * [NextAnnualProvisions](#nextannualprovisions)
+  * [BlockProvision](#blockprovision)
 * [Parameters](#parameters)
 * [Events](#events)
-    * [BeginBlocker](#beginblocker)
+  * [BeginBlocker](#beginblocker)
 * [Client](#client)
-    * [CLI](#cli)
-    * [gRPC](#grpc)
-    * [REST](#rest)
+  * [CLI](#cli)
+  * [gRPC](#grpc)
+  * [REST](#rest)
 
-## Concepts
+## Khái niệm
 
-### The Minting Mechanism
+### Cơ chế mint
 
-The default minting mechanism was designed to:
+Cơ chế mint mặc định được thiết kế để:
 
-* allow for a flexible inflation rate determined by market demand targeting a particular bonded-stake ratio
-* effect a balance between market liquidity and staked supply
+* cho phép một mức lạm phát linh hoạt được quyết định bởi nhu cầu thị trường, nhắm tới một tỷ lệ bonded-stake nhất định
+* tạo cân bằng giữa thanh khoản thị trường và lượng cung đang stake
 
-In order to best determine the appropriate market rate for inflation rewards, a
-moving change rate is used.  The moving change rate mechanism ensures that if
-the % bonded is either over or under the goal %-bonded, the inflation rate will
-adjust to further incentivize or disincentivize being bonded, respectively. Setting the goal
-%-bonded at less than 100% encourages the network to maintain some non-staked tokens
-which should help provide some liquidity.
+Để xác định mức lạm phát phù hợp theo thị trường cho phần thưởng, một cơ chế “tốc
+độ thay đổi trượt” (moving change rate) được dùng. Cơ chế này đảm bảo rằng nếu %
+bonded thực tế lớn hơn hoặc nhỏ hơn mục tiêu %-bonded, thì tỷ lệ lạm phát sẽ điều
+chỉnh để khuyến khích hoặc giảm khuyến khích việc bonded tương ứng. Đặt mục tiêu
+%-bonded nhỏ hơn 100% khuyến khích mạng duy trì một phần token không stake, giúp
+tạo thanh khoản.
 
-It can be broken down in the following way:
+Có thể tóm tắt như sau:
 
-* If the actual percentage of bonded tokens is below the goal %-bonded the inflation rate will
-   increase until a maximum value is reached
-* If the goal % bonded (67% in Cosmos-Hub) is maintained, then the inflation
-   rate will stay constant
-* If the actual percentage of bonded tokens is above the goal %-bonded the inflation rate will
-   decrease until a minimum value is reached
+* Nếu % token bonded thực tế thấp hơn mục tiêu %-bonded, tỷ lệ lạm phát sẽ tăng cho tới khi chạm giá trị tối đa
+* Nếu mục tiêu % bonded (67% trong Cosmos Hub) được duy trì, tỷ lệ lạm phát sẽ giữ nguyên
+* Nếu % token bonded thực tế cao hơn mục tiêu %-bonded, tỷ lệ lạm phát sẽ giảm cho tới khi chạm giá trị tối thiểu
 
-### Custom Minters
+### Custom minter
 
-As of Cosmos SDK v0.53.0, developers can set a custom `MintFn` for the module for specialized token minting logic.
+Từ Cosmos SDK v0.53.0, developer có thể đặt một `MintFn` tuỳ biến cho module để
+thực hiện logic mint token chuyên biệt.
 
-The function signature that a `MintFn` must implement is as follows:
+Chữ ký hàm mà `MintFn` phải triển khai như sau:
 
 ```go
 // MintFn defines the function that needs to be implemented in order to customize the minting process.
 type MintFn func(ctx sdk.Context, k *Keeper) error
 ```
 
-This can be passed to the `Keeper` upon creation with an additional `Option`:
+Có thể truyền vào `Keeper` khi khởi tạo bằng một `Option` bổ sung:
 
 ```go
 app.MintKeeper = mintkeeper.NewKeeper(
@@ -74,12 +72,13 @@ app.MintKeeper = mintkeeper.NewKeeper(
 	)
 ```
 
-#### Custom Minter DI Example
+#### Ví dụ DI cho custom minter
 
-Below is a simple approach to creating a custom mint function with extra dependencies in DI configurations.
-For this basic example, we will make the minter simply double the supply of `foo` coin.
+Dưới đây là một cách đơn giản để tạo hàm mint tuỳ biến với thêm phụ thuộc (dependency)
+trong cấu hình DI. Với ví dụ cơ bản này, ta sẽ làm cho minter chỉ đơn giản “nhân đôi”
+total supply của coin `foo`.
 
-First, we will define a function that takes our required dependencies, and returns a `MintFn`.
+Trước hết, ta định nghĩa một hàm nhận các dependency cần thiết và trả về một `MintFn`.
 
 ```go
 // MyCustomMintFunction is a custom mint function that doubles the supply of `foo` coin.
@@ -95,7 +94,7 @@ func MyCustomMintFunction(bank bankkeeper.BaseKeeper) mintkeeper.MintFn {
 }
 ```
 
-Then, pass the function defined above into the `depinject.Supply` function with the required dependencies.
+Sau đó, truyền hàm đã định nghĩa ở trên vào `depinject.Supply` cùng các dependency cần thiết.
 
 ```go
 // NewSimApp returns a reference to an initialized SimApp.
@@ -128,7 +127,7 @@ func NewSimApp(
 
 ### Minter
 
-The minter is a space for holding current inflation information.
+Minter là nơi lưu thông tin lạm phát hiện tại.
 
 * Minter: `0x00 -> ProtocolBuffer(minter)`
 
@@ -138,8 +137,8 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/mint/v1beta1/
 
 ### Params
 
-The mint module stores its params in state with the prefix of `0x01`,
-it can be updated with governance or the address with authority.
+Module mint lưu params trong state với prefix `0x01`, có thể được cập nhật bởi
+governance hoặc địa chỉ authority.
 
 * Params: `mint/params -> legacy_amino(params)`
 
@@ -149,15 +148,14 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/mint/v1beta1/
 
 ## Begin-Block
 
-Minting parameters are recalculated and inflation paid at the beginning of each block.
+Tham số mint được tính lại và lạm phát được chi trả ở đầu mỗi block.
 
-### Inflation rate calculation
+### Tính toán tỷ lệ lạm phát
 
-Inflation rate is calculated using an "inflation calculation function" that's
-passed to the `NewAppModule` function. If no function is passed, then the SDK's
-default inflation function will be used (`NextInflationRate`). In case a custom
-inflation calculation logic is needed, this can be achieved by defining and
-passing a function that matches `InflationCalculationFn`'s signature.
+Tỷ lệ lạm phát được tính bằng một “hàm tính lạm phát” được truyền vào `NewAppModule`.
+Nếu không truyền hàm, SDK sẽ dùng hàm mặc định (`NextInflationRate`). Nếu cần custom
+logic tính lạm phát, có thể làm bằng cách định nghĩa và truyền một hàm khớp chữ ký
+`InflationCalculationFn`.
 
 ```go
 type InflationCalculationFn func(ctx sdk.Context, minter Minter, params Params, bondedRatio math.LegacyDec) math.LegacyDec
@@ -165,11 +163,10 @@ type InflationCalculationFn func(ctx sdk.Context, minter Minter, params Params, 
 
 #### NextInflationRate
 
-The target annual inflation rate is recalculated each block.
-The inflation is also subject to a rate change (positive or negative)
-depending on the distance from the desired ratio (67%). The maximum rate change
-possible is defined to be 13% per year, however, the annual inflation is capped
-as between 7% and 20%.
+Mục tiêu tỷ lệ lạm phát theo năm được tính lại ở mỗi block.
+Lạm phát cũng phụ thuộc vào mức thay đổi (dương hoặc âm) tuỳ theo khoảng cách tới
+tỷ lệ mục tiêu (67%). Mức thay đổi tối đa được định nghĩa là 13% mỗi năm; tuy nhiên,
+lạm phát theo năm bị giới hạn trong khoảng 7% đến 20%.
 
 ```go
 NextInflationRate(params Params, bondedRatio math.LegacyDec) (inflation math.LegacyDec) {
@@ -191,8 +188,8 @@ NextInflationRate(params Params, bondedRatio math.LegacyDec) (inflation math.Leg
 
 ### NextAnnualProvisions
 
-Calculate the annual provisions based on current total supply and inflation
-rate. This parameter is calculated once per block.
+Tính annual provisions dựa trên total supply hiện tại và tỷ lệ lạm phát.
+Tham số này được tính một lần mỗi block.
 
 ```go
 NextAnnualProvisions(params Params, totalSupply math.LegacyDec) (provisions math.LegacyDec) {
@@ -201,7 +198,9 @@ NextAnnualProvisions(params Params, totalSupply math.LegacyDec) (provisions math
 
 ### BlockProvision
 
-Calculate the provisions generated for each block based on current annual provisions. The provisions are then minted by the `mint` module's `ModuleMinterAccount` and then transferred to the `auth`'s `FeeCollector` `ModuleAccount`.
+Tính provisions được tạo ra cho mỗi block dựa trên annual provisions hiện tại.
+Provisions sau đó được mint bởi `ModuleMinterAccount` của module `mint`, rồi được
+chuyển sang `FeeCollector` `ModuleAccount` của `auth`.
 
 ```go
 BlockProvision(params Params) sdk.Coin {
@@ -209,24 +208,22 @@ BlockProvision(params Params) sdk.Coin {
 	return sdk.NewCoin(params.MintDenom, provisionAmt.Truncate())
 ```
 
-
 ## Parameters
 
-The minting module contains the following parameters:
+Module mint có các tham số sau:
 
-| Key                 | Type            | Example                |
-|---------------------|-----------------|------------------------|
-| MintDenom           | string          | "uatom"                |
-| InflationRateChange | string (dec)    | "0.130000000000000000" |
-| InflationMax        | string (dec)    | "0.200000000000000000" |
-| InflationMin        | string (dec)    | "0.070000000000000000" |
-| GoalBonded          | string (dec)    | "0.670000000000000000" |
-| BlocksPerYear       | string (uint64) | "6311520"              |
-
+| Key                 | Type            | Ví dụ                   |
+|---------------------|-----------------|-------------------------|
+| MintDenom           | string          | "uatom"                 |
+| InflationRateChange | string (dec)    | "0.130000000000000000"  |
+| InflationMax        | string (dec)    | "0.200000000000000000"  |
+| InflationMin        | string (dec)    | "0.070000000000000000"  |
+| GoalBonded          | string (dec)    | "0.670000000000000000"  |
+| BlocksPerYear       | string (uint64) | "6311520"               |
 
 ## Events
 
-The minting module emits the following events:
+Module mint phát ra các event sau:
 
 ### BeginBlocker
 
@@ -237,16 +234,15 @@ The minting module emits the following events:
 | mint | annual_provisions | {annualProvisions} |
 | mint | amount            | {amount}           |
 
-
 ## Client
 
 ### CLI
 
-A user can query and interact with the `mint` module using the CLI.
+Người dùng có thể truy vấn và tương tác với module `mint` qua CLI.
 
 #### Query
 
-The `query` commands allows users to query `mint` state.
+Các lệnh `query` cho phép truy vấn state của `mint`.
 
 ```shell
 simd query mint --help
@@ -254,19 +250,19 @@ simd query mint --help
 
 ##### annual-provisions
 
-The `annual-provisions` command allows users to query the current minting annual provisions value
+Lệnh `annual-provisions` cho phép truy vấn giá trị annual provisions hiện tại.
 
 ```shell
 simd query mint annual-provisions [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query mint annual-provisions
 ```
 
-Example Output:
+Ví dụ output:
 
 ```shell
 22268504368893.612100895088410693
@@ -274,19 +270,19 @@ Example Output:
 
 ##### inflation
 
-The `inflation` command allows users to query the current minting inflation value
+Lệnh `inflation` cho phép truy vấn giá trị lạm phát hiện tại.
 
 ```shell
 simd query mint inflation [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query mint inflation
 ```
 
-Example Output:
+Ví dụ output:
 
 ```shell
 0.199200302563256955
@@ -294,13 +290,13 @@ Example Output:
 
 ##### params
 
-The `params` command allows users to query the current minting parameters
+Lệnh `params` cho phép truy vấn tham số mint hiện tại.
 
 ```shell
 simd query mint params [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```yml
 blocks_per_year: "4360000"
@@ -313,23 +309,23 @@ mint_denom: stake
 
 ### gRPC
 
-A user can query the `mint` module using gRPC endpoints.
+Người dùng có thể truy vấn module `mint` qua các endpoint gRPC.
 
 #### AnnualProvisions
 
-The `AnnualProvisions` endpoint allows users to query the current minting annual provisions value
+Endpoint `AnnualProvisions` cho phép truy vấn annual provisions hiện tại.
 
 ```shell
 /cosmos.mint.v1beta1.Query/AnnualProvisions
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext localhost:9090 cosmos.mint.v1beta1.Query/AnnualProvisions
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -339,19 +335,19 @@ Example Output:
 
 #### Inflation
 
-The `Inflation` endpoint allows users to query the current minting inflation value
+Endpoint `Inflation` cho phép truy vấn giá trị lạm phát hiện tại.
 
 ```shell
 /cosmos.mint.v1beta1.Query/Inflation
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext localhost:9090 cosmos.mint.v1beta1.Query/Inflation
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -361,19 +357,19 @@ Example Output:
 
 #### Params
 
-The `Params` endpoint allows users to query the current minting parameters
+Endpoint `Params` cho phép truy vấn tham số mint hiện tại.
 
 ```shell
 /cosmos.mint.v1beta1.Query/Params
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext localhost:9090 cosmos.mint.v1beta1.Query/Params
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -390,7 +386,7 @@ Example Output:
 
 ### REST
 
-A user can query the `mint` module using REST endpoints.
+Người dùng có thể truy vấn module `mint` qua các endpoint REST.
 
 #### annual-provisions
 
@@ -398,13 +394,13 @@ A user can query the `mint` module using REST endpoints.
 /cosmos/mint/v1beta1/annual_provisions
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 curl "localhost:1317/cosmos/mint/v1beta1/annual_provisions"
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -418,13 +414,13 @@ Example Output:
 /cosmos/mint/v1beta1/inflation
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 curl "localhost:1317/cosmos/mint/v1beta1/inflation"
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -438,13 +434,13 @@ Example Output:
 /cosmos/mint/v1beta1/params
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 curl "localhost:1317/cosmos/mint/v1beta1/params"
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -458,3 +454,4 @@ Example Output:
   }
 }
 ```
+

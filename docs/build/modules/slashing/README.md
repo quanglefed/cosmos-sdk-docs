@@ -4,34 +4,32 @@ sidebar_position: 1
 
 # `x/slashing`
 
-## Abstract
+## Tóm tắt
 
-This section specifies the slashing module of the Cosmos SDK, which implements functionality
-first outlined in the [Cosmos Whitepaper](https://cosmos.network/about/whitepaper) in June 2016.
+Phần này đặc tả module slashing của Cosmos SDK, hiện thực các chức năng lần đầu được phác thảo trong [Cosmos Whitepaper](https://cosmos.network/about/whitepaper) (tháng 6/2016).
 
-The slashing module enables Cosmos SDK-based blockchains to disincentivize any attributable action
-by a protocol-recognized actor with value at stake by penalizing them ("slashing").
+Module slashing cho phép các blockchain dựa trên Cosmos SDK tạo cơ chế bất lợi hoá (disincentivize) các hành động có thể quy trách nhiệm (attributable) của một tác nhân được giao thức công nhận và có “giá trị đang stake”, bằng cách áp dụng hình phạt (“slashing”).
 
-Penalties may include, but are not limited to:
+Hình phạt có thể bao gồm (nhưng không giới hạn):
 
-* Burning some amount of their stake
-* Removing their ability to vote on future blocks for a period of time.
+* Đốt một phần stake
+* Tước quyền bỏ phiếu cho các block trong một khoảng thời gian
 
-This module will be used by the Cosmos Hub, the first hub in the Cosmos ecosystem.
+Module này được dùng bởi Cosmos Hub, hub đầu tiên trong hệ sinh thái Cosmos.
 
-## Contents
+## Mục lục
 
-* [Concepts](#concepts)
-    * [States](#states)
-    * [Tombstone Caps](#tombstone-caps)
-    * [Infraction Timelines](#infraction-timelines)
+* [Khái niệm](#khái-niệm)
+    * [Trạng thái](#trạng-thái)
+    * [Giới hạn tombstone](#giới-hạn-tombstone)
+    * [Dòng thời gian vi phạm](#dòng-thời-gian-vi-phạm)
 * [State](#state)
     * [Signing Info (Liveness)](#signing-info-liveness)
     * [Params](#params)
 * [Messages](#messages)
     * [Unjail](#unjail)
 * [BeginBlock](#beginblock)
-    * [Liveness Tracking](#liveness-tracking)
+    * [Theo dõi liveness](#theo-dõi-liveness)
 * [Hooks](#hooks)
 * [Events](#events)
 * [Staking Tombstone](#staking-tombstone)
@@ -42,71 +40,52 @@ This module will be used by the Cosmos Hub, the first hub in the Cosmos ecosyste
     * [gRPC](#grpc)
     * [REST](#rest)
 
-## Concepts
+## Khái niệm
 
-### States
+### Trạng thái
 
-At any given time, there are any number of validators registered in the state
-machine. Each block, the top `MaxValidators` (defined by `x/staking`) validators
-who are not jailed become _bonded_, meaning that they may propose and vote on
-blocks. Validators who are _bonded_ are _at stake_, meaning that part or all of
-their stake and their delegators' stake is at risk if they commit a protocol fault.
+Tại mọi thời điểm, state machine có thể có bất kỳ số lượng validator nào đã đăng ký. Mỗi block, `MaxValidators` validator đứng đầu (định nghĩa bởi `x/staking`) và **không bị jailed** sẽ trở thành _bonded_, nghĩa là họ có thể đề xuất (propose) và bỏ phiếu (vote) cho các block. Validator _bonded_ là _at stake_, nghĩa là một phần hoặc toàn bộ stake của họ (và stake của delegator uỷ quyền cho họ) có rủi ro bị phạt nếu họ gây ra lỗi giao thức.
 
-For each of these validators we keep a `ValidatorSigningInfo` record that contains
-information pertaining to validator's liveness and other infraction related
-attributes.
+Với mỗi validator như vậy, ta lưu một bản ghi `ValidatorSigningInfo` chứa thông tin liên quan đến liveness và các thuộc tính khác về vi phạm.
 
-### Tombstone Caps
+### Giới hạn tombstone
 
-In order to mitigate the impact of initially likely categories of non-malicious
-protocol faults, the Cosmos Hub implements for each validator
-a _tombstone_ cap, which only allows a validator to be slashed once for a double
-sign fault. For example, if you misconfigure your HSM and double-sign a bunch of
-old blocks, you'll only be punished for the first double-sign (and then immediately tombstoned). This will still be quite expensive and desirable to avoid, but tombstone caps
-somewhat blunt the economic impact of unintentional misconfiguration.
+Để giảm tác động của các nhóm lỗi giao thức ban đầu vốn có khả năng là “không cố ý”, Cosmos Hub áp dụng cho mỗi validator một giới hạn _tombstone_ (đóng mộ), chỉ cho phép một validator bị slash **một lần** cho lỗi double-sign. Ví dụ: nếu bạn cấu hình sai HSM và double-sign nhiều block cũ, bạn sẽ chỉ bị phạt cho lần double-sign đầu tiên (và sau đó bị tombstoned ngay lập tức). Dù vẫn rất tốn kém và nên tránh, giới hạn tombstone phần nào làm “cùn” tác động kinh tế của việc cấu hình sai ngoài ý muốn.
 
-Liveness faults do not have caps, as they can't stack upon each other. Liveness bugs are "detected" as soon as the infraction occurs, and the validators are immediately put in jail, so it is not possible for them to commit multiple liveness faults without unjailing in between.
+Lỗi liveness không có giới hạn (cap) vì chúng không thể “cộng dồn” lên nhau. Lỗi liveness được “phát hiện” ngay khi vi phạm xảy ra, và validator bị jailed ngay lập tức, nên không thể gây ra nhiều lỗi liveness mà không unjail ở giữa.
 
-### Infraction Timelines
+### Dòng thời gian vi phạm
 
-To illustrate how the `x/slashing` module handles submitted evidence through
-CometBFT consensus, consider the following examples:
+Để minh hoạ cách module `x/slashing` xử lý evidence được submit thông qua consensus CometBFT, hãy xem các ví dụ sau.
 
-**Definitions**:
+**Định nghĩa**:
 
-_[_ : timeline start  
-_]_ : timeline end  
-_C<sub>n</sub>_ : infraction `n` committed  
-_D<sub>n</sub>_ : infraction `n` discovered  
+_[_ : bắt đầu timeline  
+_]_ : kết thúc timeline  
+_C<sub>n</sub>_ : vi phạm `n` được thực hiện  
+_D<sub>n</sub>_ : vi phạm `n` được phát hiện  
 _V<sub>b</sub>_ : validator bonded  
 _V<sub>u</sub>_ : validator unbonded
 
-#### Single Double Sign Infraction
+#### Một vi phạm double-sign
 
 \[----------C<sub>1</sub>----D<sub>1</sub>,V<sub>u</sub>-----\]
 
-A single infraction is committed then later discovered, at which point the
-validator is unbonded and slashed at the full amount for the infraction.
+Một vi phạm được thực hiện và sau đó được phát hiện; tại thời điểm phát hiện, validator đã unbonded và bị slash đầy đủ theo mức của vi phạm.
 
-#### Multiple Double Sign Infractions
+#### Nhiều vi phạm double-sign
 
 \[----------C<sub>1</sub>--C<sub>2</sub>---C<sub>3</sub>---D<sub>1</sub>,D<sub>2</sub>,D<sub>3</sub>V<sub>u</sub>-----\]
 
-Multiple infractions are committed and then later discovered, at which point the
-validator is jailed and slashed for only one infraction. Because the validator
-is also tombstoned, they can not rejoin the validator set.
+Nhiều vi phạm được thực hiện rồi sau đó mới bị phát hiện; tại thời điểm phát hiện, validator bị jailed và chỉ bị slash cho **một** vi phạm. Vì validator cũng bị tombstoned, họ không thể quay lại validator set.
 
 ## State
 
 ### Signing Info (Liveness)
 
-Every block includes a set of precommits by the validators for the previous block,
-known as the `LastCommitInfo` provided by CometBFT. A `LastCommitInfo` is valid so
-long as it contains precommits from +2/3 of total voting power.
+Mỗi block đều chứa một tập precommit của validator cho block trước đó, được CometBFT cung cấp dưới dạng `LastCommitInfo`. Một `LastCommitInfo` hợp lệ miễn là nó chứa precommit từ hơn \(2/3\) tổng voting power.
 
-Proposers are incentivized to include precommits from all validators in the CometBFT `LastCommitInfo`
-by receiving additional fees proportional to the difference between the voting
-power included in the `LastCommitInfo` and +2/3 (see [fee distribution](../distribution/README.md#begin-block)).
+Proposer được khuyến khích đưa precommit từ mọi validator vào `LastCommitInfo` của CometBFT bằng việc nhận thêm phí tỉ lệ với chênh lệch giữa voting power được đưa vào `LastCommitInfo` và \(2/3\) (xem [fee distribution](../distribution/README.md#begin-block)).
 
 ```go
 type LastCommitInfo struct {
@@ -115,32 +94,20 @@ type LastCommitInfo struct {
 }
 ```
 
-Validators are penalized for failing to be included in the `LastCommitInfo` for some
-number of blocks by being automatically jailed, potentially slashed, and unbonded.
+Validator sẽ bị phạt nếu không được đưa vào `LastCommitInfo` trong một số block nhất định, bằng cách tự động bị jailed, có thể bị slash, và unbonded.
 
-Information about validator's liveness activity is tracked through `ValidatorSigningInfo`.
-It is indexed in the store as follows:
+Thông tin về hoạt động liveness của validator được theo dõi qua `ValidatorSigningInfo`. Nó được index trong store như sau:
 
 * ValidatorSigningInfo: `0x01 | ConsAddrLen (1 byte) | ConsAddress -> ProtocolBuffer(ValSigningInfo)`
-* MissedBlocksBitArray: `0x02 | ConsAddrLen (1 byte) | ConsAddress | LittleEndianUint64(signArrayIndex) -> VarInt(didMiss)` (varint is a number encoding format)
+* MissedBlocksBitArray: `0x02 | ConsAddrLen (1 byte) | ConsAddress | LittleEndianUint64(signArrayIndex) -> VarInt(didMiss)` (varint là một định dạng mã hoá số)
 
-The first mapping allows us to easily lookup the recent signing info for a
-validator based on the validator's consensus address.
+Mapping đầu tiên giúp ta dễ dàng tra cứu signing info gần đây của validator dựa trên consensus address.
 
-The second mapping (`MissedBlocksBitArray`) acts
-as a bit-array of size `SignedBlocksWindow` that tells us if the validator missed
-the block for a given index in the bit-array. The index in the bit-array is given
-as little endian uint64.
-The result is a `varint` that takes on `0` or `1`, where `0` indicates the
-validator did not miss (did sign) the corresponding block, and `1` indicates
-they missed the block (did not sign).
+Mapping thứ hai (`MissedBlocksBitArray`) hoạt động như một bit-array có kích thước `SignedBlocksWindow`, cho biết validator có bỏ lỡ block ở một index nhất định trong bit-array hay không. Index trong bit-array được biểu diễn dưới dạng little endian uint64. Kết quả là một `varint` nhận giá trị `0` hoặc `1`, trong đó `0` nghĩa là validator **không** bỏ lỡ (có ký), và `1` nghĩa là họ bỏ lỡ block (không ký).
 
-Note that the `MissedBlocksBitArray` is not explicitly initialized up-front. Keys
-are added as we progress through the first `SignedBlocksWindow` blocks for a newly
-bonded validator. The `SignedBlocksWindow` parameter defines the size
-(number of blocks) of the sliding window used to track validator liveness.
+Lưu ý `MissedBlocksBitArray` không được khởi tạo tường minh từ đầu. Key sẽ được thêm dần khi ta tiến qua `SignedBlocksWindow` block đầu tiên của một validator mới bonded. Tham số `SignedBlocksWindow` xác định kích thước (số block) của cửa sổ trượt dùng để theo dõi liveness.
 
-The information stored for tracking validator liveness is as follows:
+Thông tin được lưu để theo dõi liveness của validator như sau:
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/slashing/v1beta1/slashing.proto#L13-L35
@@ -148,8 +115,7 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/slashing/v1be
 
 ### Params
 
-The slashing module stores it's params in state with the prefix of `0x00`,
-it can be updated with governance or the address with authority.
+Module slashing lưu params trong state với prefix `0x00`, và có thể được cập nhật thông qua governance hoặc địa chỉ có authority.
 
 * Params: `0x00 | ProtocolBuffer(Params)`
 
@@ -159,12 +125,11 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/slashing/v1be
 
 ## Messages
 
-In this section we describe the processing of messages for the `slashing` module.
+Phần này mô tả xử lý các message cho module `slashing`.
 
 ### Unjail
 
-If a validator was automatically unbonded due to downtime and wishes to come back online &
-possibly rejoin the bonded set, it must send `MsgUnjail`:
+Nếu một validator bị tự động unbonded do downtime và muốn quay lại online và/hoặc có thể gia nhập lại bonded set, họ phải gửi `MsgUnjail`:
 
 ```protobuf
 // MsgUnjail is an sdk.Msg used for unjailing a jailed validator, thus returning
@@ -175,7 +140,7 @@ message MsgUnjail {
 }
 ```
 
-Below is a pseudocode of the `MsgSrv/Unjail` RPC:
+Dưới đây là pseudocode cho RPC `MsgSrv/Unjail`:
 
 ```go
 unjail(tx MsgUnjail)
@@ -201,32 +166,17 @@ unjail(tx MsgUnjail)
     return
 ```
 
-If the validator has enough stake to be in the top `n = MaximumBondedValidators`, it will be automatically rebonded,
-and all delegators still delegated to the validator will be rebonded and begin to again collect
-provisions and rewards.
+Nếu validator có đủ stake để nằm trong top `n = MaximumBondedValidators`, họ sẽ tự động được rebonded, và mọi delegator còn đang uỷ quyền cho validator đó sẽ được rebonded và bắt đầu nhận provisions và rewards trở lại.
 
 ## BeginBlock
 
-### Liveness Tracking
+### Theo dõi liveness
 
-At the beginning of each block, we update the `ValidatorSigningInfo` for each
-validator and check if they've crossed below the liveness threshold over a
-sliding window. This sliding window is defined by `SignedBlocksWindow` and the
-index in this window is determined by `IndexOffset` found in the validator's
-`ValidatorSigningInfo`. For each block processed, the `IndexOffset` is incremented
-regardless if the validator signed or not. Once the index is determined, the
-`MissedBlocksBitArray` and `MissedBlocksCounter` are updated accordingly.
+Ở đầu mỗi block, ta cập nhật `ValidatorSigningInfo` cho từng validator và kiểm tra xem họ có vượt ngưỡng liveness trong một cửa sổ trượt hay không. Cửa sổ trượt này được định nghĩa bởi `SignedBlocksWindow` và index trong cửa sổ được xác định bởi `IndexOffset` trong `ValidatorSigningInfo` của validator. Với mỗi block được xử lý, `IndexOffset` sẽ tăng bất kể validator có ký hay không. Khi đã xác định index, `MissedBlocksBitArray` và `MissedBlocksCounter` được cập nhật tương ứng.
 
-Finally, in order to determine if a validator crosses below the liveness threshold,
-we fetch the maximum number of blocks missed, `maxMissed`, which is
-`SignedBlocksWindow - (MinSignedPerWindow * SignedBlocksWindow)` and the minimum
-height at which we can determine liveness, `minHeight`. If the current block is
-greater than `minHeight` and the validator's `MissedBlocksCounter` is greater than
-`maxMissed`, they will be slashed by `SlashFractionDowntime`, will be jailed
-for `DowntimeJailDuration`, and have the following values reset:
-`MissedBlocksBitArray`, `MissedBlocksCounter`, and `IndexOffset`.
+Cuối cùng, để xác định validator có rơi dưới ngưỡng liveness hay không, ta lấy số block tối đa được phép miss là `maxMissed`, được tính bằng `SignedBlocksWindow - (MinSignedPerWindow * SignedBlocksWindow)`, và chiều cao tối thiểu để có thể xác định liveness là `minHeight`. Nếu block hiện tại lớn hơn `minHeight` và `MissedBlocksCounter` của validator lớn hơn `maxMissed`, họ sẽ bị slash theo `SlashFractionDowntime`, bị jailed trong `DowntimeJailDuration`, và các giá trị sau sẽ được reset: `MissedBlocksBitArray`, `MissedBlocksCounter`, và `IndexOffset`.
 
-**Note**: Liveness slashes do **NOT** lead to a tombstoning.
+**Lưu ý**: Slash do liveness **KHÔNG** dẫn tới tombstoning.
 
 ```go
 height := block.Height
@@ -302,24 +252,23 @@ for vote in block.LastCommitInfo.Votes {
 
 ## Hooks
 
-This section contains a description of the module's `hooks`. Hooks are operations that are executed automatically when events are raised.
+Phần này mô tả các `hooks` của module. Hook là các thao tác được thực thi tự động khi sự kiện được phát ra.
 
 ### Staking hooks
 
-The slashing module implements the `StakingHooks` defined in `x/staking` and are used as record-keeping of validators information. During the app initialization, these hooks should be registered in the staking module struct.
+Module slashing hiện thực `StakingHooks` được định nghĩa trong `x/staking` và được dùng để ghi nhận thông tin validator. Trong quá trình khởi tạo app, các hook này nên được đăng ký trong struct của module staking.
 
-The following hooks impact the slashing state:
+Các hook sau tác động lên slashing state:
 
-* `AfterValidatorBonded` creates a `ValidatorSigningInfo` instance as described in the following section.
-* `AfterValidatorCreated` stores a validator's consensus key.
-* `AfterValidatorRemoved` removes a validator's consensus key.
+* `AfterValidatorBonded` tạo một instance `ValidatorSigningInfo` như mô tả ở phần dưới.
+* `AfterValidatorCreated` lưu consensus key của validator.
+* `AfterValidatorRemoved` xoá consensus key của validator.
 
 ### Validator Bonded
 
-Upon successful first-time bonding of a new validator, we create a new `ValidatorSigningInfo` structure for the
-now-bonded validator, which `StartHeight` of the current block.
+Khi một validator mới lần đầu bonded thành công, ta tạo một cấu trúc `ValidatorSigningInfo` mới cho validator vừa bonded, với `StartHeight` là height của block hiện tại.
 
-If the validator was out of the validator set and gets bonded again, its new bonded height is set.
+Nếu validator rời khỏi validator set và bonded lại, height bonded mới của nó sẽ được đặt lại.
 
 ```go
 onValidatorBonded(address sdk.ValAddress)
@@ -344,7 +293,7 @@ onValidatorBonded(address sdk.ValAddress)
 
 ## Events
 
-The slashing module emits the following events:
+Module slashing phát ra các event sau:
 
 ### MsgServer
 
@@ -367,7 +316,7 @@ The slashing module emits the following events:
 | slash | jailed [0]    | {validatorConsensusAddress} |
 | slash | burned coins  | {math.Int}                   |
 
-* [0] Only included if the validator is jailed.
+* [0] Chỉ xuất hiện nếu validator bị jailed.
 
 | Type     | Attribute Key | Attribute Value             |
 | -------- | ------------- | --------------------------- |
@@ -377,7 +326,7 @@ The slashing module emits the following events:
 
 #### Slash
 
-* same as `"slash"` event from `HandleValidatorSignature`, but without the `jailed` attribute.
+* giống event `"slash"` từ `HandleValidatorSignature`, nhưng không có thuộc tính `jailed`.
 
 #### Jail
 
@@ -387,131 +336,67 @@ The slashing module emits the following events:
 
 ## Staking Tombstone
 
-### Abstract
+### Tóm tắt
 
-In the current implementation of the `slashing` module, when the consensus engine
-informs the state machine of a validator's consensus fault, the validator is
-partially slashed, and put into a "jail period", a period of time in which they
-are not allowed to rejoin the validator set. However, because of the nature of
-consensus faults and ABCI, there can be a delay between an infraction occurring,
-and evidence of the infraction reaching the state machine (this is one of the
-primary reasons for the existence of the unbonding period).
+Trong hiện thực hiện tại của module `slashing`, khi consensus engine thông báo cho state machine về một lỗi consensus của validator, validator sẽ bị slash một phần và bị đưa vào một “giai đoạn jail” (jail period) — khoảng thời gian mà họ không được phép tái gia nhập validator set. Tuy nhiên, do bản chất của lỗi consensus và ABCI, có thể có độ trễ giữa thời điểm vi phạm xảy ra và thời điểm evidence của vi phạm đến được state machine (đây là một trong các lý do chính của việc tồn tại unbonding period).
 
-> Note: The tombstone concept, only applies to faults that have a delay between
-> the infraction occurring and evidence reaching the state machine. For example,
-> evidence of a validator double signing may take a while to reach the state machine
-> due to unpredictable evidence gossip layer delays and the ability of validators to
-> selectively reveal double-signatures (e.g. to infrequently-online light clients).
-> Liveness slashing, on the other hand, is detected immediately as soon as the
-> infraction occurs, and therefore no slashing period is needed. A validator is
-> immediately put into jail period, and they cannot commit another liveness fault
-> until they unjail. In the future, there may be other types of byzantine faults
-> that have delays (for example, submitting evidence of an invalid proposal as a transaction).
-> When implemented, it will have to be decided whether these future types of
-> byzantine faults will result in a tombstoning (and if not, the slash amounts
-> will not be capped by a slashing period).
+> Note: Khái niệm tombstone chỉ áp dụng cho các lỗi có độ trễ giữa thời điểm vi phạm xảy ra và thời điểm evidence đến state machine. Ví dụ, evidence của việc double-sign có thể mất thời gian để đến được state machine do độ trễ không thể dự đoán của lớp gossip evidence và khả năng validator chọn lọc tiết lộ chữ ký double-sign (ví dụ, cho các light client online không thường xuyên). Liveness slashing thì được phát hiện ngay lập tức khi vi phạm xảy ra, nên không cần slashing period. Validator bị đưa vào jail ngay lập tức và họ không thể gây ra thêm lỗi liveness cho đến khi unjail. Trong tương lai, có thể có các loại lỗi byzantine khác có độ trễ (ví dụ: submit evidence về một proposal không hợp lệ dưới dạng giao dịch). Khi được hiện thực, sẽ cần quyết định các loại lỗi byzantine tương lai này có dẫn tới tombstoning hay không (nếu không, mức slash sẽ không bị cap bởi slashing period).
 
-In the current system design, once a validator is put in the jail for a consensus
-fault, after the `JailPeriod` they are allowed to send a transaction to `unjail`
-themselves, and thus rejoin the validator set.
+Trong thiết kế hiện tại, một khi validator bị jailed vì lỗi an toàn consensus (consensus fault), sau `JailPeriod` họ được phép gửi một giao dịch để tự `unjail` và tái gia nhập validator set.
 
-One of the "design desires" of the `slashing` module is that if multiple
-infractions occur before evidence is executed (and a validator is put in jail),
-they should only be punished for single worst infraction, but not cumulatively.
-For example, if the sequence of events is:
+Một trong các “mong muốn thiết kế” của module `slashing` là nếu nhiều vi phạm xảy ra trước khi evidence được thực thi (và validator bị jailed), thì họ chỉ nên bị phạt cho **một** vi phạm tệ nhất, thay vì cộng dồn. Ví dụ, nếu chuỗi sự kiện là:
 
-1. Validator A commits Infraction 1 (worth 30% slash)
-2. Validator A commits Infraction 2 (worth 40% slash)
-3. Validator A commits Infraction 3 (worth 35% slash)
-4. Evidence for Infraction 1 reaches state machine (and validator is put in jail)
-5. Evidence for Infraction 2 reaches state machine
-6. Evidence for Infraction 3 reaches state machine
+1. Validator A thực hiện Vi phạm 1 (slash 30%)
+2. Validator A thực hiện Vi phạm 2 (slash 40%)
+3. Validator A thực hiện Vi phạm 3 (slash 35%)
+4. Evidence của Vi phạm 1 đến state machine (và validator bị jailed)
+5. Evidence của Vi phạm 2 đến state machine
+6. Evidence của Vi phạm 3 đến state machine
 
-Only Infraction 2 should have its slash take effect, as it is the highest. This
-is done, so that in the case of the compromise of a validator's consensus key,
-they will only be punished once, even if the hacker double-signs many blocks.
-Because, the unjailing has to be done with the validator's operator key, they
-have a chance to re-secure their consensus key, and then signal that they are
-ready using their operator key. We call this period during which we track only
-the max infraction, the "slashing period".
+Chỉ Vi phạm 2 nên có tác dụng slash vì nó lớn nhất. Điều này nhằm đảm bảo trong trường hợp consensus key của validator bị lộ, họ chỉ bị phạt một lần, ngay cả khi kẻ tấn công double-sign nhiều block. Vì việc unjail phải được thực hiện bằng operator key của validator, họ có cơ hội bảo vệ lại consensus key và sau đó dùng operator key để báo hiệu rằng họ đã sẵn sàng. Ta gọi khoảng thời gian mà ta chỉ theo dõi vi phạm lớn nhất là “slashing period”.
 
-Once, a validator rejoins by unjailing themselves, we begin a new slashing period;
-if they commit a new infraction after unjailing, it gets slashed cumulatively on
-top of the worst infraction from the previous slashing period.
+Khi validator gia nhập lại bằng cách tự unjail, ta bắt đầu một slashing period mới; nếu họ gây ra vi phạm mới sau khi unjail, vi phạm đó sẽ bị slash cộng dồn lên trên vi phạm tệ nhất từ slashing period trước.
 
-However, while infractions are grouped based off of the slashing periods, because
-evidence can be submitted up to an `unbondingPeriod` after the infraction, we
-still have to allow for evidence to be submitted for previous slashing periods.
-For example, if the sequence of events is:
+Tuy nhiên, dù các vi phạm được nhóm theo slashing period, vì evidence có thể được submit đến `unbondingPeriod` sau khi vi phạm xảy ra, ta vẫn phải cho phép submit evidence cho các slashing period trước. Ví dụ, nếu chuỗi sự kiện là:
 
-1. Validator A commits Infraction 1 (worth 30% slash)
-2. Validator A commits Infraction 2 (worth 40% slash)
-3. Evidence for Infraction 1 reaches state machine (and Validator A is put in jail)
-4. Validator A unjails
+1. Validator A thực hiện Vi phạm 1 (slash 30%)
+2. Validator A thực hiện Vi phạm 2 (slash 40%)
+3. Evidence của Vi phạm 1 đến state machine (và Validator A bị jailed)
+4. Validator A unjail
 
-We are now in a new slashing period, however we still have to keep the door open
-for the previous infraction, as the evidence for Infraction 2 may still come in.
-As the number of slashing periods increase, it creates more complexity as we have
-to keep track of the highest infraction amount for every single slashing period.
+Giờ ta đang ở slashing period mới, nhưng ta vẫn phải “mở cửa” cho vi phạm trước đó, vì evidence của Vi phạm 2 có thể vẫn đến. Khi số slashing period tăng lên, độ phức tạp tăng vì ta phải theo dõi mức slash lớn nhất cho từng slashing period cho mỗi validator.
 
-> Note: Currently, according to the `slashing` module spec, a new slashing period
-> is created every time a validator is unbonded then rebonded. This should probably
-> be changed to jailed/unjailed. See issue [#3205](https://github.com/cosmos/cosmos-sdk/issues/3205)
-> for further details. For the remainder of this, I will assume that we only start
-> a new slashing period when a validator gets unjailed.
+> Note: Hiện tại, theo đặc tả module `slashing`, một slashing period mới được tạo mỗi khi validator unbonded rồi rebonded. Điều này có lẽ nên đổi thành jailed/unjail. Xem issue [#3205](https://github.com/cosmos/cosmos-sdk/issues/3205). Ở phần còn lại, ta giả định rằng slashing period mới chỉ bắt đầu khi validator được unjail.
 
-The maximum number of slashing periods is the `len(UnbondingPeriod) / len(JailPeriod)`.
-The current defaults in Gaia for the `UnbondingPeriod` and `JailPeriod` are 3 weeks
-and 2 days, respectively. This means there could potentially be up to 11 slashing
-periods concurrently being tracked per validator. If we set the `JailPeriod >= UnbondingPeriod`,
-we only have to track 1 slashing period (i.e not have to track slashing periods).
+Số slashing period tối đa là `len(UnbondingPeriod) / len(JailPeriod)`. Giá trị mặc định hiện tại trong Gaia cho `UnbondingPeriod` và `JailPeriod` lần lượt là 3 tuần và 2 ngày. Điều này nghĩa là có thể có tới 11 slashing period được theo dõi đồng thời cho mỗi validator. Nếu đặt `JailPeriod >= UnbondingPeriod`, ta chỉ cần theo dõi 1 slashing period (tức là không cần theo dõi slashing period).
 
-Currently, in the jail period implementation, once a validator unjails, all of
-their delegators who are delegated to them (haven't unbonded / redelegated away),
-stay with them. Given that consensus safety faults are so egregious
-(way more so than liveness faults), it is probably prudent to have delegators not
-"auto-rebond" to the validator.
+Hiện tại, trong hiện thực jail period, một khi validator unjail, tất cả delegator đang uỷ quyền cho họ (chưa unbond/redelegate đi) vẫn ở lại với họ. Vì các lỗi an toàn consensus là cực kỳ nghiêm trọng (nghiêm trọng hơn liveness), có lẽ nên cân nhắc để delegator không “auto-rebond” với validator.
 
-#### Proposal: infinite jail
+#### Đề xuất: jail vĩnh viễn
 
-We propose setting the "jail time" for a
-validator who commits a consensus safety fault, to `infinite` (i.e. a tombstone state).
-This essentially kicks the validator out of the validator set and does not allow
-them to re-enter the validator set. All of their delegators (including the operator themselves)
-have to either unbond or redelegate away. The validator operator can create a new
-validator if they would like, with a new operator key and consensus key, but they
-have to "re-earn" their delegations back.
+Ta đề xuất đặt “jail time” cho validator gây ra lỗi an toàn consensus thành `infinite` (vô hạn), tức là trạng thái tombstone. Điều này đẩy validator ra khỏi validator set và không cho phép họ quay lại. Tất cả delegator của họ (bao gồm chính operator) phải unbond hoặc redelegate đi. Nếu operator muốn, họ có thể tạo một validator mới với operator key và consensus key mới, nhưng họ phải “kiếm lại” các uỷ quyền.
 
-Implementing the tombstone system and getting rid of the slashing period tracking
-will make the `slashing` module way simpler, especially because we can remove all
-of the hooks defined in the `slashing` module consumed by the `staking` module
-(the `slashing` module still consumes hooks defined in `staking`).
+Việc hiện thực tombstone system và bỏ theo dõi slashing period sẽ làm module `slashing` đơn giản hơn nhiều, đặc biệt vì ta có thể loại bỏ các hook được định nghĩa trong `slashing` và được `staking` tiêu thụ (module `slashing` vẫn tiêu thụ hook do `staking` định nghĩa).
 
-#### Single slashing amount
+#### Một mức slash duy nhất
 
-Another optimization that can be made is that if we assume that all ABCI faults
-for CometBFT consensus are slashed at the same level, we don't have to keep
-track of "max slash". Once an ABCI fault happens, we don't have to worry about
-comparing potential future ones to find the max.
+Một tối ưu khác: nếu ta giả định mọi lỗi ABCI cho consensus CometBFT đều bị slash ở cùng một mức, ta không cần theo dõi “max slash”. Một khi lỗi ABCI xảy ra, ta không cần lo so sánh các lỗi tương lai để tìm mức lớn nhất.
 
-Currently the only CometBFT ABCI fault is:
+Hiện tại, lỗi CometBFT ABCI duy nhất là:
 
 * Unjustified precommits (double signs)
 
-It is currently planned to include the following fault in the near future:
+Trong tương lai gần, dự kiến bổ sung lỗi:
 
-* Signing a precommit when you're in unbonding phase (needed to make light client bisection safe)
+* Ký precommit khi đang trong giai đoạn unbonding (cần để light client bisection an toàn)
 
-Given that these faults are both attributable byzantine faults, we will likely
-want to slash them equally, and thus we can enact the above change.
+Vì các lỗi này đều là byzantine fault có thể quy trách nhiệm, nhiều khả năng ta muốn slash chúng như nhau, và do đó có thể áp dụng thay đổi trên.
 
-> Note: This change may make sense for current CometBFT consensus, but maybe
-> not for a different consensus algorithm or future versions of CometBFT that
-> may want to punish at different levels (for example, partial slashing).
+> Note: Thay đổi này có thể phù hợp với consensus CometBFT hiện tại, nhưng có thể không phù hợp với thuật toán consensus khác hoặc các phiên bản CometBFT tương lai muốn trừng phạt ở các mức khác nhau (ví dụ: partial slashing).
 
 ## Parameters
 
-The slashing module contains the following parameters:
+Module slashing có các tham số sau:
 
 | Key                     | Type           | Example                |
 | ----------------------- | -------------- | ---------------------- |
@@ -523,11 +408,11 @@ The slashing module contains the following parameters:
 
 ## CLI
 
-A user can query and interact with the `slashing` module using the CLI.
+Người dùng có thể truy vấn và tương tác với module `slashing` bằng CLI.
 
 ### Query
 
-The `query` commands allow users to query `slashing` state.
+Các lệnh `query` cho phép truy vấn slashing state.
 
 ```shell
 simd query slashing --help
@@ -535,19 +420,19 @@ simd query slashing --help
 
 #### params
 
-The `params` command allows users to query genesis parameters for the slashing module.
+Lệnh `params` cho phép truy vấn tham số genesis cho module slashing.
 
 ```shell
 simd query slashing params [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query slashing params
 ```
 
-Example Output:
+Ví dụ output:
 
 ```yml
 downtime_jail_duration: 600s
@@ -559,20 +444,20 @@ slash_fraction_downtime: "0.010000000000000000"
 
 #### signing-info
 
-The `signing-info` command allows users to query signing-info of the validator using consensus public key.
+Lệnh `signing-info` cho phép truy vấn signing-info của validator bằng consensus public key.
 
 ```shell
 simd query slashing signing-infos [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query slashing signing-info '{"@type":"/cosmos.crypto.ed25519.PubKey","key":"Auxs3865HpB/EfssYOzfqNhEJjzys6jD5B6tPgC8="}'
 
 ```
 
-Example Output:
+Ví dụ output:
 
 ```yml
 address: cosmosvalcons1nrqsld3aw6lh6t082frdqc84uwxn0t958c
@@ -585,19 +470,19 @@ tombstoned: false
 
 #### signing-infos
 
-The `signing-infos` command allows users to query signing infos of all validators.
+Lệnh `signing-infos` cho phép truy vấn signing info của tất cả validator.
 
 ```shell
 simd query slashing signing-infos [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query slashing signing-infos
 ```
 
-Example Output:
+Ví dụ output:
 
 ```yml
 info:
@@ -614,7 +499,7 @@ pagination:
 
 ### Transactions
 
-The `tx` commands allow users to interact with the `slashing` module.
+Các lệnh `tx` cho phép tương tác với module `slashing`.
 
 ```bash
 simd tx slashing --help
@@ -622,13 +507,13 @@ simd tx slashing --help
 
 #### unjail
 
-The `unjail` command allows users to unjail a validator previously jailed for downtime.
+Lệnh `unjail` cho phép unjail một validator trước đó bị jailed do downtime.
 
 ```bash
 simd tx slashing unjail --from mykey [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 simd tx slashing unjail --from mykey
@@ -636,23 +521,23 @@ simd tx slashing unjail --from mykey
 
 ### gRPC
 
-A user can query the `slashing` module using gRPC endpoints.
+Người dùng có thể truy vấn module `slashing` bằng các endpoint gRPC.
 
 #### Params
 
-The `Params` endpoint allows users to query the parameters of slashing module.
+Endpoint `Params` cho phép truy vấn tham số của module slashing.
 
 ```shell
 cosmos.slashing.v1beta1.Query/Params
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext localhost:9090 cosmos.slashing.v1beta1.Query/Params
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -668,19 +553,19 @@ Example Output:
 
 #### SigningInfo
 
-The SigningInfo queries the signing info of given cons address.
+`SigningInfo` truy vấn signing info của một cons address.
 
 ```shell
 cosmos.slashing.v1beta1.Query/SigningInfo
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext -d '{"cons_address":"cosmosvalcons1nrqsld3aw6lh6t082frdqc84uwxn0t958c"}' localhost:9090 cosmos.slashing.v1beta1.Query/SigningInfo
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -694,19 +579,19 @@ Example Output:
 
 #### SigningInfos
 
-The SigningInfos queries signing info of all validators.
+`SigningInfos` truy vấn signing info của tất cả validator.
 
 ```shell
 cosmos.slashing.v1beta1.Query/SigningInfos
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext localhost:9090 cosmos.slashing.v1beta1.Query/SigningInfos
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -725,7 +610,7 @@ Example Output:
 
 ### REST
 
-A user can query the `slashing` module using REST endpoints.
+Người dùng có thể truy vấn module `slashing` bằng các endpoint REST.
 
 #### Params
 
@@ -733,13 +618,13 @@ A user can query the `slashing` module using REST endpoints.
 /cosmos/slashing/v1beta1/params
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 curl "localhost:1317/cosmos/slashing/v1beta1/params"
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -758,13 +643,13 @@ Example Output:
 /cosmos/slashing/v1beta1/signing_infos/%s
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 curl "localhost:1317/cosmos/slashing/v1beta1/signing_infos/cosmosvalcons1nrqslkwd3pz096lh6t082frdqc84uwxn0t958c"
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -785,13 +670,13 @@ Example Output:
 /cosmos/slashing/v1beta1/signing_infos
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 curl "localhost:1317/cosmos/slashing/v1beta1/signing_infos
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -811,3 +696,4 @@ Example Output:
   }
 }
 ```
+

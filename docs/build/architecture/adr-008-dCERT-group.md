@@ -1,171 +1,93 @@
-# ADR 008: Decentralized Computer Emergency Response Team (dCERT) Group
+# ADR 008: Nhóm Đội Phản Ứng Khẩn Cấp Máy Tính Phi Tập Trung (dCERT)
 
 ## Changelog
 
-* 2019 Jul 31: Initial Draft
+* 31 tháng 7 năm 2019: Bản nháp đầu tiên
 
-## Context
+## Bối Cảnh
 
-In order to reduce the number of parties involved with handling sensitive
-information in an emergency scenario, we propose the creation of a
-specialization group named The Decentralized Computer Emergency Response Team
-(dCERT).  Initially this group's role is intended to serve as coordinators
-between various actors within a blockchain community such as validators,
-bug-hunters, and developers.  During a time of crisis, the dCERT group would
-aggregate and relay input from a variety of stakeholders to the developers who
-are actively devising a patch to the software, this way sensitive information
-does not need to be publicly disclosed while some input from the community can
-still be gained.
+Để giảm số lượng bên liên quan đến việc xử lý thông tin nhạy cảm trong tình huống khẩn cấp, chúng tôi đề xuất tạo một nhóm chuyên biệt hóa có tên Đội Phản Ứng Khẩn Cấp Máy Tính Phi Tập Trung (dCERT). Ban đầu, vai trò của nhóm này là đóng vai điều phối viên giữa các tác nhân khác nhau trong cộng đồng blockchain như validator, bug-hunter và nhà phát triển. Trong thời điểm khủng hoảng, nhóm dCERT sẽ tổng hợp và chuyển tiếp đầu vào từ nhiều stakeholder đến các nhà phát triển đang tích cực nghĩ ra bản vá cho phần mềm, theo cách này thông tin nhạy cảm không cần được công bố công khai trong khi vẫn có thể thu thập được một số đầu vào từ cộng đồng.
 
-Additionally, a special privilege is proposed for the dCERT group: the capacity
-to "circuit-break" (aka. temporarily disable)  a particular message path. Note
-that this privilege should be enabled/disabled globally with a governance
-parameter such that this privilege could start disabled and later be enabled
-through a parameter change proposal, once a dCERT group has been established.
+Ngoài ra, một đặc quyền đặc biệt được đề xuất cho nhóm dCERT: khả năng "circuit-break" (tức là tạm thời vô hiệu hóa) một đường dẫn message cụ thể. Lưu ý rằng đặc quyền này nên được bật/tắt toàn cục với một governance parameter để đặc quyền này có thể bắt đầu ở trạng thái bị vô hiệu hóa và sau đó được bật thông qua đề xuất thay đổi tham số, khi một nhóm dCERT đã được thành lập.
 
-In the future it is foreseeable that the community may wish to expand the roles
-of dCERT with further responsibilities such as the capacity to "pre-approve" a
-security update on behalf of the community prior to a full community
-wide vote whereby the sensitive information would be revealed prior to a
-vulnerability being patched on the live network.  
+Trong tương lai, có thể dự kiến rằng cộng đồng có thể muốn mở rộng vai trò của dCERT với nhiều trách nhiệm hơn như khả năng "phê duyệt trước" một bản cập nhật bảo mật thay mặt cộng đồng trước khi có cuộc bỏ phiếu toàn cộng đồng, trong đó thông tin nhạy cảm sẽ được tiết lộ trước khi lỗ hổng được vá trên mạng trực tiếp.
 
-## Decision
+## Quyết Định
 
-The dCERT group is proposed to include an implementation of a `SpecializationGroup`
-as defined in [ADR 007](./adr-007-specialization-groups.md). This will include the
-implementation of:
+Nhóm dCERT được đề xuất bao gồm triển khai một `SpecializationGroup` như được định nghĩa trong [ADR 007](./adr-007-specialization-groups.md). Điều này sẽ bao gồm triển khai:
 
-* continuous voting
-* slashing due to breach of soft contract
-* revoking a member due to breach of soft contract
-* emergency disband of the entire dCERT group (ex. for colluding maliciously)
-* compensation stipend from the community pool or other means decided by
-   governance
+* bỏ phiếu liên tục
+* slashing do vi phạm hợp đồng mềm
+* thu hồi thành viên do vi phạm hợp đồng mềm
+* giải tán khẩn cấp toàn bộ nhóm dCERT (ví dụ: vì thông đồng độc hại)
+* trợ cấp bồi thường từ pool cộng đồng hoặc các phương tiện khác do quản trị quyết định
 
-This system necessitates the following new parameters:
+Hệ thống này đòi hỏi các tham số mới sau:
 
-* blockly stipend allowance per dCERT member
-* maximum number of dCERT members
-* required staked slashable tokens for each dCERT member
-* quorum for suspending a particular member
-* proposal wager for disbanding the dCERT group
-* stabilization period for dCERT member transition
-* circuit break dCERT privileges enabled
+* trợ cấp khối hàng ngày cho mỗi thành viên dCERT
+* số lượng tối đa thành viên dCERT
+* token có thể bị slashing bắt buộc stake cho mỗi thành viên dCERT
+* quorum để đình chỉ một thành viên cụ thể
+* wager đề xuất để giải tán nhóm dCERT
+* giai đoạn ổn định cho chuyển đổi thành viên dCERT
+* đặc quyền circuit break dCERT được bật
 
-These parameters are expected to be implemented through the param keeper such
-that governance may change them at any given point.
+Các tham số này được kỳ vọng được triển khai thông qua param keeper để quản trị có thể thay đổi chúng vào bất kỳ thời điểm nào.
 
-### Continuous Voting Electionator
+### Electionator Bỏ Phiếu Liên Tục
 
-An `Electionator` object is to be implemented as continuous voting and with the
-following specifications:
+Một đối tượng `Electionator` sẽ được triển khai là bỏ phiếu liên tục và với các thông số kỹ thuật sau:
 
-* All delegation addresses may submit votes at any point which updates their
-   preferred representation on the dCERT group.
-* Preferred representation may be arbitrarily split between addresses (ex. 50%
-   to John, 25% to Sally, 25% to Carol)
-* In order for a new member to be added to the dCERT group they must
-   send a transaction accepting their admission at which point the validity of
-   their admission is to be confirmed.
-    * A sequence number is assigned when a member is added to dCERT group.
-     If a member leaves the dCERT group and then enters back, a new sequence number
-     is assigned.  
-* Addresses which control the greatest amount of preferred-representation are
-   eligible to join the dCERT group (up the _maximum number of dCERT members_).
-   If the dCERT group is already full and new member is admitted, the existing
-   dCERT member with the lowest amount of votes is kicked from the dCERT group.
-    * In the split situation where the dCERT group is full but a vying candidate
-     has the same amount of vote as an existing dCERT member, the existing
-     member should maintain its position.
-    * In the split situation where somebody must be kicked out but the two
-     addresses with the smallest number of votes have the same number of votes,
-     the address with the smallest sequence number maintains its position.  
-* A stabilization period can be optionally included to reduce the
-   "flip-flopping" of the dCERT membership tail members. If a stabilization
-   period is provided which is greater than 0, when members are kicked due to
-   insufficient support, a queue entry is created which documents which member is
-   to replace which other member. While this entry is in the queue, no new entries
-   to kick that same dCERT member can be made. When the entry matures at the
-   duration of the  stabilization period, the new member is instantiated, and old
-   member kicked.
+* Tất cả địa chỉ ủy quyền có thể gửi phiếu bầu vào bất kỳ thời điểm nào, cập nhật đại diện ưa thích của họ trên nhóm dCERT.
+* Đại diện ưa thích có thể được chia tùy ý giữa các địa chỉ (ví dụ: 50% cho John, 25% cho Sally, 25% cho Carol)
+* Để một thành viên mới được thêm vào nhóm dCERT, họ phải gửi một giao dịch chấp nhận việc gia nhập của mình, lúc đó tính hợp lệ của việc gia nhập sẽ được xác nhận.
+    * Một số thứ tự được gán khi thành viên được thêm vào nhóm dCERT. Nếu thành viên rời khỏi nhóm dCERT và sau đó tái gia nhập, một số thứ tự mới được gán.
+* Các địa chỉ kiểm soát lượng đại diện ưa thích lớn nhất đủ điều kiện tham gia nhóm dCERT (lên đến _số thành viên dCERT tối đa_). Nếu nhóm dCERT đã đầy và thành viên mới được tiếp nhận, thành viên dCERT hiện tại với số phiếu thấp nhất sẽ bị loại khỏi nhóm dCERT.
+    * Trong tình huống ngang bằng khi nhóm dCERT đã đầy nhưng ứng viên mới có số phiếu bằng với thành viên dCERT hiện tại, thành viên hiện tại nên giữ vị trí của mình.
+    * Trong tình huống ngang bằng khi ai đó phải bị loại nhưng hai địa chỉ có số phiếu nhỏ nhất bằng nhau, địa chỉ có số thứ tự nhỏ hơn giữ vị trí của mình.
+* Có thể bao gồm giai đoạn ổn định tùy chọn để giảm "flip-flopping" của các thành viên dCERT ở đuôi. Nếu giai đoạn ổn định được cung cấp lớn hơn 0, khi các thành viên bị loại vì hỗ trợ không đủ, một mục hàng đợi được tạo ghi lại thành viên nào sẽ thay thế thành viên nào khác. Trong khi mục này trong hàng đợi, không có mục mới nào để loại cùng thành viên dCERT đó có thể được tạo. Khi mục đáo hạn vào thời gian của giai đoạn ổn định, thành viên mới được khởi tạo và thành viên cũ bị loại.
 
 ### Staking/Slashing
 
-All members of the dCERT group must stake tokens _specifically_ to maintain
-eligibility as a dCERT member. These tokens can be staked directly by the vying
-dCERT member or out of the good will of a 3rd party (who shall gain no on-chain
-benefits for doing so). This staking mechanism should use the existing global
-unbonding time of tokens staked for network validator security. A dCERT member
-can _only be_ a member if it has the required tokens staked under this
-mechanism. If those tokens are unbonded then the dCERT member must be
-automatically kicked from the group.  
+Tất cả thành viên nhóm dCERT phải stake token _cụ thể_ để duy trì đủ điều kiện làm thành viên dCERT. Những token này có thể được stake trực tiếp bởi thành viên dCERT hoặc từ thiện của bên thứ 3 (người sẽ không nhận được bất kỳ lợi ích on-chain nào cho việc đó). Cơ chế staking này nên sử dụng thời gian unbonding toàn cục hiện tại của token được stake cho bảo mật validator mạng. Thành viên dCERT _chỉ có thể là_ thành viên nếu họ có token bắt buộc được stake dưới cơ chế này. Nếu những token đó được unbond thì thành viên dCERT phải bị tự động loại khỏi nhóm.
 
-Slashing of a particular dCERT member due to soft-contract breach should be
-performed by governance on a per member basis based on the magnitude of the
-breach.  The process flow is anticipated to be that a dCERT member is suspended
-by the dCERT group prior to being slashed by governance.  
+Slashing một thành viên dCERT cụ thể do vi phạm hợp đồng mềm nên được thực hiện bởi quản trị trên cơ sở từng thành viên dựa trên mức độ vi phạm. Quy trình dự kiến là thành viên dCERT bị đình chỉ bởi nhóm dCERT trước khi bị slash bởi quản trị.
 
-Membership suspension by the dCERT group takes place through a voting procedure
-by the dCERT group members. After this suspension has taken place, a governance
-proposal to slash the dCERT member must be submitted, if the proposal is not
-approved by the time the rescinding member has completed unbonding their
-tokens, then the tokens are no longer staked and unable to be slashed.
+Đình chỉ thành viên bởi nhóm dCERT diễn ra thông qua quy trình bỏ phiếu của các thành viên nhóm dCERT. Sau khi đình chỉ này diễn ra, phải gửi một governance proposal để slash thành viên dCERT, nếu đề xuất không được phê duyệt trong thời gian thành viên bị thu hồi đã hoàn thành unbonding token của họ, thì các token không còn được stake và không thể bị slash.
 
-Additionally in the case of an emergency situation of a colluding and malicious
-dCERT group, the community needs the capability to disband the entire dCERT
-group and likely fully slash them. This could be achieved though a special new
-proposal type (implemented as a general governance proposal) which would halt
-the functionality of the dCERT group until the proposal was concluded. This
-special proposal type would likely need to also have a fairly large wager which
-could be slashed if the proposal creator was malicious. The reason a large
-wager should be required is because as soon as the proposal is made, the
-capability of the dCERT group to halt message routes is put on temporarily
-suspended, meaning that a malicious actor who created such a proposal could
-then potentially exploit a bug during this period of time, with no dCERT group
-capable of shutting down the exploitable message routes.
+Ngoài ra, trong trường hợp khẩn cấp của một nhóm dCERT thông đồng và độc hại, cộng đồng cần khả năng giải tán toàn bộ nhóm dCERT và có khả năng slash toàn bộ họ. Điều này có thể đạt được thông qua một loại đề xuất mới đặc biệt (được triển khai như governance proposal chung) sẽ tạm dừng chức năng của nhóm dCERT cho đến khi đề xuất được kết luận. Loại đề xuất đặc biệt này có thể sẽ cần có wager khá lớn có thể bị slash nếu người tạo đề xuất có ý đồ xấu. Lý do wager lớn cần được yêu cầu là vì ngay khi đề xuất được tạo, khả năng của nhóm dCERT để dừng các route message tạm thời bị đình chỉ, có nghĩa là một tác nhân độc hại tạo ra đề xuất như vậy sau đó có thể khai thác một lỗ hổng trong thời gian này mà không có nhóm dCERT có thể tắt các route message có thể bị khai thác.
 
-### dCERT membership transactions
+### Giao Dịch Thành Viên dCERT
 
-Active dCERT members
+Thành viên dCERT đang hoạt động
 
-* change of the description of the dCERT group
-* circuit break a message route
-* vote to suspend a dCERT member.
+* thay đổi mô tả của nhóm dCERT
+* circuit break một route message
+* bỏ phiếu để đình chỉ thành viên dCERT.
 
-Here circuit-breaking refers to the capability to disable a groups of messages,
-This could for instance mean: "disable all staking-delegation messages", or
-"disable all distribution messages". This could be accomplished by verifying
-that the message route has not been "circuit-broken" at CheckTx time (in
-`baseapp/baseapp.go`).
+Ở đây circuit-breaking đề cập đến khả năng vô hiệu hóa một nhóm message. Ví dụ có thể là: "vô hiệu hóa tất cả message staking-delegation", hoặc "vô hiệu hóa tất cả message distribution". Điều này có thể được thực hiện bằng cách xác minh rằng route message chưa bị "circuit-broken" tại thời điểm CheckTx (trong `baseapp/baseapp.go`).
 
-"unbreaking" a circuit is anticipated only to occur during a hard fork upgrade
-meaning that no capability to unbreak a message route on a live chain is
-required.
+"Unbreaking" một circuit được dự kiến chỉ xảy ra trong quá trình nâng cấp hard fork, có nghĩa là không cần khả năng unbreak một route message trên chain đang hoạt động.
 
-Note also, that if there was a problem with governance voting (for instance a
-capability to vote many times) then governance would be broken and should be
-halted with this mechanism, it would be then up to the validator set to
-coordinate and hard-fork upgrade to a patched version of the software where
-governance is re-enabled (and fixed). If the dCERT group abuses this privilege
-they should all be severely slashed.
+Lưu ý rằng nếu có vấn đề với bỏ phiếu quản trị (ví dụ như khả năng bỏ phiếu nhiều lần) thì quản trị sẽ bị hỏng và nên bị dừng bằng cơ chế này, sau đó sẽ do validator set phối hợp và nâng cấp hard-fork sang phiên bản đã vá của phần mềm trong đó quản trị được bật lại (và sửa). Nếu nhóm dCERT lạm dụng đặc quyền này, tất cả họ nên bị slash nặng nề.
 
-## Status
+## Trạng Thái
 
-Proposed
+Đề Xuất
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Potential to reduces the number of parties to coordinate with during an emergency
-* Reduction in possibility of disclosing sensitive information to malicious parties
+* Tiềm năng giảm số lượng bên cần phối hợp trong trường hợp khẩn cấp
+* Giảm khả năng tiết lộ thông tin nhạy cảm cho các bên độc hại
 
-### Negative
+### Tiêu Cực
 
-* Centralization risks
+* Rủi ro tập trung hóa
 
-### Neutral
+### Trung Lập
 
-## References
+## Tài Liệu Tham Khảo
 
-  [Specialization Groups ADR](./adr-007-specialization-groups.md)
+  [ADR Nhóm Chuyên Biệt Hóa](./adr-007-specialization-groups.md)

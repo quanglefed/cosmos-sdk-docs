@@ -1,120 +1,93 @@
-# ADR 062: Collections, a simplified storage layer for cosmos-sdk modules
+# ADR 062: Collections – Lớp Lưu Trữ Đơn Giản Hóa cho Cosmos SDK
 
 ## Changelog
 
-* 30/11/2022: PROPOSED
+* 30/11/2022: ĐỀ XUẤT
 
-## Status
+## Trạng Thái
 
-PROPOSED - Implemented
+ĐỀ XUẤT – Đã Triển Khai
 
-## Abstract
+## Tóm Tắt
 
-We propose a simplified module storage layer which leverages golang generics to allow module developers to handle module
-storage in a simple and straightforward manner, whilst offering safety, extensibility and standardization.
+Chúng tôi đề xuất một lớp lưu trữ module đơn giản hóa tận dụng golang generics để cho phép nhà phát triển module xử lý lưu trữ module theo cách đơn giản và trực tiếp, trong khi cung cấp tính an toàn, khả năng mở rộng và tiêu chuẩn hóa.
 
-## Context
+## Bối Cảnh
 
-Module developers are forced into manually implementing storage functionalities in their modules, those functionalities include
-but are not limited to:
+Nhà phát triển module bị buộc phải triển khai thủ công các chức năng lưu trữ trong module của họ, bao gồm:
 
-* Defining key to bytes formats.
-* Defining value to bytes formats.
-* Defining secondary indexes.
-* Defining query methods to expose outside to deal with storage.
-* Defining local methods to deal with storage writing.
-* Dealing with genesis imports and exports.
-* Writing tests for all the above.
+* Định nghĩa định dạng key-to-bytes.
+* Định nghĩa định dạng value-to-bytes.
+* Định nghĩa secondary index.
+* Định nghĩa phương thức query để phát lộ ra bên ngoài.
+* Định nghĩa phương thức local để xử lý ghi lưu trữ.
+* Xử lý genesis import và export.
+* Viết test cho tất cả những điều trên.
 
+Điều này gây ra nhiều vấn đề:
 
-This brings in a lot of problems:
+* Nó cản trở nhà phát triển tập trung vào phần quan trọng nhất: viết business logic.
+* Các định dạng key-to-bytes phức tạp và dễ mắc lỗi.
+* Thiếu tiêu chuẩn hóa khiến client gặp khó khăn, vấn đề càng trở nên tệ hơn khi cung cấp bằng chứng cho các đối tượng hiện diện trong state.
 
-* It blocks developers from focusing on the most important part: writing business logic.
-* Key to bytes formats are complex and their definition is error-prone, for example:
-    * how do I format time to bytes in such a way that bytes are sorted?
-    * how do I ensure when I don't have namespace collisions when dealing with secondary indexes?
-* The lack of standardization makes life hard for clients, and the problem is exacerbated when it comes to providing proofs for objects present in state. Clients are forced to maintain a list of object paths to gather proofs.
+### Giải Pháp Hiện Tại: ORM
 
-### Current Solution: ORM
+Giải pháp đề xuất hiện tại của SDK là [ORM](./adr-055-orm.md). Mặc dù ORM cung cấp nhiều chức năng tốt, nhưng có một số nhược điểm:
 
-The current SDK proposed solution to this problem is [ORM](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-055-orm.md).
-Whilst ORM offers a lot of good functionality aimed at solving these specific problems, it has some downsides:
+* Yêu cầu migration.
+* Sử dụng API golang protobuf mới nhất, trong khi SDK vẫn chủ yếu sử dụng gogoproto.
+* Có đường cong học tập cao, ngay cả đối với các lớp lưu trữ đơn giản.
 
-* It requires migrations.
-* It uses the newest protobuf golang API, whilst the SDK still mainly uses gogoproto. 
-* Integrating ORM into a module would require the developer to deal with two different golang frameworks (golang protobuf + gogoproto) representing the same API objects.
-* It has a high learning curve, even for simple storage layers as it requires developers to have knowledge around protobuf options, custom cosmos-sdk storage extensions, and tooling download. Then after this they still need to learn the code-generated API.
+### Giải Pháp CosmWasm: cw-storage-plus
 
-### CosmWasm Solution: cw-storage-plus
+Collections API lấy cảm hứng từ [cw-storage-plus](https://docs.cosmwasm.com/docs/1.0/smart-contracts/state/cw-plus/), đã chứng minh là công cụ mạnh mẽ để xử lý lưu trữ trong hợp đồng CosmWasm. Nó đơn giản, không yêu cầu công cụ bổ sung, dễ xử lý các cấu trúc lưu trữ phức tạp (index, snapshot, v.v.).
 
-The collections API takes inspiration from [cw-storage-plus](https://docs.cosmwasm.com/docs/1.0/smart-contracts/state/cw-plus/),
-which has demonstrated to be a powerful tool for dealing with storage in CosmWasm contracts.
-It's simple, does not require extra tooling, it makes it easy to deal with complex storage structures (indexes, snapshot, etc).
-The API is straightforward and explicit.
+## Quyết Định
 
-## Decision
+Chúng tôi đề xuất chuyển API `collections`, có triển khai trong [NibiruChain/collections](https://github.com/NibiruChain/collections) sang cosmos-sdk.
 
-We propose to port the `collections` API, whose implementation lives in [NibiruChain/collections](https://github.com/NibiruChain/collections) to cosmos-sdk.
+Collections triển khai bốn kiểu trình xử lý lưu trữ khác nhau:
 
-Collections implements four different storage handlers types:
+* `Map`: xử lý ánh xạ `key=>object` đơn giản.
+* `KeySet`: hoạt động như `Set` và chỉ giữ lại key (use case: allow-list).
+* `Item`: luôn chỉ chứa một đối tượng (use case: Params).
+* `Sequence`: triển khai một số luôn tăng đơn giản (use case: Nonces).
+* `IndexedMap`: xây dựng trên `Map` và `KeySet`, cho phép tạo quan hệ với `Objects` và secondary key của `Objects`.
 
-* `Map`: which deals with simple `key=>object` mappings.
-* `KeySet`: which acts as a `Set` and only retains keys and no object (usecase: allow-lists).
-* `Item`: which always contains only one object (usecase: Params)
-* `Sequence`: which implements a simple always increasing number (usecase: Nonces)
-* `IndexedMap`: builds on top of `Map` and `KeySet` and allows to create relationships with `Objects` and `Objects` secondary keys.
+Collections hoàn toàn generic, có nghĩa là bất cứ thứ gì đều có thể được sử dụng làm `Key` và `Value`.
 
-All the collection APIs build on top of the simple `Map` type.
+Các kiểu Collections ủy thác nhiệm vụ tuần tự hóa key và value cho thành phần API collections thứ cấp gọi là `ValueEncoders` và `KeyEncoders`.
 
-Collections is fully generic, meaning that anything can be used as `Key` and `Value`. It can be a protobuf object or not.
+* `ValueEncoders` chuyển đổi một value thành bytes. Collections đã cung cấp các `ValueEncoders` mặc định cho: đối tượng protobuf, các kiểu SDK đặc biệt (sdk.Int, sdk.Dec).
+* `KeyEncoders` chuyển đổi key thành bytes. Collections đã cung cấp một số `KeyEncoders` mặc định cho một số kiểu golang nguyên thủy (uint64, string, time.Time, ...) và một số kiểu sdk được sử dụng rộng rãi.
 
-Collections types, in fact, delegate the duty of serialization of keys and values to a secondary collections API component called `ValueEncoders` and `KeyEncoders`.
+Các triển khai mặc định này cũng cung cấp tính an toàn xung quanh sắp xếp lexicographic đúng và tránh xung đột namespace.
 
-`ValueEncoders` take care of converting a value to bytes (relevant only for `Map`). And offers a plug and play layer which allows us to change how we encode objects, 
-which is relevant for swapping serialization frameworks and enhancing performance.
-`Collections` already comes in with default `ValueEncoders`, specifically for: protobuf objects, special SDK types (sdk.Int, sdk.Dec).
+## Hậu Quả
 
-`KeyEncoders` take care of converting keys to bytes, `collections` already comes in with some default `KeyEncoders` for some primitive golang types
-(uint64, string, time.Time, ...) and some widely used sdk types (sdk.Acc/Val/ConsAddress, sdk.Int/Dec, ...).
-These default implementations also offer safety around proper lexicographic ordering and namespace-collision.
+### Tương Thích Ngược
 
-Examples of the collections API can be found here:
+Thiết kế `ValueEncoders` và `KeyEncoders` cho phép các module giữ nguyên cùng ánh xạ `byte(key)=>byte(value)`, làm cho việc nâng cấp lên lớp lưu trữ mới không phá vỡ state.
 
-* introduction: https://github.com/NibiruChain/collections/tree/main/examples
-* usage in nibiru: [x/oracle](https://github.com/NibiruChain/nibiru/blob/master/x/oracle/keeper/keeper.go#L32), [x/perp](https://github.com/NibiruChain/nibiru/blob/master/x/perp/keeper/keeper.go#L31)
-* cosmos-sdk's x/staking migrated: https://github.com/testinginprod/cosmos-sdk/pull/22
+### Tích Cực
 
+* ADR nhằm mục đích xóa code khỏi SDK hơn là thêm vào. Chỉ migrate `x/staking` sang collections sẽ mang lại sự giảm LOC net.
+* Đơn giản hóa và tiêu chuẩn hóa các lớp lưu trữ trên các module trong SDK.
+* Không yêu cầu xử lý protobuf.
+* Code golang thuần túy.
+* Generalization trên `KeyEncoders` và `ValueEncoders` cho phép không bị ràng buộc với framework tuần tự hóa dữ liệu.
 
-## Consequences
+### Tiêu Cực
 
-### Backwards Compatibility
+* Golang generics chưa được battle-tested nhiều như các tính năng Golang khác, mặc dù đang được sử dụng trong production.
+* Khởi tạo kiểu Collection cần được cải thiện.
 
-The design of `ValueEncoders` and `KeyEncoders` allows modules to retain the same `byte(key)=>byte(value)` mappings, making
-the upgrade to the new storage layer non-state breaking.
+## Thảo Luận Thêm
 
+* Import/export genesis tự động (chưa được triển khai vì API breakage).
+* Schema reflection.
 
-### Positive
+## Tài Liệu Tham Khảo
 
-* ADR aimed at removing code from the SDK rather than adding it. Migrating just `x/staking` to collections would yield to a net decrease in LOC (even considering the addition of collections itself).
-* Simplifies and standardizes storage layers across modules in the SDK.
-* Does not require to have to deal with protobuf.
-* It's pure golang code.
-* Generalization over `KeyEncoders` and `ValueEncoders` allows us to not tie ourself to the data serialization framework.
-* `KeyEncoders` and `ValueEncoders` can be extended to provide schema reflection.
-
-### Negative
-
-* Golang generics are not as battle-tested as other Golang features, despite being used in production right now.
-* Collection types instantiation needs to be improved.
-
-### Neutral
-
-{neutral consequences}
-
-## Further Discussions
-
-* Automatic genesis import/export (not implemented because of API breakage)
-* Schema reflection
-
-
-## References
+* [NibiruChain/collections](https://github.com/NibiruChain/collections)
+* [cw-storage-plus](https://docs.cosmwasm.com/docs/1.0/smart-contracts/state/cw-plus/)

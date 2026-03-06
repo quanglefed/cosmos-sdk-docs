@@ -6,17 +6,11 @@ sidebar_position: 1
 
 ## Abstract
 
-This paper specifies the Staking module of the Cosmos SDK that was first
-described in the [Cosmos Whitepaper](https://cosmos.network/about/whitepaper)
-in June 2016.
+Tài liệu này mô tả chi tiết module Staking của Cosmos SDK, lần đầu được giới thiệu trong [Cosmos Whitepaper](https://cosmos.network/about/whitepaper) vào tháng 6 năm 2016.
 
-The module enables Cosmos SDK-based blockchain to support an advanced
-Proof-of-Stake (PoS) system. In this system, holders of the native staking token of
-the chain can become validators and can delegate tokens to validators,
-ultimately determining the effective validator set for the system.
+Module cho phép blockchain dựa trên Cosmos SDK hỗ trợ hệ thống Proof-of-Stake (PoS) tiên tiến. Trong hệ thống này, người nắm giữ token staking gốc của chain có thể trở thành validator và có thể delegate token cho validator, qua đó xác định tập hợp validator hiệu quả cho hệ thống.
 
-This module is used in the Cosmos Hub, the first Hub in the Cosmos
-network.
+Module này được sử dụng trong Cosmos Hub, Hub đầu tiên trong mạng Cosmos.
 
 ## Contents
 
@@ -64,32 +58,29 @@ network.
 
 ### Pool
 
-Pool is used for tracking bonded and not-bonded token supply of the bond denomination.
+Pool được sử dụng để theo dõi nguồn cung token bonded và not-bonded của bond denomination.
 
 ### LastTotalPower
 
-LastTotalPower tracks the total amounts of bonded tokens recorded during the previous end block.
-Store entries prefixed with "Last" must remain unchanged until EndBlock.
+LastTotalPower theo dõi tổng lượng token bonded được ghi nhận trong end block trước đó. Các mục store có tiền tố "Last" phải giữ nguyên cho đến EndBlock.
 
 * LastTotalPower: `0x12 -> ProtocolBuffer(math.Int)`
 
 ### ValidatorUpdates
 
-ValidatorUpdates contains the validator updates returned to ABCI at the end of every block.
-The values are overwritten in every block.
+ValidatorUpdates chứa các cập nhật validator được trả về cho ABCI vào cuối mỗi block. Các giá trị được ghi đè trong mỗi block.
 
 * ValidatorUpdates `0x61 -> []abci.ValidatorUpdate`
 
 ### UnbondingID
 
-UnbondingID stores the ID of the latest unbonding operation. It enables creating unique IDs for unbonding operations, i.e., UnbondingID is incremented every time a new unbonding operation (validator unbonding, unbonding delegation, redelegation) is initiated.
+UnbondingID lưu trữ ID của thao tác unbonding mới nhất. Nó cho phép tạo ID duy nhất cho các thao tác unbonding, tức là UnbondingID được tăng mỗi khi một thao tác unbonding mới (validator unbonding, unbonding delegation, redelegation) được khởi tạo.
 
 * UnbondingID: `0x37 -> uint64`
 
 ### Params
 
-The staking module stores its params in state with the prefix of `0x51`,
-it can be updated with governance or the address with authority.
+Module staking lưu trữ params của nó trong state với tiền tố `0x51`, có thể được cập nhật thông qua governance hoặc địa chỉ có quyền.
 
 * Params: `0x51 | ProtocolBuffer(Params)`
 
@@ -99,32 +90,17 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 
 ### Validator
 
-Validators can have one of three statuses
+Validator có thể có một trong ba trạng thái:
 
-* `Unbonded`: The validator is not in the active set. They cannot sign blocks and do not earn
-  rewards. They can receive delegations.
-* `Bonded`: Once the validator receives sufficient bonded tokens they automatically join the
-  active set during [`EndBlock`](#validator-set-changes) and their status is updated to `Bonded`.
-  They are signing blocks and receiving rewards. They can receive further delegations.
-  They can be slashed for misbehavior. Delegators to this validator who unbond their delegation
-  must wait the duration of the UnbondingTime, a chain-specific param, during which time
-  they are still slashable for offences of the source validator if those offences were committed
-  during the period of time that the tokens were bonded.
-* `Unbonding`: When a validator leaves the active set, either by choice or due to slashing, jailing or
-  tombstoning, an unbonding of all their delegations begins. All delegations must then wait the UnbondingTime
-  before their tokens are moved to their accounts from the `BondedPool`.
+* `Unbonded`: Validator không nằm trong active set. Họ không thể ký block và không nhận rewards. Họ có thể nhận delegations.
+* `Bonded`: Khi validator nhận đủ token bonded, họ tự động tham gia active set trong [`EndBlock`](#validator-set-changes) và trạng thái của họ được cập nhật thành `Bonded`. Họ đang ký block và nhận rewards. Họ có thể nhận thêm delegations. Họ có thể bị slashed do hành vi sai trái. Delegator của validator này khi unbond delegation của họ phải chờ trong thời gian UnbondingTime, một tham số đặc thù chain, trong thời gian đó họ vẫn có thể bị slash cho các vi phạm của validator nguồn nếu các vi phạm đó xảy ra trong khoảng thời gian token được bonded.
+* `Unbonding`: Khi validator rời khỏi active set, dù do lựa chọn hay do slashing, jailing hoặc tombstoning, quá trình unbonding của tất cả delegations của họ bắt đầu. Tất cả delegations phải chờ UnbondingTime trước khi token được chuyển vào tài khoản của họ từ `BondedPool`.
 
 :::warning
-Tombstoning is permanent, once tombstoned a validator's consensus key can not be reused within the chain where the tombstoning happened.
+Tombstoning là vĩnh viễn, một khi bị tombstoned thì consensus key của validator không thể tái sử dụng trong chain nơi tombstoning xảy ra.
 :::
 
-Validators objects should be primarily stored and accessed by the
-`OperatorAddr`, an SDK validator address for the operator of the validator. Two
-additional indices are maintained per validator object in order to fulfill
-required lookups for slashing and validator-set updates. A third special index
-(`LastValidatorPower`) is also maintained which however remains constant
-throughout each block, unlike the first two indices which mirror the validator
-records within a block.
+Các đối tượng Validator nên được lưu trữ và truy cập chủ yếu qua `OperatorAddr`, địa chỉ validator SDK cho operator của validator. Hai chỉ mục bổ sung được duy trì cho mỗi đối tượng validator để thực hiện các tra cứu cần thiết cho slashing và cập nhật validator-set. Một chỉ mục đặc biệt thứ ba (`LastValidatorPower`) cũng được duy trì, tuy nhiên giữ nguyên trong suốt mỗi block, không giống hai chỉ mục đầu phản ánh các bản ghi validator trong block.
 
 * Validators: `0x21 | OperatorAddrLen (1 byte) | OperatorAddr -> ProtocolBuffer(validator)`
 * ValidatorsByConsAddr: `0x22 | ConsAddrLen (1 byte) | ConsAddr -> OperatorAddr`
@@ -132,29 +108,17 @@ records within a block.
 * LastValidatorsPower: `0x11 | OperatorAddrLen (1 byte) | OperatorAddr -> ProtocolBuffer(ConsensusPower)`
 * ValidatorsByUnbondingID: `0x38 | UnbondingID ->  0x21 | OperatorAddrLen (1 byte) | OperatorAddr`
 
-`Validators` is the primary index - it ensures that each operator can have only one
-associated validator, where the public key of that validator can change in the
-future. Delegators can refer to the immutable operator of the validator, without
-concern for the changing public key.
+`Validators` là chỉ mục chính - nó đảm bảo mỗi operator chỉ có một validator liên kết, trong khi public key của validator đó có thể thay đổi trong tương lai. Delegator có thể tham chiếu đến operator bất biến của validator mà không lo lắng về public key thay đổi.
 
-`ValidatorsByUnbondingID` is an additional index that enables lookups for
- validators by the unbonding IDs corresponding to their current unbonding.
+`ValidatorsByUnbondingID` là chỉ mục bổ sung cho phép tra cứu validator theo unbonding ID tương ứng với unbonding hiện tại của họ.
 
-`ValidatorByConsAddr` is an additional index that enables lookups for slashing.
-When CometBFT reports evidence, it provides the validator address, so this
-map is needed to find the operator. Note that the `ConsAddr` corresponds to the
-address which can be derived from the validator's `ConsPubKey`.
+`ValidatorByConsAddr` là chỉ mục bổ sung cho phép tra cứu cho slashing. Khi CometBFT báo cáo evidence, nó cung cấp địa chỉ validator, do đó cần map này để tìm operator. Lưu ý rằng `ConsAddr` tương ứng với địa chỉ có thể được suy ra từ `ConsPubKey` của validator.
 
-`ValidatorsByPower` is an additional index that provides a sorted list of
-potential validators to quickly determine the current active set. Here
-ConsensusPower is validator.Tokens/10^6 by default. Note that all validators
-where `Jailed` is true are not stored within this index.
+`ValidatorsByPower` là chỉ mục bổ sung cung cấp danh sách validator tiềm năng được sắp xếp để nhanh chóng xác định active set hiện tại. Ở đây ConsensusPower mặc định là validator.Tokens/10^6. Lưu ý rằng tất cả validator có `Jailed` là true không được lưu trong chỉ mục này.
 
-`LastValidatorsPower` is a special index that provides a historical list of the
-last-block's bonded validators. This index remains constant during a block but
-is updated during the validator set update process which takes place in [`EndBlock`](#end-block).
+`LastValidatorsPower` là chỉ mục đặc biệt cung cấp danh sách lịch sử các validator bonded của block trước. Chỉ mục này giữ nguyên trong suốt block nhưng được cập nhật trong quá trình cập nhật validator set diễn ra trong [`EndBlock`](#end-block).
 
-Each validator's state is stored in a `Validator` struct:
+Trạng thái của mỗi validator được lưu trong struct `Validator`:
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/staking.proto#L82-L138
@@ -166,15 +130,11 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 
 ### Delegation
 
-Delegations are identified by combining `DelegatorAddr` (the address of the delegator)
-with the `ValidatorAddr` Delegators are indexed in the store as follows:
+Delegations được xác định bằng cách kết hợp `DelegatorAddr` (địa chỉ của delegator) với `ValidatorAddr`. Delegators được lập chỉ mục trong store như sau:
 
 * Delegation: `0x31 | DelegatorAddrLen (1 byte) | DelegatorAddr | ValidatorAddrLen (1 byte) | ValidatorAddr -> ProtocolBuffer(delegation)`
 
-Stake holders may delegate coins to validators; under this circumstance their
-funds are held in a `Delegation` data structure. It is owned by one
-delegator, and is associated with the shares for one validator. The sender of
-the transaction is the owner of the bond.
+Người nắm giữ stake có thể delegate coin cho validator; trong trường hợp này quỹ của họ được giữ trong cấu trúc dữ liệu `Delegation`. Nó thuộc sở hữu của một delegator và liên kết với shares cho một validator. Người gửi giao dịch là chủ sở hữu của bond.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/staking.proto#L198-L216
@@ -182,47 +142,32 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 
 #### Delegator Shares
 
-When one delegates tokens to a Validator, they are issued a number of delegator shares based on a
-dynamic exchange rate, calculated as follows from the total number of tokens delegated to the
-validator and the number of shares issued so far:
+Khi một người delegate token cho Validator, họ được cấp một số delegator shares dựa trên tỷ giá hối đoái động, được tính như sau từ tổng số token được delegate cho validator và số shares đã phát hành:
 
 `Shares per Token = validator.TotalShares() / validator.Tokens()`
 
-Only the number of shares received is stored on the DelegationEntry. When a delegator then
-Undelegates, the token amount they receive is calculated from the number of shares they currently
-hold and the inverse exchange rate:
+Chỉ số shares nhận được được lưu trên DelegationEntry. Khi delegator Undelegate, số lượng token họ nhận được tính từ số shares họ hiện nắm giữ và tỷ giá nghịch đảo:
 
 `Tokens per Share = validator.Tokens() / validatorShares()`
 
-These `Shares` are simply an accounting mechanism. They are not a fungible asset. The reason for
-this mechanism is to simplify the accounting around slashing. Rather than iteratively slashing the
-tokens of every delegation entry, instead the Validator's total bonded tokens can be slashed,
-effectively reducing the value of each issued delegator share.
+Các `Shares` này đơn giản là cơ chế kế toán. Chúng không phải là tài sản có thể thay thế. Lý do cho cơ chế này là để đơn giản hóa kế toán xung quanh slashing. Thay vì lặp lại việc slash token của mỗi delegation entry, thay vào đó tổng token bonded của Validator có thể bị slash, qua đó giảm hiệu quả giá trị của mỗi delegator share đã phát hành.
 
 ### UnbondingDelegation
 
-Shares in a `Delegation` can be unbonded, but they must for some time exist as
-an `UnbondingDelegation`, where shares can be reduced if Byzantine behavior is
-detected.
+Shares trong `Delegation` có thể được unbond, nhưng chúng phải tồn tại trong một thời gian dưới dạng `UnbondingDelegation`, nơi shares có thể bị giảm nếu phát hiện hành vi Byzantine.
 
-`UnbondingDelegation` are indexed in the store as:
+`UnbondingDelegation` được lập chỉ mục trong store như sau:
 
 * UnbondingDelegation: `0x32 | DelegatorAddrLen (1 byte) | DelegatorAddr | ValidatorAddrLen (1 byte) | ValidatorAddr -> ProtocolBuffer(unbondingDelegation)`
 * UnbondingDelegationsFromValidator: `0x33 | ValidatorAddrLen (1 byte) | ValidatorAddr | DelegatorAddrLen (1 byte) | DelegatorAddr -> nil`
 * UnbondingDelegationByUnbondingId: `0x38 | UnbondingId -> 0x32 | DelegatorAddrLen (1 byte) | DelegatorAddr | ValidatorAddrLen (1 byte) | ValidatorAddr`
- `UnbondingDelegation` is used in queries, to lookup all unbonding delegations for
- a given delegator.
+ `UnbondingDelegation` được sử dụng trong queries để tra cứu tất cả unbonding delegations cho một delegator nhất định.
 
-`UnbondingDelegationsFromValidator` is used in slashing, to lookup all
- unbonding delegations associated with a given validator that need to be
- slashed.
+`UnbondingDelegationsFromValidator` được sử dụng trong slashing để tra cứu tất cả unbonding delegations liên kết với một validator nhất định cần bị slash.
 
- `UnbondingDelegationByUnbondingId` is an additional index that enables
- lookups for unbonding delegations by the unbonding IDs of the containing
- unbonding delegation entries.
+ `UnbondingDelegationByUnbondingId` là chỉ mục bổ sung cho phép tra cứu unbonding delegations theo unbonding ID của các unbonding delegation entries chứa.
 
-
-A UnbondingDelegation object is created every time an unbonding is initiated.
+Đối tượng UnbondingDelegation được tạo mỗi khi unbonding được khởi tạo.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/staking.proto#L218-L261
@@ -230,41 +175,29 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 
 ### Redelegation
 
-The bonded tokens worth of a `Delegation` may be instantly redelegated from a
-source validator to a different validator (destination validator). However when
-this occurs they must be tracked in a `Redelegation` object, whereby their
-shares can be slashed if their tokens have contributed to a Byzantine fault
-committed by the source validator.
+Giá trị token bonded của `Delegation` có thể được redelegate ngay lập tức từ validator nguồn sang validator khác (validator đích). Tuy nhiên khi điều này xảy ra chúng phải được theo dõi trong đối tượng `Redelegation`, qua đó shares của chúng có thể bị slash nếu token của chúng đã đóng góp vào lỗi Byzantine do validator nguồn gây ra.
 
-`Redelegation` are indexed in the store as:
+`Redelegation` được lập chỉ mục trong store như sau:
 
 * Redelegations: `0x34 | DelegatorAddrLen (1 byte) | DelegatorAddr | ValidatorAddrLen (1 byte) | ValidatorSrcAddr | ValidatorDstAddr -> ProtocolBuffer(redelegation)`
 * RedelegationsBySrc: `0x35 | ValidatorSrcAddrLen (1 byte) | ValidatorSrcAddr | ValidatorDstAddrLen (1 byte) | ValidatorDstAddr | DelegatorAddrLen (1 byte) | DelegatorAddr -> nil`
 * RedelegationsByDst: `0x36 | ValidatorDstAddrLen (1 byte) | ValidatorDstAddr | ValidatorSrcAddrLen (1 byte) | ValidatorSrcAddr | DelegatorAddrLen (1 byte) | DelegatorAddr -> nil`
 * RedelegationByUnbondingId: `0x38 | UnbondingId -> 0x34 | DelegatorAddrLen (1 byte) | DelegatorAddr | ValidatorAddrLen (1 byte) | ValidatorSrcAddr | ValidatorDstAddr`
 
- `Redelegations` is used for queries, to lookup all redelegations for a given
- delegator.
+ `Redelegations` được sử dụng cho queries để tra cứu tất cả redelegations cho một delegator nhất định.
 
- `RedelegationsBySrc` is used for slashing based on the `ValidatorSrcAddr`.
+ `RedelegationsBySrc` được sử dụng cho slashing dựa trên `ValidatorSrcAddr`.
 
- `RedelegationsByDst` is used for slashing based on the `ValidatorDstAddr`
+ `RedelegationsByDst` được sử dụng cho slashing dựa trên `ValidatorDstAddr`
 
-The first map here is used for queries, to lookup all redelegations for a given
-delegator. The second map is used for slashing based on the `ValidatorSrcAddr`,
-while the third map is for slashing based on the `ValidatorDstAddr`.
+Map đầu tiên ở đây được sử dụng cho queries để tra cứu tất cả redelegations cho một delegator nhất định. Map thứ hai được sử dụng cho slashing dựa trên `ValidatorSrcAddr`, trong khi map thứ ba dùng cho slashing dựa trên `ValidatorDstAddr`.
 
-`RedelegationByUnbondingId` is an additional index that enables
- lookups for redelegations by the unbonding IDs of the containing
- redelegation entries.
+`RedelegationByUnbondingId` là chỉ mục bổ sung cho phép tra cứu redelegations theo unbonding ID của các redelegation entries chứa.
 
-A redelegation object is created every time a redelegation occurs. To prevent
-"redelegation hopping" redelegations may not occur under the situation that:
+Đối tượng redelegation được tạo mỗi khi redelegation xảy ra. Để ngăn chặn "redelegation hopping", redelegations không thể xảy ra trong tình huống:
 
-* the (re)delegator already has another immature redelegation in progress
-  with a destination to a validator (let's call it `Validator X`)
-* and, the (re)delegator is attempting to create a _new_ redelegation
-  where the source validator for this new redelegation is `Validator X`.
+* (re)delegator đã có redelegation chưa trưởng thành khác đang tiến hành với đích đến là một validator (gọi là `Validator X`)
+* và, (re)delegator đang cố gắng tạo redelegation _mới_ trong đó validator nguồn của redelegation mới này là `Validator X`.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/staking.proto#L263-L308
@@ -272,21 +205,16 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 
 ### Queues
 
-All queue objects are sorted by timestamp. The time used within any queue is
-firstly converted to UTC, rounded to the nearest nanosecond then sorted. The sortable time format
-used is a slight modification of the RFC3339Nano and uses the format string
-`"2006-01-02T15:04:05.000000000"`. Notably this format:
+Tất cả đối tượng queue được sắp xếp theo timestamp. Thời gian sử dụng trong bất kỳ queue nào trước tiên được chuyển đổi sang UTC, làm tròn đến nanosecond gần nhất rồi sắp xếp. Định dạng thời gian có thể sắp xếp sử dụng là phiên bản sửa đổi nhẹ của RFC3339Nano và sử dụng chuỗi định dạng `"2006-01-02T15:04:05.000000000"`. Đáng chú ý định dạng này:
 
-* right pads all zeros
-* drops the time zone info (we already use UTC)
+* đệm số không bên phải (right pads all zeros)
+* bỏ thông tin múi giờ (đã sử dụng UTC)
 
-In all cases, the stored timestamp represents the maturation time of the queue
-element.
+Trong mọi trường hợp, timestamp được lưu trữ đại diện cho thời điểm trưởng thành của phần tử queue.
 
 #### UnbondingDelegationQueue
 
-For the purpose of tracking progress of unbonding delegations the unbonding
-delegations queue is kept.
+Để theo dõi tiến trình unbonding delegations, queue unbonding delegations được duy trì.
 
 * UnbondingDelegation: `0x41 | format(time) -> []DVPair`
 
@@ -296,8 +224,7 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 
 #### RedelegationQueue
 
-For the purpose of tracking progress of redelegations the redelegation queue is
-kept.
+Để theo dõi tiến trình redelegations, queue redelegation được duy trì.
 
 * RedelegationQueue: `0x42 | format(time) -> []DVVTriplet`
 
@@ -307,216 +234,171 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 
 #### ValidatorQueue
 
-For the purpose of tracking progress of unbonding validators the validator
-queue is kept.
+Để theo dõi tiến trình unbonding validators, queue validator được duy trì.
 
 * ValidatorQueueTime: `0x43 | format(time) -> []sdk.ValAddress`
 
-The stored object by each key is an array of validator operator addresses from
-which the validator object can be accessed. Typically it is expected that only
-a single validator record will be associated with a given timestamp however it is possible
-that multiple validators exist in the queue at the same location.
+Đối tượng được lưu trữ bởi mỗi key là mảng địa chỉ validator operator mà từ đó có thể truy cập đối tượng validator. Thông thường chỉ mong đợi một bản ghi validator duy nhất sẽ liên kết với một timestamp nhất định, tuy nhiên có thể có nhiều validator tồn tại trong queue tại cùng vị trí.
 
 ### HistoricalInfo
 
-HistoricalInfo objects are stored and pruned at each block such that the staking keeper persists
-the `n` most recent historical info defined by staking module parameter: `HistoricalEntries`.
+Các đối tượng HistoricalInfo được lưu trữ và cắt tỉa ở mỗi block sao cho staking keeper lưu giữ `n` historical info gần nhất được xác định bởi tham số module staking: `HistoricalEntries`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/staking.proto#L17-L24
 ```
 
-At each BeginBlock, the staking keeper will persist the current Header and the Validators that committed
-the current block in a `HistoricalInfo` object. The Validators are sorted on their address to ensure that
-they are in a deterministic order.
-The oldest HistoricalEntries will be pruned to ensure that there only exist the parameter-defined number of
-historical entries.
+Ở mỗi BeginBlock, staking keeper sẽ lưu trữ Header hiện tại và các Validator đã commit block hiện tại trong đối tượng `HistoricalInfo`. Các Validator được sắp xếp theo địa chỉ để đảm bảo chúng theo thứ tự xác định. Các HistoricalEntries cũ nhất sẽ được cắt tỉa để đảm bảo chỉ tồn tại số lượng historical entries được xác định bởi tham số.
 
 ## State Transitions
 
 ### Validators
 
-State transitions in validators are performed on every [`EndBlock`](#validator-set-changes)
-in order to check for changes in the active `ValidatorSet`.
+Các chuyển đổi trạng thái trong validators được thực hiện ở mỗi [`EndBlock`](#validator-set-changes) để kiểm tra thay đổi trong `ValidatorSet` active.
 
-A validator can be `Unbonded`, `Unbonding` or `Bonded`. `Unbonded`
-and `Unbonding` are collectively called `Not Bonded`. A validator can move
-directly between all the states, except for from `Bonded` to `Unbonded`.
+Một validator có thể là `Unbonded`, `Unbonding` hoặc `Bonded`. `Unbonded` và `Unbonding` được gọi chung là `Not Bonded`. Một validator có thể chuyển trực tiếp giữa tất cả các trạng thái, ngoại trừ từ `Bonded` sang `Unbonded`.
 
 #### Not bonded to Bonded
 
-The following transition occurs when a validator's ranking in the `ValidatorPowerIndex` surpasses
-that of the `LastValidator`.
+Chuyển đổi sau xảy ra khi thứ hạng của validator trong `ValidatorPowerIndex` vượt qua `LastValidator`:
 
-* set `validator.Status` to `Bonded`
-* send the `validator.Tokens` from the `NotBondedTokens` to the `BondedPool` `ModuleAccount`
-* delete the existing record from `ValidatorByPowerIndex`
-* add a new updated record to the `ValidatorByPowerIndex`
-* update the `Validator` object for this validator
-* if it exists, delete any `ValidatorQueue` record for this validator
+* đặt `validator.Status` thành `Bonded`
+* chuyển `validator.Tokens` từ `NotBondedTokens` sang `BondedPool` `ModuleAccount`
+* xóa bản ghi hiện có khỏi `ValidatorByPowerIndex`
+* thêm bản ghi mới đã cập nhật vào `ValidatorByPowerIndex`
+* cập nhật đối tượng `Validator` cho validator này
+* nếu tồn tại, xóa bất kỳ bản ghi `ValidatorQueue` nào cho validator này
 
 #### Bonded to Unbonding
 
-When a validator begins the unbonding process the following operations occur:
+Khi validator bắt đầu quá trình unbonding, các thao tác sau xảy ra:
 
-* send the `validator.Tokens` from the `BondedPool` to the `NotBondedTokens` `ModuleAccount`
-* set `validator.Status` to `Unbonding`
-* delete the existing record from `ValidatorByPowerIndex`
-* add a new updated record to the `ValidatorByPowerIndex`
-* update the `Validator` object for this validator
-* insert a new record into the `ValidatorQueue` for this validator
+* chuyển `validator.Tokens` từ `BondedPool` sang `NotBondedTokens` `ModuleAccount`
+* đặt `validator.Status` thành `Unbonding`
+* xóa bản ghi hiện có khỏi `ValidatorByPowerIndex`
+* thêm bản ghi mới đã cập nhật vào `ValidatorByPowerIndex`
+* cập nhật đối tượng `Validator` cho validator này
+* chèn bản ghi mới vào `ValidatorQueue` cho validator này
 
 #### Unbonding to Unbonded
 
-A validator moves from unbonding to unbonded when the `ValidatorQueue` object
-moves from bonded to unbonded
+Validator chuyển từ unbonding sang unbonded khi đối tượng `ValidatorQueue` chuyển từ bonded sang unbonded:
 
-* update the `Validator` object for this validator
-* set `validator.Status` to `Unbonded`
+* cập nhật đối tượng `Validator` cho validator này
+* đặt `validator.Status` thành `Unbonded`
 
 #### Jail/Unjail
 
-when a validator is jailed it is effectively removed from the CometBFT set.
-this process may be also be reversed. the following operations occur:
+Khi validator bị jailed, họ thực tế bị loại khỏi tập CometBFT. Quá trình này cũng có thể được đảo ngược. Các thao tác sau xảy ra:
 
-* set `Validator.Jailed` and update object
-* if jailed delete record from `ValidatorByPowerIndex`
-* if unjailed add record to `ValidatorByPowerIndex`
+* đặt `Validator.Jailed` và cập nhật đối tượng
+* nếu jailed thì xóa bản ghi khỏi `ValidatorByPowerIndex`
+* nếu unjailed thì thêm bản ghi vào `ValidatorByPowerIndex`
 
-Jailed validators are not present in any of the following stores:
+Validator bị jailed không có mặt trong bất kỳ store nào sau:
 
-* the power store (from consensus power to address)
+* power store (từ consensus power đến địa chỉ)
 
 ### Delegations
 
 #### Delegate
 
-When a delegation occurs both the validator and the delegation objects are affected
+Khi delegation xảy ra, cả validator và đối tượng delegation đều bị ảnh hưởng:
 
-* determine the delegators shares based on tokens delegated and the validator's exchange rate
-* remove tokens from the sending account
-* add shares the delegation object or add them to a created validator object
-* add new delegator shares and update the `Validator` object
-* transfer the `delegation.Amount` from the delegator's account to the `BondedPool` or the `NotBondedPool` `ModuleAccount` depending if the `validator.Status` is `Bonded` or not
-* delete the existing record from `ValidatorByPowerIndex`
-* add an new updated record to the `ValidatorByPowerIndex`
+* xác định shares của delegator dựa trên token được delegate và tỷ giá của validator
+* loại bỏ token khỏi tài khoản gửi
+* thêm shares vào đối tượng delegation hoặc thêm vào đối tượng validator được tạo
+* thêm delegator shares mới và cập nhật đối tượng `Validator`
+* chuyển `delegation.Amount` từ tài khoản delegator sang `BondedPool` hoặc `NotBondedPool` `ModuleAccount` tùy thuộc `validator.Status` là `Bonded` hay không
+* xóa bản ghi hiện có khỏi `ValidatorByPowerIndex`
+* thêm bản ghi mới đã cập nhật vào `ValidatorByPowerIndex`
 
 #### Begin Unbonding
 
-As a part of the Undelegate and Complete Unbonding state transitions Unbond
-Delegation may be called.
+Như một phần của chuyển đổi trạng thái Undelegate và Complete Unbonding, Unbond Delegation có thể được gọi.
 
-* subtract the unbonded shares from delegator
-* add the unbonded tokens to an `UnbondingDelegationEntry`
-* update the delegation or remove the delegation if there are no more shares
-* if the delegation is the operator of the validator and no more shares exist then trigger a jail validator
-* update the validator with removed the delegator shares and associated coins
-* if the validator state is `Bonded`, transfer the `Coins` worth of the unbonded
-  shares from the `BondedPool` to the `NotBondedPool` `ModuleAccount`
-* remove the validator if it is unbonded and there are no more delegation shares.
-* remove the validator if it is unbonded and there are no more delegation shares
-* get a unique `unbondingId` and map it to the `UnbondingDelegationEntry` in `UnbondingDelegationByUnbondingId`
-* call the `AfterUnbondingInitiated(unbondingId)` hook
-* add the unbonding delegation to `UnbondingDelegationQueue` with the completion time set to `UnbondingTime`
+* trừ shares unbonded khỏi delegator
+* thêm token unbonded vào `UnbondingDelegationEntry`
+* cập nhật delegation hoặc xóa delegation nếu không còn shares
+* nếu delegation là operator của validator và không còn shares thì kích hoạt jail validator
+* cập nhật validator với việc loại bỏ delegator shares và coin liên kết
+* nếu trạng thái validator là `Bonded`, chuyển giá trị `Coins` của shares unbonded từ `BondedPool` sang `NotBondedPool` `ModuleAccount`
+* xóa validator nếu unbonded và không còn delegation shares
+* lấy `unbondingId` duy nhất và map nó với `UnbondingDelegationEntry` trong `UnbondingDelegationByUnbondingId`
+* gọi hook `AfterUnbondingInitiated(unbondingId)`
+* thêm unbonding delegation vào `UnbondingDelegationQueue` với thời gian hoàn thành đặt là `UnbondingTime`
 
 #### Cancel an `UnbondingDelegation` Entry
 
-When a `cancel unbond delegation` occurs both the `validator`, the `delegation` and an `UnbondingDelegationQueue` state will be updated.
+Khi `cancel unbond delegation` xảy ra, cả `validator`, `delegation` và trạng thái `UnbondingDelegationQueue` sẽ được cập nhật.
 
-* if cancel unbonding delegation amount equals to the `UnbondingDelegation` entry `balance`, then the `UnbondingDelegation` entry deleted from `UnbondingDelegationQueue`.
-* if the `cancel unbonding delegation amount is less than the `UnbondingDelegation` entry balance, then the `UnbondingDelegation` entry will be updated with new balance in the `UnbondingDelegationQueue`.
-* cancel `amount` is [Delegated](#delegations) back to  the original `validator`.
+* nếu số lượng cancel unbonding delegation bằng với `balance` của entry `UnbondingDelegation`, thì entry `UnbondingDelegation` bị xóa khỏi `UnbondingDelegationQueue`
+* nếu số lượng cancel unbonding delegation nhỏ hơn balance của entry `UnbondingDelegation`, thì entry `UnbondingDelegation` sẽ được cập nhật với balance mới trong `UnbondingDelegationQueue`
+* số lượng `amount` bị cancel được [Delegated](#delegations) trở lại `validator` gốc
 
 #### Complete Unbonding
 
-For undelegations which do not complete immediately, the following operations
-occur when the unbonding delegation queue element matures:
+Đối với undelegations không hoàn thành ngay lập tức, các thao tác sau xảy ra khi phần tử unbonding delegation queue trưởng thành:
 
-* remove the entry from the `UnbondingDelegation` object
-* transfer the tokens from the `NotBondedPool` `ModuleAccount` to the delegator `Account`
+* xóa entry khỏi đối tượng `UnbondingDelegation`
+* chuyển token từ `NotBondedPool` `ModuleAccount` sang `Account` của delegator
 
 #### Begin Redelegation
 
-Redelegations affect the delegation, source and destination validators.
+Redelegations ảnh hưởng đến delegation, validator nguồn và đích.
 
-* perform an `unbond` delegation from the source validator to retrieve the tokens worth of the unbonded shares
-* using the unbonded tokens, `Delegate` them to the destination validator
-* if the `sourceValidator.Status` is `Bonded`, and the `destinationValidator` is not,
-  transfer the newly delegated tokens from the `BondedPool` to the `NotBondedPool` `ModuleAccount`
-* otherwise, if the `sourceValidator.Status` is not `Bonded`, and the `destinationValidator`
-  is `Bonded`, transfer the newly delegated tokens from the `NotBondedPool` to the `BondedPool` `ModuleAccount`
-* record the token amount in an new entry in the relevant `Redelegation`
+* thực hiện `unbond` delegation từ validator nguồn để lấy giá trị token của shares unbonded
+* sử dụng token unbonded, `Delegate` chúng cho validator đích
+* nếu `sourceValidator.Status` là `Bonded` và `destinationValidator` không phải, chuyển token mới được delegate từ `BondedPool` sang `NotBondedPool` `ModuleAccount`
+* ngược lại, nếu `sourceValidator.Status` không phải `Bonded` và `destinationValidator` là `Bonded`, chuyển token mới được delegate từ `NotBondedPool` sang `BondedPool` `ModuleAccount`
+* ghi số lượng token vào entry mới trong `Redelegation` liên quan
 
-From when a redelegation begins until it completes, the delegator is in a state of "pseudo-unbonding", and can still be
-slashed for infractions that occurred before the redelegation began.
+Từ khi redelegation bắt đầu cho đến khi hoàn thành, delegator ở trạng thái "pseudo-unbonding" và vẫn có thể bị slash cho các vi phạm xảy ra trước khi redelegation bắt đầu.
 
 #### Complete Redelegation
 
-When a redelegations complete the following occurs:
+Khi redelegations hoàn thành, điều sau xảy ra:
 
-* remove the entry from the `Redelegation` object
+* xóa entry khỏi đối tượng `Redelegation`
 
 ### Slashing
 
 #### Slash Validator
 
-When a Validator is slashed, the following occurs:
+Khi Validator bị slash, điều sau xảy ra:
 
-* The total `slashAmount` is calculated as the `slashFactor` (a chain parameter) \* `TokensFromConsensusPower`,
-  the total number of tokens bonded to the validator at the time of the infraction.
-* Every unbonding delegation and pseudo-unbonding redelegation such that the infraction occurred before the unbonding or
-  redelegation began from the validator are slashed by the `slashFactor` percentage of the initialBalance.
-* Each amount slashed from redelegations and unbonding delegations is subtracted from the
-  total slash amount.
-* The `remainingSlashAmount` is then slashed from the validator's tokens in the `BondedPool` or
-  `NonBondedPool` depending on the validator's status. This reduces the total supply of tokens.
+* Tổng `slashAmount` được tính là `slashFactor` (tham số chain) \* `TokensFromConsensusPower`, tổng số token bonded cho validator tại thời điểm vi phạm.
+* Mọi unbonding delegation và pseudo-unbonding redelegation mà vi phạm xảy ra trước khi unbonding hoặc redelegation bắt đầu từ validator đều bị slash theo phần trăm `slashFactor` của initialBalance.
+* Mỗi số lượng bị slash từ redelegations và unbonding delegations được trừ khỏi tổng slash amount.
+* `remainingSlashAmount` sau đó được slash từ token của validator trong `BondedPool` hoặc `NonBondedPool` tùy thuộc trạng thái validator. Điều này giảm tổng cung token.
 
-In the case of a slash due to any infraction that requires evidence to submitted (for example double-sign), the slash
-occurs at the block where the evidence is included, not at the block where the infraction occurred.
-Put otherwise, validators are not slashed retroactively, only when they are caught.
+Trong trường hợp slash do bất kỳ vi phạm nào yêu cầu evidence phải được gửi (ví dụ double-sign), slash xảy ra tại block nơi evidence được bao gồm, không phải tại block nơi vi phạm xảy ra. Nói cách khác, validator không bị slash hồi tố, chỉ khi họ bị bắt.
 
 #### Slash Unbonding Delegation
 
-When a validator is slashed, so are those unbonding delegations from the validator that began unbonding
-after the time of the infraction. Every entry in every unbonding delegation from the validator
-is slashed by `slashFactor`. The amount slashed is calculated from the `InitialBalance` of the
-delegation and is capped to prevent a resulting negative balance. Completed (or mature) unbondings are not slashed.
+Khi validator bị slash, các unbonding delegations từ validator đó bắt đầu unbonding sau thời điểm vi phạm cũng bị slash. Mọi entry trong mọi unbonding delegation từ validator bị slash theo `slashFactor`. Số lượng bị slash được tính từ `InitialBalance` của delegation và được giới hạn để ngăn balance âm. Unbondings đã hoàn thành (hoặc trưởng thành) không bị slash.
 
 #### Slash Redelegation
 
-When a validator is slashed, so are all redelegations from the validator that began after the
-infraction. Redelegations are slashed by `slashFactor`.
-Redelegations that began before the infraction are not slashed.
-The amount slashed is calculated from the `InitialBalance` of the delegation and is capped to
-prevent a resulting negative balance.
-Mature redelegations (that have completed pseudo-unbonding) are not slashed.
+Khi validator bị slash, tất cả redelegations từ validator bắt đầu sau vi phạm cũng bị slash. Redelegations bị slash theo `slashFactor`. Redelegations bắt đầu trước vi phạm không bị slash. Số lượng bị slash được tính từ `InitialBalance` của delegation và được giới hạn để ngăn balance âm. Redelegations trưởng thành (đã hoàn thành pseudo-unbonding) không bị slash.
 
 ### How Shares are calculated
 
-At any given point in time, each validator has a number of tokens, `T`, and has a number of shares issued, `S`.
-Each delegator, `i`, holds a number of shares, `S_i`.
-The number of tokens is the sum of all tokens delegated to the validator, plus the rewards, minus the slashes.
+Tại bất kỳ thời điểm nào, mỗi validator có số token `T` và có số shares đã phát hành `S`. Mỗi delegator `i` nắm giữ số shares `S_i`. Số token là tổng tất cả token được delegate cho validator, cộng rewards, trừ slashes.
 
-The delegator is entitled to a portion of the underlying tokens proportional to their proportion of shares.
-So delegator `i` is entitled to `T * S_i / S` of the validator's tokens.
+Delegator có quyền nhận một phần token cơ bản tỷ lệ với tỷ lệ shares của họ. Vậy delegator `i` có quyền nhận `T * S_i / S` token của validator.
 
-When a delegator delegates new tokens to the validator, they receive a number of shares proportional to their contribution.
-So when delegator `j` delegates `T_j` tokens, they receive `S_j = S * T_j / T` shares.
-The total number of tokens is now `T + T_j`, and the total number of shares is `S + S_j`.
-`j`s proportion of the shares is the same as their proportion of the total tokens contributed: `(S + S_j) / S = (T + T_j) / T`.
+Khi delegator delegate token mới cho validator, họ nhận số shares tỷ lệ với đóng góp của họ. Vậy khi delegator `j` delegate `T_j` token, họ nhận `S_j = S * T_j / T` shares. Tổng số token là `T + T_j` và tổng số shares là `S + S_j`. Tỷ lệ shares của `j` giống với tỷ lệ tổng token đóng góp: `(S + S_j) / S = (T + T_j) / T`.
 
-A special case is the initial delegation, when `T = 0` and `S = 0`, so `T_j / T` is undefined.
-For the initial delegation, delegator `j` who delegates `T_j` tokens receive `S_j = T_j` shares.
-So a validator that hasn't received any rewards and has not been slashed will have `T = S`.
+Trường hợp đặc biệt là delegation ban đầu, khi `T = 0` và `S = 0`, nên `T_j / T` không xác định. Đối với delegation ban đầu, delegator `j` delegate `T_j` token nhận `S_j = T_j` shares. Vậy validator chưa nhận rewards và chưa bị slash sẽ có `T = S`.
 
 ## Messages
 
-In this section we describe the processing of the staking messages and the corresponding updates to the state. All created/modified state objects specified by each message are defined within the [state](#state) section.
+Trong phần này chúng ta mô tả xử lý các thông tin staking và các cập nhật tương ứng cho state. Tất cả đối tượng state được tạo/sửa đổi được xác định bởi mỗi message đều được định nghĩa trong phần [state](#state).
 
 ### MsgCreateValidator
 
-A validator is created using the `MsgCreateValidator` message.
-The validator must be created with an initial delegation from the operator.
+Validator được tạo bằng message `MsgCreateValidator`. Validator phải được tạo với delegation ban đầu từ operator.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L20-L21
@@ -526,26 +408,22 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L50-L73
 ```
 
-This message is expected to fail if:
+Message này được kỳ vọng sẽ thất bại nếu:
 
-* another validator with this operator address is already registered
-* another validator with this pubkey is already registered
-* the initial self-delegation tokens are of a denom not specified as the bonding denom
-* the commission parameters are faulty, namely:
-    * `MaxRate` is either > 1 or < 0
-    * the initial `Rate` is either negative or > `MaxRate`
-    * the initial `MaxChangeRate` is either negative or > `MaxRate`
-* the description fields are too large
+* đã có validator khác với operator address này được đăng ký
+* đã có validator khác với pubkey này được đăng ký
+* token self-delegation ban đầu có denom không được chỉ định là bonding denom
+* tham số commission không hợp lệ, cụ thể:
+    * `MaxRate` hoặc > 1 hoặc < 0
+    * `Rate` ban đầu hoặc âm hoặc > `MaxRate`
+    * `MaxChangeRate` ban đầu hoặc âm hoặc > `MaxRate`
+* các trường description quá lớn
 
-This message creates and stores the `Validator` object at appropriate indexes.
-Additionally a self-delegation is made with the initial tokens delegation
-tokens `Delegation`. The validator always starts as unbonded but may be bonded
-in the first end-block.
+Message này tạo và lưu đối tượng `Validator` tại các chỉ mục phù hợp. Ngoài ra self-delegation được thực hiện với token delegation ban đầu `Delegation`. Validator luôn bắt đầu ở trạng thái unbonded nhưng có thể bonded trong end-block đầu tiên.
 
 ### MsgEditValidator
 
-The `Description`, `CommissionRate` of a validator can be updated using the
-`MsgEditValidator` message.
+`Description`, `CommissionRate` của validator có thể được cập nhật bằng message `MsgEditValidator`.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L23-L24
@@ -555,20 +433,18 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L78-L97
 ```
 
-This message is expected to fail if:
+Message này được kỳ vọng sẽ thất bại nếu:
 
-* the initial `CommissionRate` is either negative or > `MaxRate`
-* the `CommissionRate` has already been updated within the previous 24 hours
-* the `CommissionRate` is > `MaxChangeRate`
-* the description fields are too large
+* `CommissionRate` ban đầu hoặc âm hoặc > `MaxRate`
+* `CommissionRate` đã được cập nhật trong 24 giờ trước
+* `CommissionRate` > `MaxChangeRate`
+* các trường description quá lớn
 
-This message stores the updated `Validator` object.
+Message này lưu đối tượng `Validator` đã cập nhật.
 
 ### MsgDelegate
 
-Within this message the delegator provides coins, and in return receives
-some amount of their validator's (newly created) delegator-shares that are
-assigned to `Delegation.Shares`.
+Trong message này delegator cung cấp coin và nhận lại một số lượng delegator-shares (mới tạo) của validator được gán cho `Delegation.Shares`.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L26-L28
@@ -578,33 +454,26 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L102-L114
 ```
 
-This message is expected to fail if:
+Message này được kỳ vọng sẽ thất bại nếu:
 
-* the validator does not exist
-* the `Amount` `Coin` has a denomination different than one defined by `params.BondDenom`
-* the exchange rate is invalid, meaning the validator has no tokens (due to slashing) but there are outstanding shares
-* the amount delegated is less than the minimum allowed delegation
+* validator không tồn tại
+* `Amount` `Coin` có denomination khác với định nghĩa trong `params.BondDenom`
+* tỷ giá không hợp lệ, nghĩa là validator không có token (do slashing) nhưng có shares outstanding
+* số lượng delegate nhỏ hơn delegation tối thiểu cho phép
 
-If an existing `Delegation` object for provided addresses does not already
-exist then it is created as part of this message otherwise the existing
-`Delegation` is updated to include the newly received shares.
+Nếu đối tượng `Delegation` hiện có cho các địa chỉ cung cấp chưa tồn tại thì nó được tạo như một phần của message này, nếu không thì `Delegation` hiện có được cập nhật để bao gồm shares mới nhận được.
 
-The delegator receives newly minted shares at the current exchange rate.
-The exchange rate is the number of existing shares in the validator divided by
-the number of currently delegated tokens.
+Delegator nhận shares mới tạo ở tỷ giá hiện tại. Tỷ giá là số shares hiện có trong validator chia cho số token hiện đang được delegate.
 
-The validator is updated in the `ValidatorByPower` index, and the delegation is
-tracked in validator object in the `Validators` index.
+Validator được cập nhật trong chỉ mục `ValidatorByPower` và delegation được theo dõi trong đối tượng validator trong chỉ mục `Validators`.
 
-It is possible to delegate to a jailed validator, the only difference being it
-will not be added to the power index until it is unjailed.
+Có thể delegate cho validator bị jailed, điểm khác biệt duy nhất là nó sẽ không được thêm vào power index cho đến khi unjailed.
 
 ![Delegation sequence](https://raw.githubusercontent.com/cosmos/cosmos-sdk/release/v0.46.x/docs/uml/svg/delegation_sequence.svg)
 
 ### MsgUndelegate
 
-The `MsgUndelegate` message allows delegators to undelegate their tokens from
-validator.
+Message `MsgUndelegate` cho phép delegator undelegate token của họ khỏi validator.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L34-L36
@@ -614,36 +483,36 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L140-L152
 ```
 
-This message returns a response containing the completion time of the undelegation:
+Message này trả về response chứa thời gian hoàn thành undelegation:
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L154-L158
 ```
 
-This message is expected to fail if:
+Message này được kỳ vọng sẽ thất bại nếu:
 
-* the delegation doesn't exist
-* the validator doesn't exist
-* the delegation has less shares than the ones worth of `Amount`
-* existing `UnbondingDelegation` has maximum entries as defined by `params.MaxEntries`
-* the `Amount` has a denomination different than one defined by `params.BondDenom`
+* delegation không tồn tại
+* validator không tồn tại
+* delegation có ít shares hơn giá trị của `Amount`
+* `UnbondingDelegation` hiện có đã có số entries tối đa theo định nghĩa `params.MaxEntries`
+* `Amount` có denomination khác với định nghĩa trong `params.BondDenom`
 
-When this message is processed the following actions occur:
+Khi message này được xử lý, các hành động sau xảy ra:
 
-* validator's `DelegatorShares` and the delegation's `Shares` are both reduced by the message `SharesAmount`
-* calculate the token worth of the shares remove that amount tokens held within the validator
-* with those removed tokens, if the validator is:
-    * `Bonded` - add them to an entry in `UnbondingDelegation` (create `UnbondingDelegation` if it doesn't exist) with a completion time a full unbonding period from the current time. Update pool shares to reduce BondedTokens and increase NotBondedTokens by token worth of the shares.
-    * `Unbonding` - add them to an entry in `UnbondingDelegation` (create `UnbondingDelegation` if it doesn't exist) with the same completion time as the validator (`UnbondingMinTime`).
-    * `Unbonded` - then send the coins the message `DelegatorAddr`
-* if there are no more `Shares` in the delegation, then the delegation object is removed from the store
-    * under this situation if the delegation is the validator's self-delegation then also jail the validator.
+* `DelegatorShares` của validator và `Shares` của delegation đều bị giảm bởi `SharesAmount` của message
+* tính giá trị token của shares, loại bỏ số lượng token đó khỏi validator
+* với những token bị loại bỏ, nếu validator là:
+    * `Bonded` - thêm chúng vào entry trong `UnbondingDelegation` (tạo `UnbondingDelegation` nếu chưa tồn tại) với thời gian hoàn thành là một chu kỳ unbonding đầy đủ từ thời điểm hiện tại. Cập nhật pool shares để giảm BondedTokens và tăng NotBondedTokens theo giá trị token của shares.
+    * `Unbonding` - thêm chúng vào entry trong `UnbondingDelegation` (tạo `UnbondingDelegation` nếu chưa tồn tại) với thời gian hoàn thành giống validator (`UnbondingMinTime`).
+    * `Unbonded` - sau đó chuyển coin đến `DelegatorAddr` của message
+* nếu không còn `Shares` trong delegation thì đối tượng delegation bị xóa khỏi store
+    * trong tình huống này nếu delegation là self-delegation của validator thì cũng jail validator.
 
 ![Unbond sequence](https://raw.githubusercontent.com/cosmos/cosmos-sdk/release/v0.46.x/docs/uml/svg/unbond_sequence.svg)
 
 ### MsgCancelUnbondingDelegation
 
-The `MsgCancelUnbondingDelegation` message allows delegators to cancel the `unbondingDelegation` entry and delegate back to a previous validator.
+Message `MsgCancelUnbondingDelegation` cho phép delegator hủy entry `unbondingDelegation` và delegate trở lại validator trước đó.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L38-L42
@@ -653,24 +522,22 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L160-L175
 ```
 
-This message is expected to fail if:
+Message này được kỳ vọng sẽ thất bại nếu:
 
-* the `unbondingDelegation` entry is already processed.
-* the `cancel unbonding delegation` amount is greater than the `unbondingDelegation` entry balance.
-* the `cancel unbonding delegation` height doesn't exist in the `unbondingDelegationQueue` of the delegator.
+* entry `unbondingDelegation` đã được xử lý
+* số lượng `cancel unbonding delegation` lớn hơn balance của entry `unbondingDelegation`
+* height `cancel unbonding delegation` không tồn tại trong `unbondingDelegationQueue` của delegator
 
-When this message is processed the following actions occur:
+Khi message này được xử lý, các hành động sau xảy ra:
 
-* if the `unbondingDelegation` Entry balance is zero
-    * in this condition `unbondingDelegation` entry will be removed from `unbondingDelegationQueue`.
-    * otherwise `unbondingDelegationQueue` will be updated with new `unbondingDelegation` entry balance and initial balance
-* the validator's `DelegatorShares` and the delegation's `Shares` are both increased by the message `Amount`.
+* nếu balance của Entry `unbondingDelegation` bằng không
+    * trong điều kiện này entry `unbondingDelegation` sẽ bị xóa khỏi `unbondingDelegationQueue`
+    * nếu không thì `unbondingDelegationQueue` sẽ được cập nhật với balance và initial balance mới của entry `unbondingDelegation`
+* `DelegatorShares` của validator và `Shares` của delegation đều tăng bởi `Amount` của message
 
 ### MsgBeginRedelegate
 
-The redelegation command allows delegators to instantly switch validators. Once
-the unbonding period has passed, the redelegation is automatically completed in
-the EndBlocker.
+Lệnh redelegation cho phép delegator chuyển validator ngay lập tức. Sau khi thời gian unbonding trôi qua, redelegation tự động hoàn thành trong EndBlocker.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L30-L32
@@ -680,174 +547,131 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1bet
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L119-L132
 ```
 
-This message returns a response containing the completion time of the redelegation:
+Message này trả về response chứa thời gian hoàn thành redelegation:
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L133-L138
 ```
 
-This message is expected to fail if:
+Message này được kỳ vọng sẽ thất bại nếu:
 
-* the delegation doesn't exist
-* the source or destination validators don't exist
-* the delegation has less shares than the ones worth of `Amount`
-* the source validator has a receiving redelegation which is not matured (aka. the redelegation may be transitive)
-* existing `Redelegation` has maximum entries as defined by `params.MaxEntries`
-* the `Amount` `Coin` has a denomination different than one defined by `params.BondDenom`
+* delegation không tồn tại
+* validator nguồn hoặc đích không tồn tại
+* delegation có ít shares hơn giá trị của `Amount`
+* validator nguồn có redelegation nhận chưa trưởng thành (được gọi là redelegation có thể transitive)
+* `Redelegation` hiện có đã có số entries tối đa theo định nghĩa `params.MaxEntries`
+* `Amount` `Coin` có denomination khác với định nghĩa trong `params.BondDenom`
 
-When this message is processed the following actions occur:
+Khi message này được xử lý, các hành động sau xảy ra:
 
-* the source validator's `DelegatorShares` and the delegations `Shares` are both reduced by the message `SharesAmount`
-* calculate the token worth of the shares remove that amount tokens held within the source validator.
-* if the source validator is:
-    * `Bonded` - add an entry to the `Redelegation` (create `Redelegation` if it doesn't exist) with a completion time a full unbonding period from the current time. Update pool shares to reduce BondedTokens and increase NotBondedTokens by token worth of the shares (this may be effectively reversed in the next step however).
-    * `Unbonding` - add an entry to the `Redelegation` (create `Redelegation` if it doesn't exist) with the same completion time as the validator (`UnbondingMinTime`).
-    * `Unbonded` - no action required in this step
-* Delegate the token worth to the destination validator, possibly moving tokens back to the bonded state.
-* if there are no more `Shares` in the source delegation, then the source delegation object is removed from the store
-    * under this situation if the delegation is the validator's self-delegation then also jail the validator.
+* `DelegatorShares` của validator nguồn và `Shares` của delegations đều bị giảm bởi `SharesAmount` của message
+* tính giá trị token của shares, loại bỏ số lượng token đó khỏi validator nguồn
+* nếu validator nguồn là:
+    * `Bonded` - thêm entry vào `Redelegation` (tạo `Redelegation` nếu chưa tồn tại) với thời gian hoàn thành là một chu kỳ unbonding đầy đủ từ thời điểm hiện tại. Cập nhật pool shares để giảm BondedTokens và tăng NotBondedTokens theo giá trị token của shares (có thể được đảo ngược hiệu quả trong bước tiếp theo).
+    * `Unbonding` - thêm entry vào `Redelegation` (tạo `Redelegation` nếu chưa tồn tại) với thời gian hoàn thành giống validator (`UnbondingMinTime`).
+    * `Unbonded` - không cần hành động trong bước này
+* Delegate giá trị token cho validator đích, có thể chuyển token trở lại trạng thái bonded
+* nếu không còn `Shares` trong delegation nguồn thì đối tượng delegation nguồn bị xóa khỏi store
+    * trong tình huống này nếu delegation là self-delegation của validator thì cũng jail validator
 
 ![Begin redelegation sequence](https://raw.githubusercontent.com/cosmos/cosmos-sdk/release/v0.46.x/docs/uml/svg/begin_redelegation_sequence.svg)
 
 
 ### MsgUpdateParams
 
-The `MsgUpdateParams` update the staking module parameters.
-The params are updated through a governance proposal where the signer is the gov module account address.
+`MsgUpdateParams` cập nhật tham số module staking. Params được cập nhật thông qua governance proposal trong đó signer là địa chỉ tài khoản gov module.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/staking/v1beta1/tx.proto#L182-L195
 ```
 
-The message handling can fail if:
+Xử lý message có thể thất bại nếu:
 
-* signer is not the authority defined in the staking keeper (usually the gov module account).
+* signer không phải authority được xác định trong staking keeper (thường là tài khoản gov module).
 
 ## Begin-Block
 
-Each abci begin block call, the historical info will get stored and pruned
-according to the `HistoricalEntries` parameter.
+Mỗi lần gọi abci begin block, historical info sẽ được lưu trữ và cắt tỉa theo tham số `HistoricalEntries`.
 
 ### Historical Info Tracking
 
-If the `HistoricalEntries` parameter is 0, then the `BeginBlock` performs a no-op.
+Nếu tham số `HistoricalEntries` là 0 thì `BeginBlock` thực hiện no-op.
 
-Otherwise, the latest historical info is stored under the key `historicalInfoKey|height`, while any entries older than `height - HistoricalEntries` is deleted.
-In most cases, this results in a single entry being pruned per block.
-However, if the parameter `HistoricalEntries` has changed to a lower value there will be multiple entries in the store that must be pruned.
+Nếu không, historical info mới nhất được lưu dưới key `historicalInfoKey|height`, trong khi các entries cũ hơn `height - HistoricalEntries` bị xóa. Trong hầu hết trường hợp, điều này dẫn đến một entry duy nhất bị cắt tỉa mỗi block. Tuy nhiên, nếu tham số `HistoricalEntries` đã thay đổi sang giá trị thấp hơn thì sẽ có nhiều entries trong store cần được cắt tỉa.
 
 ## End-Block
 
-Each abci end block call, the operations to update queues and validator set
-changes are specified to execute.
+Mỗi lần gọi abci end block, các thao tác cập nhật queues và thay đổi validator set được chỉ định để thực thi.
 
 ### Validator Set Changes
 
-The staking validator set is updated during this process by state transitions
-that run at the end of every block. As a part of this process any updated
-validators are also returned back to CometBFT for inclusion in the CometBFT
-validator set which is responsible for validating CometBFT messages at the
-consensus layer. Operations are as following:
+Validator set staking được cập nhật trong quá trình này qua các chuyển đổi trạng thái chạy vào cuối mỗi block. Như một phần của quá trình này, mọi validator được cập nhật cũng được trả về cho CometBFT để đưa vào validator set CometBFT chịu trách nhiệm xác thực thông điệp CometBFT ở tầng consensus. Các thao tác như sau:
 
-* the new validator set is taken as the top `params.MaxValidators` number of
-  validators retrieved from the `ValidatorsByPower` index
-* the previous validator set is compared with the new validator set:
-    * missing validators begin unbonding and their `Tokens` are transferred from the
-    `BondedPool` to the `NotBondedPool` `ModuleAccount`
-    * new validators are instantly bonded and their `Tokens` are transferred from the
-    `NotBondedPool` to the `BondedPool` `ModuleAccount`
+* validator set mới được lấy là top `params.MaxValidators` number of validators từ chỉ mục `ValidatorsByPower`
+* validator set trước được so sánh với validator set mới:
+    * các validator thiếu bắt đầu unbonding và `Tokens` của họ được chuyển từ `BondedPool` sang `NotBondedPool` `ModuleAccount`
+    * các validator mới được bonded ngay lập tức và `Tokens` của họ được chuyển từ `NotBondedPool` sang `BondedPool` `ModuleAccount`
 
-In all cases, any validators leaving or entering the bonded validator set or
-changing balances and staying within the bonded validator set incur an update
-message reporting their new consensus power which is passed back to CometBFT.
+Trong mọi trường hợp, mọi validator rời khỏi hoặc vào validator set bonded hoặc thay đổi balance và vẫn ở trong validator set bonded đều phát sinh message cập nhật báo cáo consensus power mới của họ được truyền cho CometBFT.
 
-The `LastTotalPower` and `LastValidatorsPower` hold the state of the total power
-and validator power from the end of the last block, and are used to check for
-changes that have occurred in `ValidatorsByPower` and the total new power, which
-is calculated during `EndBlock`.
+`LastTotalPower` và `LastValidatorsPower` giữ trạng thái tổng power và validator power từ cuối block trước, và được sử dụng để kiểm tra thay đổi đã xảy ra trong `ValidatorsByPower` và tổng power mới, được tính trong `EndBlock`.
 
 ### Queues
 
-Within staking, certain state-transitions are not instantaneous but take place
-over a duration of time (typically the unbonding period). When these
-transitions are mature certain operations must take place in order to complete
-the state operation. This is achieved through the use of queues which are
-checked/processed at the end of each block.
+Trong staking, một số chuyển đổi trạng thái không tức thì mà diễn ra trong khoảng thời gian (thường là unbonding period). Khi các chuyển đổi này trưởng thành, các thao tác nhất định phải diễn ra để hoàn thành thao tác state. Điều này đạt được thông qua việc sử dụng queues được kiểm tra/xử lý vào cuối mỗi block.
 
 #### Unbonding Validators
 
-When a validator is kicked out of the bonded validator set (either through
-being jailed, or not having sufficient bonded tokens) it begins the unbonding
-process along with all its delegations begin unbonding (while still being
-delegated to this validator). At this point the validator is said to be an
-"unbonding validator", whereby it will mature to become an "unbonded validator"
-after the unbonding period has passed.
+Khi validator bị loại khỏi validator set bonded (dù do bị jailed hoặc không có đủ token bonded), nó bắt đầu quá trình unbonding cùng với tất cả delegations của nó bắt đầu unbonding (trong khi vẫn được delegate cho validator này). Tại thời điểm này validator được gọi là "unbonding validator", qua đó nó sẽ trưởng thành để trở thành "unbonded validator" sau khi unbonding period trôi qua.
 
-Each block the validator queue is to be checked for mature unbonding validators
-(namely with a completion time <= current time and completion height <= current
-block height). At this point any mature validators which do not have any
-delegations remaining are deleted from state. For all other mature unbonding
-validators that still have remaining delegations, the `validator.Status` is
-switched from `types.Unbonding` to
-`types.Unbonded`.
+Mỗi block, validator queue được kiểm tra cho các unbonding validators trưởng thành (cụ thể với completion time <= thời gian hiện tại và completion height <= block height hiện tại). Tại thời điểm này mọi validator trưởng thành không còn delegations nào bị xóa khỏi state. Đối với tất cả unbonding validators trưởng thành khác vẫn còn delegations, `validator.Status` được chuyển từ `types.Unbonding` sang `types.Unbonded`.
 
-Unbonding operations can be put on hold by external modules via the `PutUnbondingOnHold(unbondingId)` method.
- As a result, an unbonding operation (e.g., an unbonding delegation) that is on hold, cannot complete
- even if it reaches maturity. For an unbonding operation with `unbondingId` to eventually complete
- (after it reaches maturity), every call to `PutUnbondingOnHold(unbondingId)` must be matched
- by a call to `UnbondingCanComplete(unbondingId)`.
+Các thao tác unbonding có thể bị tạm giữ bởi các module bên ngoài qua phương thức `PutUnbondingOnHold(unbondingId)`. Kết quả là, thao tác unbonding (ví dụ unbonding delegation) đang bị tạm giữ không thể hoàn thành ngay cả khi đạt trưởng thành. Để thao tác unbonding với `unbondingId` cuối cùng hoàn thành (sau khi đạt trưởng thành), mỗi lần gọi `PutUnbondingOnHold(unbondingId)` phải được khớp với lần gọi `UnbondingCanComplete(unbondingId)`.
 
 #### Unbonding Delegations
 
-Complete the unbonding of all mature `UnbondingDelegations.Entries` within the
-`UnbondingDelegations` queue with the following procedure:
+Hoàn thành unbonding của tất cả `UnbondingDelegations.Entries` trưởng thành trong queue `UnbondingDelegations` với quy trình sau:
 
-* transfer the balance coins to the delegator's wallet address
-* remove the mature entry from `UnbondingDelegation.Entries`
-* remove the `UnbondingDelegation` object from the store if there are no
-  remaining entries.
+* chuyển balance coins sang địa chỉ ví của delegator
+* xóa entry trưởng thành khỏi `UnbondingDelegation.Entries`
+* xóa đối tượng `UnbondingDelegation` khỏi store nếu không còn entries
 
 #### Redelegations
 
-Complete the unbonding of all mature `Redelegation.Entries` within the
-`Redelegations` queue with the following procedure:
+Hoàn thành unbonding của tất cả `Redelegation.Entries` trưởng thành trong queue `Redelegations` với quy trình sau:
 
-* remove the mature entry from `Redelegation.Entries`
-* remove the `Redelegation` object from the store if there are no
-  remaining entries.
+* xóa entry trưởng thành khỏi `Redelegation.Entries`
+* xóa đối tượng `Redelegation` khỏi store nếu không còn entries
 
 ## Hooks
 
-Other modules may register operations to execute when a certain event has
-occurred within staking.  These events can be registered to execute either
-right `Before` or `After` the staking event (as per the hook name). The
-following hooks can registered with staking:
+Các module khác có thể đăng ký thao tác để thực thi khi một sự kiện nhất định đã xảy ra trong staking. Các sự kiện này có thể được đăng ký để thực thi ngay `Before` hoặc `After` sự kiện staking (theo tên hook). Các hooks sau có thể đăng ký với staking:
 
 * `AfterValidatorCreated(Context, ValAddress) error`
-    * called when a validator is created
+    * được gọi khi validator được tạo
 * `BeforeValidatorModified(Context, ValAddress) error`
-    * called when a validator's state is changed
+    * được gọi khi trạng thái validator thay đổi
 * `AfterValidatorRemoved(Context, ConsAddress, ValAddress) error`
-    * called when a validator is deleted
+    * được gọi khi validator bị xóa
 * `AfterValidatorBonded(Context, ConsAddress, ValAddress) error`
-    * called when a validator is bonded
+    * được gọi khi validator được bonded
 * `AfterValidatorBeginUnbonding(Context, ConsAddress, ValAddress) error`
-    * called when a validator begins unbonding
+    * được gọi khi validator bắt đầu unbonding
 * `BeforeDelegationCreated(Context, AccAddress, ValAddress) error`
-    * called when a delegation is created
+    * được gọi khi delegation được tạo
 * `BeforeDelegationSharesModified(Context, AccAddress, ValAddress) error`
-    * called when a delegation's shares are modified
+    * được gọi khi shares của delegation được sửa đổi
 * `AfterDelegationModified(Context, AccAddress, ValAddress) error`
-    * called when a delegation is created or modified
+    * được gọi khi delegation được tạo hoặc sửa đổi
 * `BeforeDelegationRemoved(Context, AccAddress, ValAddress) error`
-    * called when a delegation is removed
+    * được gọi khi delegation bị xóa
 * `AfterUnbondingInitiated(Context, UnbondingID)`
-    * called when an unbonding operation (validator unbonding, unbonding delegation, redelegation) was initiated
+    * được gọi khi thao tác unbonding (validator unbonding, unbonding delegation, redelegation) được khởi tạo
 
 
 ## Events
 
-The staking module emits the following events:
+Module staking phát ra các sự kiện sau:
 
 ### EndBlocker
 
@@ -934,7 +758,7 @@ The staking module emits the following events:
 
 ## Parameters
 
-The staking module contains the following parameters:
+Module staking chứa các tham số sau:
 
 | Key               | Type             | Example                |
 |-------------------|------------------|------------------------|
@@ -949,11 +773,11 @@ The staking module contains the following parameters:
 
 ### CLI
 
-A user can query and interact with the `staking` module using the CLI.
+Người dùng có thể truy vấn và tương tác với module `staking` bằng CLI.
 
 #### Query
 
-The `query` commands allows users to query `staking` state.
+Các lệnh `query` cho phép người dùng truy vấn state `staking`.
 
 ```bash
 simd query staking --help
@@ -961,7 +785,7 @@ simd query staking --help
 
 ##### delegation
 
-The `delegation` command allows users to query delegations for an individual delegator on an individual validator.
+Lệnh `delegation` cho phép người dùng truy vấn delegations cho một delegator nhất định trên một validator nhất định.
 
 Usage:
 
@@ -989,7 +813,7 @@ delegation:
 
 ##### delegations
 
-The `delegations` command allows users to query delegations for an individual delegator on all validators.
+Lệnh `delegations` cho phép người dùng truy vấn delegations cho một delegator nhất định trên tất cả validators.
 
 Usage:
 
@@ -1028,7 +852,7 @@ pagination:
 
 ##### delegations-to
 
-The `delegations-to` command allows users to query delegations on an individual validator.
+Lệnh `delegations-to` cho phép người dùng truy vấn delegations trên một validator nhất định.
 
 Usage:
 
@@ -1066,7 +890,7 @@ pagination:
 
 ##### historical-info
 
-The `historical-info` command allows users to query historical information at given height.
+Lệnh `historical-info` cho phép người dùng truy vấn thông tin lịch sử tại height cụ thể.
 
 Usage:
 
@@ -1132,7 +956,7 @@ valset:
 
 ##### params
 
-The `params` command allows users to query values set as staking parameters.
+Lệnh `params` cho phép người dùng truy vấn các giá trị được đặt làm tham số staking.
 
 Usage:
 
@@ -1158,7 +982,7 @@ unbonding_time: 1814400s
 
 ##### pool
 
-The `pool` command allows users to query values for amounts stored in the staking pool.
+Lệnh `pool` cho phép người dùng truy vấn các giá trị cho số lượng được lưu trong staking pool.
 
 Usage:
 
@@ -1181,7 +1005,7 @@ not_bonded_tokens: "0"
 
 ##### redelegation
 
-The `redelegation` command allows users to query a redelegation record based on delegator and a source and destination validator address.
+Lệnh `redelegation` cho phép người dùng truy vấn bản ghi redelegation dựa trên delegator và địa chỉ validator nguồn và đích.
 
 Usage:
 
@@ -1222,7 +1046,7 @@ redelegation_responses:
 
 ##### redelegations
 
-The `redelegations` command allows users to query all redelegation records for an individual delegator.
+Lệnh `redelegations` cho phép người dùng truy vấn tất cả bản ghi redelegation cho một delegator nhất định.
 
 Usage:
 
@@ -1277,7 +1101,7 @@ redelegation_responses:
 
 ##### redelegations-from
 
-The `redelegations-from` command allows users to query delegations that are redelegating _from_ a validator.
+Lệnh `redelegations-from` cho phép người dùng truy vấn các delegations đang redelegate _từ_ một validator.
 
 Usage:
 
@@ -1332,7 +1156,7 @@ redelegation_responses:
 
 ##### unbonding-delegation
 
-The `unbonding-delegation` command allows users to query unbonding delegations for an individual delegator on an individual validator.
+Lệnh `unbonding-delegation` cho phép người dùng truy vấn unbonding delegations cho một delegator nhất định trên một validator nhất định.
 
 Usage:
 
@@ -1360,7 +1184,7 @@ validator_address: cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj
 
 ##### unbonding-delegations
 
-The `unbonding-delegations` command allows users to query all unbonding-delegations records for one delegator.
+Lệnh `unbonding-delegations` cho phép người dùng truy vấn tất cả bản ghi unbonding-delegations cho một delegator.
 
 Usage:
 
@@ -1393,7 +1217,7 @@ unbonding_responses:
 
 ##### unbonding-delegations-from
 
-The `unbonding-delegations-from` command allows users to query delegations that are unbonding _from_ a validator.
+Lệnh `unbonding-delegations-from` cho phép người dùng truy vấn các delegations đang unbonding _từ_ một validator.
 
 Usage:
 
@@ -1432,7 +1256,7 @@ unbonding_responses:
 
 ##### validator
 
-The `validator` command allows users to query details about an individual validator.
+Lệnh `validator` cho phép người dùng truy vấn chi tiết về một validator nhất định.
 
 Usage:
 
@@ -1479,7 +1303,7 @@ unbonding_time: "1970-01-01T00:00:00Z"
 
 ##### validators
 
-The `validators` command allows users to query details about all validators on a network.
+Lệnh `validators` cho phép người dùng truy vấn chi tiết về tất cả validators trên mạng.
 
 Usage:
 
@@ -1556,7 +1380,7 @@ description:
 
 #### Transactions
 
-The `tx` commands allows users to interact with the `staking` module.
+Các lệnh `tx` cho phép người dùng tương tác với module `staking`.
 
 ```bash
 simd tx staking --help
@@ -1564,7 +1388,7 @@ simd tx staking --help
 
 ##### create-validator
 
-The command `create-validator` allows users to create new validator initialized with a self-delegation to it.
+Lệnh `create-validator` cho phép người dùng tạo validator mới được khởi tạo với self-delegation cho nó.
 
 Usage:
 
@@ -1583,7 +1407,7 @@ simd tx staking create-validator /path/to/validator.json \
   --from=mykey
 ```
 
-where `validator.json` contains:
+trong đó `validator.json` chứa:
 
 ```json
 {
@@ -1600,11 +1424,11 @@ where `validator.json` contains:
 }
 ```
 
-and pubkey can be obtained by using `simd tendermint show-validator` command.
+và pubkey có thể lấy bằng lệnh `simd tendermint show-validator`.
 
 ##### delegate
 
-The command `delegate` allows users to delegate liquid tokens to a validator.
+Lệnh `delegate` cho phép người dùng delegate liquid token cho validator.
 
 Usage:
 
@@ -1620,7 +1444,7 @@ simd tx staking delegate cosmosvaloper1l2rsakp388kuv9k8qzq6lrm9taddae7fpx59wm 10
 
 ##### edit-validator
 
-The command `edit-validator` allows users to edit an existing validator account.
+Lệnh `edit-validator` cho phép người dùng chỉnh sửa tài khoản validator hiện có.
 
 Usage:
 
@@ -1636,7 +1460,7 @@ simd tx staking edit-validator --moniker "new_moniker_name" --website "new_websi
 
 ##### redelegate
 
-The command `redelegate` allows users to redelegate illiquid tokens from one validator to another.
+Lệnh `redelegate` cho phép người dùng redelegate illiquid token từ validator này sang validator khác.
 
 Usage:
 
@@ -1652,7 +1476,7 @@ simd tx staking redelegate cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj 
 
 ##### unbond
 
-The command `unbond` allows users to unbond shares from a validator.
+Lệnh `unbond` cho phép người dùng unbond shares từ validator.
 
 Usage:
 
@@ -1668,7 +1492,7 @@ simd tx staking unbond cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhffj 100s
 
 ##### cancel unbond
 
-The command `cancel-unbond` allow users to cancel the unbonding delegation entry and delegate back to the original validator.
+Lệnh `cancel-unbond` cho phép người dùng hủy entry unbonding delegation và delegate trở lại validator gốc.
 
 Usage:
 
@@ -1685,11 +1509,11 @@ simd tx staking cancel-unbond cosmosvaloper1gghjut3ccd8ay0zduzj64hwre2fxs9ldmqhf
 
 ### gRPC
 
-A user can query the `staking` module using gRPC endpoints.
+Người dùng có thể truy vấn module `staking` bằng các endpoint gRPC.
 
 #### Validators
 
-The `Validators` endpoint queries all validators that match the given status.
+Endpoint `Validators` truy vấn tất cả validators khớp với trạng thái đã cho.
 
 ```bash
 cosmos.staking.v1beta1.Query/Validators
@@ -1735,7 +1559,7 @@ Example Output:
 
 #### Validator
 
-The `Validator` endpoint queries validator information for given validator address.
+Endpoint `Validator` truy vấn thông tin validator cho địa chỉ validator đã cho.
 
 ```bash
 cosmos.staking.v1beta1.Query/Validator
@@ -1777,7 +1601,7 @@ Example Output:
 
 #### ValidatorDelegations
 
-The `ValidatorDelegations` endpoint queries delegate information for given validator.
+Endpoint `ValidatorDelegations` truy vấn thông tin delegate cho validator đã cho.
 
 ```bash
 cosmos.staking.v1beta1.Query/ValidatorDelegations
@@ -1815,7 +1639,7 @@ Example Output:
 
 #### ValidatorUnbondingDelegations
 
-The `ValidatorUnbondingDelegations` endpoint queries delegate information for given validator.
+Endpoint `ValidatorUnbondingDelegations` truy vấn thông tin delegate cho validator đã cho.
 
 ```bash
 cosmos.staking.v1beta1.Query/ValidatorUnbondingDelegations
@@ -1867,7 +1691,7 @@ Example Output:
 
 #### Delegation
 
-The `Delegation` endpoint queries delegate information for given validator delegator pair.
+Endpoint `Delegation` truy vấn thông tin delegate cho cặp validator delegator đã cho.
 
 ```bash
 cosmos.staking.v1beta1.Query/Delegation
@@ -1904,7 +1728,7 @@ Example Output:
 
 #### UnbondingDelegation
 
-The `UnbondingDelegation` endpoint queries unbonding information for given validator delegator.
+Endpoint `UnbondingDelegation` truy vấn thông tin unbonding cho validator delegator đã cho.
 
 ```bash
 cosmos.staking.v1beta1.Query/UnbondingDelegation
@@ -1945,7 +1769,7 @@ Example Output:
 
 #### DelegatorDelegations
 
-The `DelegatorDelegations` endpoint queries all delegations of a given delegator address.
+Endpoint `DelegatorDelegations` truy vấn tất cả delegations của địa chỉ delegator đã cho.
 
 ```bash
 cosmos.staking.v1beta1.Query/DelegatorDelegations
@@ -1975,7 +1799,7 @@ Example Output:
 
 #### DelegatorUnbondingDelegations
 
-The `DelegatorUnbondingDelegations` endpoint queries all unbonding delegations of a given delegator address.
+Endpoint `DelegatorUnbondingDelegations` truy vấn tất cả unbonding delegations của địa chỉ delegator đã cho.
 
 ```bash
 cosmos.staking.v1beta1.Query/DelegatorUnbondingDelegations
@@ -2022,7 +1846,7 @@ Example Output:
 
 #### Redelegations
 
-The `Redelegations` endpoint queries redelegations of given address.
+Endpoint `Redelegations` truy vấn redelegations của địa chỉ đã cho.
 
 ```bash
 cosmos.staking.v1beta1.Query/Redelegations
@@ -2067,7 +1891,7 @@ Example Output:
 
 #### DelegatorValidators
 
-The `DelegatorValidators` endpoint queries all validators information for given delegator.
+Endpoint `DelegatorValidators` truy vấn tất cả thông tin validators cho delegator đã cho.
 
 ```bash
 cosmos.staking.v1beta1.Query/DelegatorValidators
@@ -2125,7 +1949,7 @@ Example Output:
 
 #### DelegatorValidator
 
-The `DelegatorValidator` endpoint queries validator information for given delegator validator
+Endpoint `DelegatorValidator` truy vấn thông tin validator cho delegator validator đã cho
 
 ```bash
 cosmos.staking.v1beta1.Query/DelegatorValidator
@@ -2255,7 +2079,7 @@ Example Output:
 
 #### Pool
 
-The `Pool` endpoint queries the pool information.
+Endpoint `Pool` truy vấn thông tin pool.
 
 ```bash
 cosmos.staking.v1beta1.Query/Pool
@@ -2280,7 +2104,7 @@ Example Output:
 
 #### Params
 
-The `Params` endpoint queries the pool information.
+Endpoint `Params` truy vấn thông tin pool.
 
 ```bash
 cosmos.staking.v1beta1.Query/Params
@@ -2308,11 +2132,11 @@ Example Output:
 
 ### REST
 
-A user can query the `staking` module using REST endpoints.
+Người dùng có thể truy vấn module `staking` bằng các endpoint REST.
 
 #### DelegatorDelegations
 
-The `DelegatorDelegations` REST endpoint queries all delegations of a given delegator address.
+Endpoint REST `DelegatorDelegations` truy vấn tất cả delegations của địa chỉ delegator đã cho.
 
 ```bash
 /cosmos/staking/v1beta1/delegations/{delegatorAddr}
@@ -2361,7 +2185,7 @@ Example Output:
 
 #### Redelegations
 
-The `Redelegations` REST endpoint queries redelegations of given address.
+Endpoint REST `Redelegations` truy vấn redelegations của địa chỉ đã cho.
 
 ```bash
 /cosmos/staking/v1beta1/delegators/{delegatorAddr}/redelegations
@@ -2406,7 +2230,7 @@ Example Output:
 
 #### DelegatorUnbondingDelegations
 
-The `DelegatorUnbondingDelegations` REST endpoint queries all unbonding delegations of a given delegator address.
+Endpoint REST `DelegatorUnbondingDelegations` truy vấn tất cả unbonding delegations của địa chỉ delegator đã cho.
 
 ```bash
 /cosmos/staking/v1beta1/delegators/{delegatorAddr}/unbonding_delegations
@@ -2447,7 +2271,7 @@ Example Output:
 
 #### DelegatorValidators
 
-The `DelegatorValidators` REST endpoint queries all validators information for given delegator address.
+Endpoint REST `DelegatorValidators` truy vấn tất cả thông tin validators cho địa chỉ delegator đã cho.
 
 ```bash
 /cosmos/staking/v1beta1/delegators/{delegatorAddr}/validators
@@ -2505,7 +2329,7 @@ Example Output:
 
 #### DelegatorValidator
 
-The `DelegatorValidator` REST endpoint queries validator information for given delegator validator pair.
+Endpoint REST `DelegatorValidator` truy vấn thông tin validator cho cặp delegator validator đã cho.
 
 ```bash
 /cosmos/staking/v1beta1/delegators/{delegatorAddr}/validators/{validatorAddr}
@@ -2557,7 +2381,7 @@ Example Output:
 
 #### HistoricalInfo
 
-The `HistoricalInfo` REST endpoint queries the historical information for given height.
+Endpoint REST `HistoricalInfo` truy vấn thông tin lịch sử cho height đã cho.
 
 ```bash
 /cosmos/staking/v1beta1/historical_info/{height}
@@ -2665,7 +2489,7 @@ Example Output:
 
 #### Parameters
 
-The `Parameters` REST endpoint queries the staking parameters.
+Endpoint REST `Parameters` truy vấn tham số staking.
 
 ```bash
 /cosmos/staking/v1beta1/params
@@ -2693,7 +2517,7 @@ Example Output:
 
 #### Pool
 
-The `Pool` REST endpoint queries the pool information.
+Endpoint REST `Pool` truy vấn thông tin pool.
 
 ```bash
 /cosmos/staking/v1beta1/pool
@@ -2718,7 +2542,7 @@ Example Output:
 
 #### Validators
 
-The `Validators` REST endpoint queries all validators that match the given status.
+Endpoint REST `Validators` truy vấn tất cả validators khớp với trạng thái đã cho.
 
 ```bash
 /cosmos/staking/v1beta1/validators
@@ -2803,7 +2627,7 @@ Example Output:
 
 #### Validator
 
-The `Validator` REST endpoint queries validator information for given validator address.
+Endpoint REST `Validator` truy vấn thông tin validator cho địa chỉ validator đã cho.
 
 ```bash
 /cosmos/staking/v1beta1/validators/{validatorAddr}
@@ -2855,7 +2679,7 @@ Example Output:
 
 #### ValidatorDelegations
 
-The `ValidatorDelegations` REST endpoint queries delegate information for given validator.
+Endpoint REST `ValidatorDelegations` truy vấn thông tin delegate cho validator đã cho.
 
 ```bash
 /cosmos/staking/v1beta1/validators/{validatorAddr}/delegations
@@ -2937,7 +2761,7 @@ Example Output:
 
 #### Delegation
 
-The `Delegation` REST endpoint queries delegate information for given validator delegator pair.
+Endpoint REST `Delegation` truy vấn thông tin delegate cho cặp validator delegator đã cho.
 
 ```bash
 /cosmos/staking/v1beta1/validators/{validatorAddr}/delegations/{delegatorAddr}
@@ -2971,7 +2795,7 @@ Example Output:
 
 #### UnbondingDelegation
 
-The `UnbondingDelegation` REST endpoint queries unbonding information for given validator delegator pair.
+Endpoint REST `UnbondingDelegation` truy vấn thông tin unbonding cho cặp validator delegator đã cho.
 
 ```bash
 /cosmos/staking/v1beta1/validators/{validatorAddr}/delegations/{delegatorAddr}/unbonding_delegation
@@ -3006,7 +2830,7 @@ Example Output:
 
 #### ValidatorUnbondingDelegations
 
-The `ValidatorUnbondingDelegations` REST endpoint queries unbonding delegations of a validator.
+Endpoint REST `ValidatorUnbondingDelegations` truy vấn unbonding delegations của validator.
 
 ```bash
 /cosmos/staking/v1beta1/validators/{validatorAddr}/unbonding_delegations

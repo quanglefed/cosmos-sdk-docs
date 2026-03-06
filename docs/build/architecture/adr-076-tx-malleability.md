@@ -1,169 +1,225 @@
-# Cosmos SDK Transaction Malleability Risk Review and Recommendations
+# Đánh giá rủi ro Transaction Malleability của Cosmos SDK và khuyến nghị
 
 ## Changelog
 
-* 2025-03-10: Initial draft (@aaronc)
+* 2025-03-10: Bản nháp ban đầu (@aaronc)
 
-## Status
+## Trạng thái
 
-PROPOSED: Not Implemented
+ĐỀ XUẤT (Chưa triển khai)
 
-## Abstract
+## Tóm tắt
 
-Several encoding and sign mode related issues have historically resulted in the possibility
-that Cosmos SDK transactions may be re-encoded in such a way as to change their hash
-(and in rare cases, their meaning) without invalidating the signature.
-This document details these cases, their potential risks, the extent to which they have been
-addressed, and provides recommendations for future improvements.
+Trong lịch sử, một số vấn đề liên quan tới encoding và sign mode đã dẫn tới khả
+năng giao dịch Cosmos SDK có thể được mã hoá lại (re-encoded) theo cách làm thay
+đổi hash của giao dịch (và trong một số trường hợp hiếm, cả ý nghĩa), mà không
+làm chữ ký trở nên không hợp lệ.
 
-## Review
+Tài liệu này mô tả chi tiết các trường hợp đó, các rủi ro tiềm ẩn, mức độ mà chúng
+đã hoặc chưa được giải quyết, và đưa ra khuyến nghị cho các cải tiến trong tương lai.
 
-One naive assumption about Cosmos SDK transactions is that hashing the raw bytes of a submitted transaction creates a safe unique identifier for the transaction. In reality, there are multiple ways in which transactions could be manipulated to create different transaction bytes (and as a result different hashes) that still pass signature verification.
+## Rà soát
 
-This document attempts to enumerate the various potential transaction "malleability" risks that we have identified and the extent to which they have or have not been addressed in various sign modes. We also identify vulnerabilities that could be introduced if developers make changes in the future without careful consideration of the complexities involved with transaction encoding, sign modes and signatures.
+Một giả định ngây thơ về giao dịch Cosmos SDK là: hash các bytes thô của giao dịch
+đã được gửi lên mạng tạo ra một định danh duy nhất an toàn cho giao dịch đó. Trong
+thực tế, có nhiều cách mà giao dịch có thể bị thao túng để tạo ra bytes giao dịch
+khác (và do đó hash khác) nhưng vẫn vượt qua được việc xác minh chữ ký.
 
-### Risks Associated with Malleability
+Tài liệu này cố gắng liệt kê (enumerate) các rủi ro tiềm ẩn về “malleability” của
+giao dịch mà chúng tôi đã xác định, và mức độ mà chúng đã hoặc chưa được giải quyết
+trong các sign mode khác nhau. Chúng tôi cũng xác định các lỗ hổng có thể bị đưa
+vào nếu developer thay đổi trong tương lai mà không cân nhắc kỹ các độ phức tạp
+liên quan tới transaction encoding, sign modes và chữ ký.
 
-The malleability of transactions poses the following potential risks to end users:
+### Rủi ro gắn với malleability
 
-* unsigned data could get added to transactions and be processed by state machines
-* clients often rely on transaction hashes for checking transaction status, but whether or not submitted transaction hashes match processed transaction hashes depends primarily on good network actors rather than fundamental protocol guarantees
-* transactions could potentially get executed more than once (faulty replay protection)
+Malleability của giao dịch gây ra các rủi ro tiềm năng sau cho người dùng cuối:
 
-If a client generates a transaction, keeps a record of its hash and then attempts to query nodes to check the transaction's status, this process may falsely conclude that the transaction had not been processed if an intermediary
-processor decoded and re-encoded the transaction with different encoding rules (either maliciously or unintentionally).
-As long as no malleability is present in the signature bytes themselves, clients _should_ query transactions by signature instead of hash.
+* dữ liệu không được ký có thể được thêm vào giao dịch và được state machine xử lý
+* client thường dựa vào hash giao dịch để kiểm tra trạng thái giao dịch, nhưng việc
+  hash giao dịch đã submit có khớp với hash giao dịch đã được xử lý hay không chủ yếu
+  phụ thuộc vào các tác nhân tốt trong mạng hơn là đảm bảo nền tảng ở mức giao thức
+* giao dịch có thể bị thực thi nhiều hơn một lần (cơ chế replay protection lỗi)
 
-Not being cognizant of this risk may lead clients to submit the same transaction multiple times if they believe that 
-earlier transactions had failed or gotten lost in processing.
-This could be an attack vector against users if wallets primarily query transactions by hash.
+Nếu một client tạo một giao dịch, lưu lại hash của nó rồi cố gắng truy vấn các node
+để kiểm tra trạng thái giao dịch, quá trình này có thể kết luận sai rằng giao dịch
+chưa được xử lý nếu một bộ xử lý trung gian decode và re-encode giao dịch với các
+quy tắc encoding khác (dù ác ý hay vô tình).
+Miễn là không có malleability trong chính bytes chữ ký, client _nên_ truy vấn giao
+dịch theo chữ ký thay vì theo hash.
 
-If the state machine were to rely on transaction hashes as a replay mechanism itself, this would be faulty and not 
-provide the intended replay protection. Instead, the state machine should rely on deterministic representations of
-transactions rather than the raw encoding, or other nonces,
-if they want to provide some replay protection that doesn't rely on a monotonically
-increasing account sequence number.
+Không nhận thức được rủi ro này có thể khiến client gửi lại cùng một giao dịch
+nhiều lần nếu họ tin rằng các giao dịch trước đó thất bại hoặc bị “lạc” trong xử lý.
+Điều này có thể là một vector tấn công chống lại người dùng nếu ví (wallet) chủ yếu
+truy vấn giao dịch theo hash.
 
+Nếu state machine tự dựa vào hash giao dịch làm cơ chế replay, điều đó sẽ lỗi và
+không cung cấp replay protection như kỳ vọng. Thay vào đó, state machine nên dựa
+vào các biểu diễn (representation) mang tính quyết định của giao dịch, thay vì
+encoding thô, hoặc các nonce khác, nếu muốn cung cấp replay protection mà không
+dựa vào số sequence tài khoản tăng đơn điệu.
 
-### Sources of Malleability
+### Nguồn gốc của malleability
 
-#### Non-deterministic Protobuf Encoding
+#### Protobuf encoding không quyết định (non-deterministic)
 
-Cosmos SDK transactions are encoded using protobuf binary encoding when they are submitted to the network. Protobuf binary is not inherently a deterministic encoding meaning that the same logical payload could have several valid bytes representations. In a basic sense, this means that protobuf in general can be decoded and re-encoded to produce a different byte stream (and thus different hash) without changing the logical meaning of the bytes. [ADR 027: Deterministic Protobuf Serialization](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-027-deterministic-protobuf-serialization.md) describes in detail what needs to be done to produce what we consider to be a "canonical", deterministic protobuf serialization. Briefly, the following sources of malleability at the encoding level have been identified and are addressed by this specification:
+Giao dịch Cosmos SDK được mã hoá bằng protobuf binary encoding khi chúng được gửi
+lên mạng. Protobuf binary vốn không phải là một encoding quyết định, nghĩa là cùng
+một payload logic có thể có nhiều biểu diễn bytes hợp lệ. Ở mức cơ bản, điều này
+nghĩa là protobuf nói chung có thể được decode và re-encode để tạo ra một luồng
+byte khác (và do đó hash khác) mà không thay đổi ý nghĩa logic của bytes.
+[ADR 027: Deterministic Protobuf Serialization](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-027-deterministic-protobuf-serialization.md)
+mô tả chi tiết những gì cần làm để tạo ra cái mà chúng ta coi là một protobuf
+serialization “chuẩn” (canonical), mang tính quyết định. Tóm lại, các nguồn gốc
+malleability ở mức encoding sau đã được xác định và được giải quyết bởi đặc tả này:
 
-* fields can be emitted in any order
-* default field values can be included or omitted, and this doesn't change meaning unless `optional` is used
-* `repeated` fields of scalars may use packed or "regular" encoding
-* `varint`s can include extra ignored bits
-* extra fields may be added and are usually simply ignored by decoders. [ADR 020](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-020-protobuf-transaction-encoding.md#unknown-field-filtering) specifies that in general such extra fields should cause messages and transactions to be rejected
+* các field có thể được phát ra theo bất kỳ thứ tự nào
+* giá trị mặc định của field có thể được include hoặc omit, và điều này không đổi nghĩa trừ khi dùng `optional`
+* field `repeated` dạng scalar có thể dùng packed hoặc “regular” encoding
+* `varint` có thể chứa thêm các bit bị bỏ qua
+* có thể thêm các field thừa và thường bị decoder bỏ qua. [ADR 020](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-020-protobuf-transaction-encoding.md#unknown-field-filtering)
+  quy định rằng nhìn chung các field thừa như vậy nên khiến message và giao dịch bị từ chối
 
-When using `SIGN_MODE_DIRECT` none of the above malleabilities will be tolerated because:
+Khi dùng `SIGN_MODE_DIRECT`, không nguồn malleability nào ở trên được chấp nhận vì:
 
-* signatures of messages and extensions must be done over the raw encoded bytes of those fields
-* the outer tx envelope (`TxRaw`) must follow ADR 027 rules or be rejected
+* chữ ký của message và extension phải được thực hiện trên bytes đã mã hoá thô của các field đó
+* lớp vỏ tx ngoài cùng (`TxRaw`) phải tuân theo quy tắc ADR 027 hoặc bị từ chối
 
-Transactions signed with `SIGN_MODE_LEGACY_AMINO_JSON`, however, have no way of protecting against the above malleabilities because what is signed is a JSON representation of the logical contents of the transaction. These logical contents could have any number of valid protobuf binary encodings, so in general there are no guarantees regarding transaction hash with Amino JSON signing.
+Tuy nhiên, các giao dịch được ký với `SIGN_MODE_LEGACY_AMINO_JSON` không có cách
+nào để bảo vệ khỏi các malleability ở trên vì thứ được ký là biểu diễn JSON của
+nội dung logic của giao dịch. Nội dung logic này có thể có rất nhiều protobuf
+binary encoding hợp lệ, nên nói chung không có đảm bảo nào về hash giao dịch khi
+ký kiểu Amino JSON.
 
-In addition to being aware of the general non-determinism of protobuf binary, developers need to pay special attention to make sure that unknown protobuf fields get rejected when developing new capabilities related to protobuf transactions. The protobuf serialization format was designed with the assumption that unknown data known to encoders could safely be ignored by decoders. This assumption may have been fairly safe within the walled garden of Google's centralized infrastructure. However, in distributed blockchain systems, this assumption is generally unsafe. If a newer client encodes a protobuf message with data intended for a newer server, it is not safe for an older server to simply ignore and discard instructions that it does not understand. These instructions could include critical information that the transaction signer is relying upon and just assuming that it is unimportant is not safe.
+Ngoài việc nhận thức tính không quyết định chung của protobuf binary, developer
+cần đặc biệt chú ý để đảm bảo các unknown protobuf field bị từ chối khi phát triển
+các khả năng mới liên quan tới giao dịch protobuf. Định dạng protobuf được thiết
+kế với giả định rằng dữ liệu unknown (đối với decoder) mà encoder biết có thể được
+decoder bỏ qua một cách an toàn. Giả định này có thể tương đối an toàn trong môi
+trường tập trung nội bộ của Google. Nhưng trong hệ thống blockchain phân tán, giả
+định này nhìn chung là không an toàn. Nếu một client mới encode một message protobuf
+với dữ liệu dành cho server mới, thì không an toàn để một server cũ chỉ đơn giản
+bỏ qua và loại bỏ các chỉ dẫn mà nó không hiểu. Những chỉ dẫn đó có thể bao gồm
+thông tin quan trọng mà người ký giao dịch đang dựa vào, và việc coi chúng là không
+quan trọng là không an toàn.
 
-[ADR 020](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-020-protobuf-transaction-encoding.md#unknown-field-filtering) specifies some provisions for "non-critical" fields which can safely be ignored by older servers. In practice, I have not seen any valid usages of this. It is something in the design that maintainers should be aware of, but it may not be necessary or even 100% safe.
+[ADR 020](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-020-protobuf-transaction-encoding.md#unknown-field-filtering)
+quy định một số điều khoản cho các field “không quan trọng” (non-critical) có thể
+được bỏ qua an toàn bởi các server cũ. Trên thực tế, tôi chưa thấy trường hợp sử
+dụng hợp lệ nào cho điều này. Đây là điều mà maintainer nên biết khi thiết kế, nhưng
+có thể không cần thiết hoặc thậm chí không an toàn 100%.
 
-#### Non-deterministic Value Encoding
+#### Value encoding không quyết định
 
-In addition to the non-determinism present in protobuf binary itself, some protobuf field data is encoded using a micro-format which itself may not be deterministic. Consider for instance integer or decimal encoding. Some decoders may allow for the presence of leading or trailing zeros without changing the logical meaning, ex. `00100` vs `100` or `100.00` vs `100`. So if a sign mode encodes numbers deterministically, but decoders accept multiple representations,
-a user may sign over the value `100` while `0100` gets encoded. This would be possible with Amino JSON to the extent that the integer decoder accepts leading zeros. I believe the current `Int` implementation will reject this, however, it is
-probably possible to encode an octal or hexadecimal representation in the transaction whereas the user signs over a decimal integer.
+Ngoài tính không quyết định của protobuf binary, một số dữ liệu trong field protobuf
+được encode bằng một micro-format mà bản thân nó có thể không quyết định. Ví dụ: encode
+số nguyên hoặc số thập phân. Một số decoder có thể cho phép số 0 ở đầu hoặc cuối mà
+không đổi ý nghĩa logic, ví dụ `00100` vs `100` hoặc `100.00` vs `100`. Vì vậy nếu một
+sign mode encode số theo cách quyết định, nhưng decoder chấp nhận nhiều biểu diễn,
+người dùng có thể ký trên giá trị `100` trong khi `0100` lại được encode. Điều này có
+thể xảy ra với Amino JSON nếu integer decoder chấp nhận số 0 ở đầu. Tôi tin rằng triển
+khai `Int` hiện tại sẽ từ chối điều này; tuy nhiên, có lẽ vẫn có thể encode biểu diễn
+bát phân hoặc thập lục phân trong giao dịch trong khi người dùng ký trên số nguyên
+thập phân.
 
-#### Signature Encoding
+#### Signature encoding
 
-Signatures themselves are encoded using a micro-format specific to the signature algorithm being used and sometimes these
-micro-formats can allow for non-determinism (multiple valid bytes for the same signature).
-Most of the signature algorithms supported by the SDK should reject non-canonical bytes in their current implementation.
-However, the `Multisignature` protobuf type uses normal protobuf encoding and there is no check as to whether the
-decoded bytes followed canonical ADR 027 rules or not. Therefore, multisig transactions can have malleability in
-their signatures.
-Any new or custom signature algorithms must make sure that they reject any non-canonical bytes, otherwise even
-with `SIGN_MODE_DIRECT` there can be transaction hash malleability by re-encoding signatures with a non-canonical
-representation.
+Chữ ký bản thân chúng cũng được encode bằng một micro-format đặc thù cho thuật toán chữ
+ký đang dùng; đôi khi các micro-format này có thể cho phép không quyết định (nhiều
+bytes hợp lệ cho cùng một chữ ký).
+Phần lớn thuật toán chữ ký được SDK hỗ trợ nên từ chối bytes không canonical trong triển
+khai hiện tại. Tuy nhiên, kiểu protobuf `Multisignature` dùng encoding protobuf thông
+thường và không có kiểm tra xem bytes đã decode có tuân theo quy tắc canonical ADR 027
+hay không. Vì vậy, giao dịch multisig có thể có malleability trong chữ ký.
+Bất kỳ thuật toán chữ ký mới hay tuỳ biến nào cũng phải đảm bảo từ chối bytes chữ ký
+không canonical, nếu không ngay cả với `SIGN_MODE_DIRECT` vẫn có thể xảy ra malleability
+hash giao dịch bằng cách re-encode chữ ký theo một biểu diễn không canonical.
 
-#### Fields not covered by Amino JSON
+#### Các field không được Amino JSON bao phủ
 
-Another area that needs to be addressed carefully is the discrepancy between `AminoSignDoc` (see [`aminojson.proto`](../../x/tx/signing/aminojson/internal/aminojsonpb/aminojson.proto)) used for `SIGN_MODE_LEGACY_AMINO_JSON` and the actual contents of `TxBody` and `AuthInfo` (see [`tx.proto`](../../proto/cosmos/tx/v1beta1/tx.proto)).
-If fields get added to `TxBody` or `AuthInfo`, they must either have a corresponding representation in `AminoSignDoc` or Amino JSON signatures must be rejected when those new fields are set. Making sure that this is done is a
-highly manual process, and developers could easily make the mistake of updating `TxBody` or `AuthInfo`
-without paying any attention to the implementation of `GetSignBytes` for Amino JSON. This is a critical
-vulnerability in which unsigned content can now get into the transaction and signature verification will
-pass.
+Một khu vực khác cần được xử lý cẩn thận là sự khác biệt giữa `AminoSignDoc`
+(xem [`aminojson.proto`](../../x/tx/signing/aminojson/internal/aminojsonpb/aminojson.proto))
+dùng cho `SIGN_MODE_LEGACY_AMINO_JSON` và nội dung thực tế của `TxBody` và `AuthInfo`
+(xem [`tx.proto`](../../proto/cosmos/tx/v1beta1/tx.proto)).
+Nếu có field được thêm vào `TxBody` hoặc `AuthInfo`, chúng phải hoặc có biểu diễn tương
+ứng trong `AminoSignDoc`, hoặc chữ ký Amino JSON phải bị từ chối khi các field mới đó
+được thiết lập. Việc đảm bảo điều này là một quy trình rất thủ công, và developer có
+thể dễ dàng mắc lỗi cập nhật `TxBody` hoặc `AuthInfo` mà không để ý tới triển khai
+`GetSignBytes` cho Amino JSON. Đây là một lỗ hổng nghiêm trọng: nội dung không được ký
+có thể đi vào giao dịch và xác minh chữ ký vẫn pass.
 
-## Sign Mode Summary and Recommendations
+## Tóm tắt sign mode và khuyến nghị
 
-The sign modes officially supported by the SDK are `SIGN_MODE_DIRECT`, `SIGN_MODE_TEXTUAL`, `SIGN_MODE_DIRECT_AUX`,
-and `SIGN_MODE_LEGACY_AMINO_JSON`.
-`SIGN_MODE_LEGACY_AMINO_JSON` is used commonly by wallets and is currently the only sign mode supported on Nano Ledger hardware devices
-(although `SIGN_MODE_TEXTUAL` was designed to also support hardware devices).
-`SIGN_MODE_DIRECT` is the simplest sign mode and its usage is also fairly common.
-`SIGN_MODE_DIRECT_AUX` is a variant of `SIGN_MODE_DIRECT` that can be used by auxiliary signers in a multi-signer
-transaction by those signers who are not paying gas.
-`SIGN_MODE_TEXTUAL` was intended as a replacement for `SIGN_MODE_LEGACY_AMINO_JSON`, but as far as we know it
-has not been adopted by any clients yet and thus is not in active use.
+Các sign mode được SDK chính thức hỗ trợ là `SIGN_MODE_DIRECT`, `SIGN_MODE_TEXTUAL`,
+`SIGN_MODE_DIRECT_AUX`, và `SIGN_MODE_LEGACY_AMINO_JSON`.
+`SIGN_MODE_LEGACY_AMINO_JSON` được ví sử dụng phổ biến và hiện là sign mode duy nhất
+được hỗ trợ trên thiết bị phần cứng Nano Ledger (dù `SIGN_MODE_TEXTUAL` được thiết kế
+để cũng hỗ trợ thiết bị phần cứng).
+`SIGN_MODE_DIRECT` là sign mode đơn giản nhất và cũng khá phổ biến.
+`SIGN_MODE_DIRECT_AUX` là một biến thể của `SIGN_MODE_DIRECT` có thể được dùng bởi các
+auxiliary signer trong giao dịch multi-signer cho các signer không trả gas.
+`SIGN_MODE_TEXTUAL` được dự định là sự thay thế cho `SIGN_MODE_LEGACY_AMINO_JSON`,
+nhưng theo những gì chúng ta biết nó chưa được client nào áp dụng và do đó chưa dùng
+trong thực tế.
 
-All known malleability concerns have been addressed in the current implementation of `SIGN_MODE_DIRECT`.
-The only known malleability that could occur with a transaction signed with `SIGN_MODE_DIRECT` would
-need to be in the signature bytes themselves.
-Since signatures are not signed over, it is impossible for any sign mode to address this directly
-and instead signature algorithms need to take care to reject any non-canonically encoded signature bytes
-to prevent malleability.
-For the known malleability of the `Multisignature` type, we should make sure that any valid signatures
-were encoded following canonical ADR 027 rules when doing signature verification.
+Tất cả các mối quan ngại malleability đã biết đều đã được giải quyết trong triển khai
+hiện tại của `SIGN_MODE_DIRECT`.
+Malleability duy nhất được biết có thể xảy ra với giao dịch ký bằng `SIGN_MODE_DIRECT`
+sẽ phải nằm trong chính bytes chữ ký.
+Vì chữ ký không được ký “đè lên” (signatures are not signed over), không sign mode nào
+có thể giải quyết điều này trực tiếp; thay vào đó, các thuật toán chữ ký cần cẩn thận
+từ chối bytes chữ ký không canonical để ngăn malleability.
+Đối với malleability đã biết của kiểu `Multisignature`, chúng ta nên đảm bảo mọi chữ ký
+hợp lệ đã được encode theo quy tắc canonical ADR 027 khi thực hiện xác minh chữ ký.
 
-`SIGN_MODE_DIRECT_AUX` provides the same level of safety as `SIGN_MODE_DIRECT` because
+`SIGN_MODE_DIRECT_AUX` cung cấp mức độ an toàn tương tự `SIGN_MODE_DIRECT` vì:
 
-* the raw encoded `TxBody` bytes are signed over in `SignDocDirectAux`, and
-* a transaction using `SIGN_MODE_DIRECT_AUX` still requires the primary signer to sign the transaction with `SIGN_MODE_DIRECT`
+* bytes `TxBody` đã mã hoá thô được ký trong `SignDocDirectAux`, và
+* một giao dịch dùng `SIGN_MODE_DIRECT_AUX` vẫn yêu cầu primary signer ký giao dịch bằng `SIGN_MODE_DIRECT`
 
-`SIGN_MODE_TEXTUAL` also provides the same level of safety as `SIGN_MODE_DIRECT` because the hash of the raw encoded
-`TxBody` and `AuthInfo` bytes are signed over.
+`SIGN_MODE_TEXTUAL` cũng cung cấp mức độ an toàn tương tự `SIGN_MODE_DIRECT` vì hash của
+bytes `TxBody` và `AuthInfo` đã mã hoá thô được ký.
 
-Unfortunately, the vast majority of unaddressed malleability risks affect `SIGN_MODE_LEGACY_AMINO_JSON` and this
-sign mode is still commonly used.
-It is recommended that the following improvements be made to Amino JSON signing:
+Thật không may, phần lớn rủi ro malleability chưa được giải quyết ảnh hưởng đến
+`SIGN_MODE_LEGACY_AMINO_JSON`, và sign mode này vẫn được dùng phổ biến.
+Khuyến nghị thực hiện các cải tiến sau cho việc ký Amino JSON:
 
-* hashes of `TxBody` and `AuthInfo` should be added to `AminoSignDoc` so that encoding-level malleability is addressed
-* when constructing `AminoSignDoc`, [protoreflect](https://pkg.go.dev/google.golang.org/protobuf/reflect/protoreflect) API should be used to ensure that there are no fields in `TxBody` or `AuthInfo` which do not have a mapping in `AminoSignDoc` have been set
-* fields present in `TxBody` or `AuthInfo` that are not present in `AminoSignDoc` (such as extension options) should
-be added to `AminoSignDoc` if possible
+* thêm hash của `TxBody` và `AuthInfo` vào `AminoSignDoc` để giải quyết malleability ở mức encoding
+* khi xây dựng `AminoSignDoc`, nên dùng API [protoreflect](https://pkg.go.dev/google.golang.org/protobuf/reflect/protoreflect)
+  để đảm bảo không có field nào trong `TxBody` hoặc `AuthInfo` đã được thiết lập mà không có mapping trong `AminoSignDoc`
+* các field có trong `TxBody` hoặc `AuthInfo` nhưng không có trong `AminoSignDoc` (như extension options) nên được thêm
+  vào `AminoSignDoc` nếu có thể
 
-## Testing
+## Kiểm thử
 
-To test that transactions are resistant to malleability,
-we can develop a test suite to run against all sign modes that
-attempts to manipulate transaction bytes in the following ways:
+Để kiểm thử rằng giao dịch có khả năng chống malleability,
+chúng ta có thể phát triển một test suite chạy trên mọi sign mode, cố gắng thao túng
+bytes giao dịch theo các cách sau:
 
-* changing protobuf encoding by
-    * reordering fields
-    * setting default values
-    * adding extra bits to varints, or
-    * setting new unknown fields
-* modifying integer and decimal values encoded as strings with leading or trailing zeros
+* thay đổi protobuf encoding bằng cách
+  * đổi thứ tự field
+  * thiết lập giá trị mặc định
+  * thêm bit thừa vào varint, hoặc
+  * thiết lập unknown field mới
+* sửa đổi giá trị số nguyên và số thập phân được encode dạng chuỗi bằng số 0 ở đầu hoặc cuối
 
-Whenever any of these manipulations is done, we should observe that the sign doc bytes for the sign mode being
-tested also change, meaning that the corresponding signatures will also have to change.
+Bất cứ khi nào thực hiện một trong các thao túng này, chúng ta nên quan sát rằng bytes sign doc
+cho sign mode đang test cũng thay đổi, nghĩa là chữ ký tương ứng cũng phải thay đổi.
 
-In the case of Amino JSON, we should also develop tests which ensure that if any `TxBody` or `AuthInfo`
-field not supported by Amino's `AminoSignDoc` is set that signing fails.
+Trong trường hợp Amino JSON, chúng ta cũng nên phát triển các bài test đảm bảo rằng nếu bất kỳ field
+nào của `TxBody` hoặc `AuthInfo` không được `AminoSignDoc` hỗ trợ được thiết lập, thì việc ký sẽ thất bại.
 
-In the general case of transaction decoding, we should have unit tests to ensure that
+Trong trường hợp chung của việc decode giao dịch, chúng ta nên có unit test để đảm bảo rằng:
 
-* any `TxRaw` bytes which do not follow ADR 027 canonical encoding cause decoding to fail, and
-* any top-level transaction elements including `TxBody`, `AuthInfo`, public keys, and messages which
-have unknown fields set cause the transaction to be rejected
-(this ensures that ADR 020 unknown field filtering is properly applied)
+* bất kỳ bytes `TxRaw` nào không tuân theo encoding canonical ADR 027 đều khiến việc decode thất bại, và
+* bất kỳ phần tử giao dịch top-level nào bao gồm `TxBody`, `AuthInfo`, public key, và message có unknown field
+  được thiết lập đều khiến giao dịch bị từ chối
+(điều này đảm bảo ADR 020 unknown field filtering được áp dụng đúng)
 
-For each supported signature algorithm,
-there should also be unit tests to ensure that signatures must be encoded canonically
-or get rejected.
+Với mỗi thuật toán chữ ký được hỗ trợ, cũng nên có unit test để đảm bảo chữ ký phải được encode canonical
+hoặc sẽ bị từ chối.
 
-## References
+## Tham khảo
 
 * [ADR 027: Deterministic Protobuf Serialization](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-027-deterministic-protobuf-serialization.md)
 * [ADR 020](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-020-protobuf-transaction-encoding.md#unknown-field-filtering)

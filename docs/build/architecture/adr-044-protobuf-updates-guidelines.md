@@ -1,57 +1,57 @@
-# ADR 044: Guidelines for Updating Protobuf Definitions
+# ADR 044: Hướng Dẫn Cập Nhật Định Nghĩa Protobuf
 
 ## Changelog
 
-* 28.06.2021: Initial Draft
-* 02.12.2021: Add `Since:` comment for new fields
-* 21.07.2022: Remove the rule of no new `Msg` in the same proto version.
+* 28.06.2021: Bản nháp đầu tiên
+* 02.12.2021: Thêm comment `Since:` cho các trường mới
+* 21.07.2022: Xóa quy tắc không có `Msg` mới trong cùng phiên bản proto.
 
-## Status
+## Trạng Thái
 
-Draft
+Bản Nháp
 
-## Abstract
+## Tóm Tắt
 
-This ADR provides guidelines and recommended practices when updating Protobuf definitions. These guidelines are targeting module developers.
+ADR này cung cấp các hướng dẫn và thực hành khuyến nghị khi cập nhật các định nghĩa Protobuf. Các hướng dẫn này nhắm đến nhà phát triển module.
 
-## Context
+## Bối Cảnh
 
-The Cosmos SDK maintains a set of [Protobuf definitions](https://github.com/cosmos/cosmos-sdk/tree/main/proto/cosmos). It is important to correctly design Protobuf definitions to avoid any breaking changes within the same version. The reasons are to not break tooling (including indexers and explorers), wallets and other third-party integrations.
+Cosmos SDK duy trì một tập hợp [định nghĩa Protobuf](https://github.com/cosmos/cosmos-sdk/tree/main/proto/cosmos). Điều quan trọng là phải thiết kế đúng các định nghĩa Protobuf để tránh bất kỳ thay đổi breaking nào trong cùng một phiên bản. Lý do là không phá vỡ công cụ (bao gồm các indexer và explorer), ví và các tích hợp bên thứ ba khác.
 
-When making changes to these Protobuf definitions, the Cosmos SDK currently only follows [Buf's](https://docs.buf.build/) recommendations. We noticed however that Buf's recommendations might still result in breaking changes in the SDK in some cases. For example:
+Khi thực hiện các thay đổi đối với các định nghĩa Protobuf này, Cosmos SDK hiện chỉ tuân theo các khuyến nghị của [Buf](https://docs.buf.build/). Tuy nhiên chúng tôi nhận thấy rằng các khuyến nghị của Buf vẫn có thể dẫn đến các thay đổi breaking trong SDK trong một số trường hợp. Ví dụ:
 
-* Adding fields to `Msg`s. Adding fields is not a Protobuf spec-breaking operation. However, when adding new fields to `Msg`s, the unknown field rejection will throw an error when sending the new `Msg` to an older node.
-* Marking fields as `reserved`. Protobuf proposes the `reserved` keyword for removing fields without the need to bump the package version. However, by doing so, client backwards compatibility is broken as Protobuf doesn't generate anything for `reserved` fields. See [#9446](https://github.com/cosmos/cosmos-sdk/issues/9446) for more details on this issue.
+* Thêm trường vào `Msg`. Thêm trường không phải là thao tác vi phạm đặc tả Protobuf. Tuy nhiên, khi thêm trường mới vào `Msg`, tính năng từ chối unknown field sẽ báo lỗi khi gửi `Msg` mới đến node cũ hơn.
+* Đánh dấu trường là `reserved`. Protobuf đề xuất từ khóa `reserved` để xóa trường mà không cần tăng phiên bản package. Tuy nhiên, bằng cách làm vậy, tính tương thích ngược phía client bị phá vỡ vì Protobuf không tạo ra bất cứ thứ gì cho các trường `reserved`. Xem [#9446](https://github.com/cosmos/cosmos-sdk/issues/9446) để biết thêm chi tiết về vấn đề này.
 
-Moreover, module developers often face other questions around Protobuf definitions such as "Can I rename a field?" or "Can I deprecate a field?" This ADR aims to answer all these questions by providing clear guidelines about allowed updates for Protobuf definitions.
+Hơn nữa, các nhà phát triển module thường phải đối mặt với các câu hỏi khác xung quanh định nghĩa Protobuf như "Tôi có thể đổi tên trường không?" hoặc "Tôi có thể deprecated trường không?" ADR này nhằm trả lời tất cả các câu hỏi này bằng cách cung cấp các hướng dẫn rõ ràng về các cập nhật được phép cho định nghĩa Protobuf.
 
-## Decision
+## Quyết Định
 
-We decide to keep [Buf's](https://docs.buf.build/) recommendations with the following exceptions:
+Chúng tôi quyết định giữ các khuyến nghị của [Buf](https://docs.buf.build/) với các ngoại lệ sau:
 
-* `UNARY_RPC`: the Cosmos SDK currently does not support streaming RPCs.
-* `COMMENT_FIELD`: the Cosmos SDK allows fields with no comments.
-* `SERVICE_SUFFIX`: we use the `Query` and `Msg` service naming convention, which doesn't use the `-Service` suffix.
-* `PACKAGE_VERSION_SUFFIX`: some packages, such as `cosmos.crypto.ed25519`, don't use a version suffix.
-* `RPC_REQUEST_STANDARD_NAME`: Requests for the `Msg` service don't have the `-Request` suffix to keep backwards compatibility.
+* `UNARY_RPC`: Cosmos SDK hiện không hỗ trợ streaming RPC.
+* `COMMENT_FIELD`: Cosmos SDK cho phép các trường không có comment.
+* `SERVICE_SUFFIX`: chúng ta sử dụng quy ước đặt tên dịch vụ `Query` và `Msg`, không sử dụng hậu tố `-Service`.
+* `PACKAGE_VERSION_SUFFIX`: một số package, chẳng hạn như `cosmos.crypto.ed25519`, không sử dụng hậu tố phiên bản.
+* `RPC_REQUEST_STANDARD_NAME`: Các yêu cầu cho dịch vụ `Msg` không có hậu tố `-Request` để duy trì khả năng tương thích ngược.
 
-On top of Buf's recommendations we add the following guidelines that are specific to the Cosmos SDK.
+Trên các khuyến nghị của Buf, chúng tôi thêm các hướng dẫn sau dành riêng cho Cosmos SDK.
 
-### Updating Protobuf Definition Without Bumping Version
+### Cập Nhật Định Nghĩa Protobuf Mà Không Tăng Phiên Bản
 
-#### 1. Module developers MAY add new Protobuf definitions
+#### 1. Nhà phát triển module CÓ THỂ thêm các định nghĩa Protobuf mới
 
-Module developers MAY add new `message`s, new `Service`s, new `rpc` endpoints, and new fields to existing messages. This recommendation follows the Protobuf specification, but is added in this document for clarity, as the SDK requires one additional change.
+Nhà phát triển module CÓ THỂ thêm các `message` mới, `Service` mới, endpoint `rpc` mới, và các trường mới vào các message hiện có. Khuyến nghị này tuân theo đặc tả Protobuf, nhưng được thêm vào tài liệu này để rõ ràng hơn, vì SDK yêu cầu thêm một thay đổi nữa.
 
-The SDK requires the Protobuf comment of the new addition to contain one line with the following format:
+SDK yêu cầu comment Protobuf của phần bổ sung mới phải chứa một dòng với định dạng sau:
 
 ```protobuf
 // Since: cosmos-sdk <version>{, <version>...}
 ```
 
-Where each `version` denotes a minor ("0.45") or patch ("0.44.5") version from which the field is available. This will greatly help client libraries, who can optionally use reflection or custom code generation to show/hide these fields depending on the targeted node version.
+Trong đó mỗi `version` biểu thị phiên bản minor ("0.45") hoặc patch ("0.44.5") kể từ đó trường mới có sẵn. Điều này sẽ giúp ích rất lớn cho các thư viện client, những thư viện có thể tùy chọn sử dụng reflection hoặc code generation tùy chỉnh để hiển thị/ẩn các trường này tùy thuộc vào phiên bản node được nhắm đến.
 
-As examples, the following comments are valid:
+Ví dụ, các comment sau là hợp lệ:
 
 ```protobuf
 // Since: cosmos-sdk 0.44
@@ -59,7 +59,7 @@ As examples, the following comments are valid:
 // Since: cosmos-sdk 0.42.11, 0.44.5
 ```
 
-and the following ones are NOT valid:
+và các comment sau KHÔNG hợp lệ:
 
 ```protobuf
 // Since cosmos-sdk v0.44
@@ -71,59 +71,50 @@ and the following ones are NOT valid:
 // Since: Cosmos SDK 0.42.11, 0.44.5
 ```
 
-#### 2. Fields MAY be marked as `deprecated`, and nodes MAY implement a protocol-breaking change for handling these fields
+#### 2. Các trường CÓ THỂ được đánh dấu là `deprecated`, và các node CÓ THỂ triển khai thay đổi vi phạm giao thức để xử lý các trường này
 
-Protobuf supports the [`deprecated` field option](https://developers.google.com/protocol-buffers/docs/proto#options), and this option MAY be used on any field, including `Msg` fields. If a node handles a Protobuf message with a non-empty deprecated field, the node MAY change its behavior upon processing it, even in a protocol-breaking way. When possible, the node MUST handle backwards compatibility without breaking the consensus (unless we increment the proto version).
+Protobuf hỗ trợ [tùy chọn trường `deprecated`](https://developers.google.com/protocol-buffers/docs/proto#options), và tùy chọn này CÓ THỂ được sử dụng trên bất kỳ trường nào, bao gồm cả các trường `Msg`. Nếu một node xử lý một message Protobuf với trường deprecated không trống, node CÓ THỂ thay đổi hành vi của mình khi xử lý, ngay cả theo cách vi phạm giao thức. Khi có thể, node PHẢI xử lý khả năng tương thích ngược mà không vi phạm đồng thuận (trừ khi chúng ta tăng phiên bản proto).
 
-As an example, the Cosmos SDK v0.42 to v0.43 update contained two Protobuf-breaking changes, listed below. Instead of bumping the package versions from `v1beta1` to `v1`, the SDK team decided to follow this guideline, by reverting the breaking changes, marking those changes as deprecated, and modifying the node implementation when processing messages with deprecated fields. More specifically:
+Ví dụ, bản cập nhật Cosmos SDK v0.42 lên v0.43 chứa hai thay đổi vi phạm Protobuf, được liệt kê bên dưới. Thay vì tăng phiên bản package từ `v1beta1` lên `v1`, nhóm SDK quyết định tuân theo hướng dẫn này, bằng cách hoàn nguyên các thay đổi breaking, đánh dấu những thay đổi đó là deprecated, và sửa đổi triển khai node khi xử lý message với các trường deprecated.
 
-* The Cosmos SDK recently removed support for [time-based software upgrades](https://github.com/cosmos/cosmos-sdk/pull/8849). As such, the `time` field has been marked as deprecated in `cosmos.upgrade.v1beta1.Plan`. Moreover, the node will reject any proposal containing an upgrade Plan whose `time` field is non-empty.
-* The Cosmos SDK now supports [governance split votes](./adr-037-gov-split-vote.md). When querying for votes, the returned `cosmos.gov.v1beta1.Vote` message has its `option` field (used for 1 vote option) deprecated in favor of its `options` field (allowing multiple vote options). Whenever possible, the SDK still populates the deprecated `option` field, that is, if and only if the `len(options) == 1` and `options[0].Weight == 1.0`.
+* Cosmos SDK gần đây đã xóa hỗ trợ cho [nâng cấp phần mềm dựa trên thời gian](https://github.com/cosmos/cosmos-sdk/pull/8849). Vì vậy, trường `time` đã được đánh dấu là deprecated trong `cosmos.upgrade.v1beta1.Plan`. Hơn nữa, node sẽ từ chối bất kỳ đề xuất nào chứa upgrade Plan có trường `time` không trống.
+* Cosmos SDK hiện hỗ trợ [phiếu bầu phân chia governance](./adr-037-gov-split-vote.md). Khi truy vấn phiếu bầu, message `cosmos.gov.v1beta1.Vote` được trả về có trường `option` (được dùng cho 1 tùy chọn bỏ phiếu) deprecated để ủng hộ trường `options` (cho phép nhiều tùy chọn bỏ phiếu). Khi có thể, SDK vẫn điền vào trường deprecated `option`, tức là khi và chỉ khi `len(options) == 1` và `options[0].Weight == 1.0`.
 
-#### 3. Fields MUST NOT be renamed
+#### 3. Các trường KHÔNG ĐƯỢC đổi tên
 
-Whereas the official Protobuf recommendations do not prohibit renaming fields, as it does not break the Protobuf binary representation, the SDK explicitly forbids renaming fields in Protobuf structs. The main reason for this choice is to avoid introducing breaking changes for clients, which often rely on hard-coded fields from generated types. Moreover, renaming fields will lead to client-breaking JSON representations of Protobuf definitions, used in REST endpoints and in the CLI.
+Trong khi các khuyến nghị Protobuf chính thức không cấm đổi tên trường, vì nó không vi phạm biểu diễn nhị phân Protobuf, SDK cấm rõ ràng việc đổi tên trường trong các struct Protobuf. Lý do chính cho lựa chọn này là để tránh đưa ra các thay đổi breaking cho client, thường phụ thuộc vào các trường hard-coded từ các kiểu được tạo. Hơn nữa, đổi tên trường sẽ dẫn đến các biểu diễn JSON vi phạm client của các định nghĩa Protobuf, được sử dụng trong các REST endpoint và trong CLI.
 
-### Incrementing Protobuf Package Version
+### Tăng Phiên Bản Package Protobuf
 
-TODO, needs architecture review. Some topics:
+TODO, cần kiến trúc review. Một số chủ đề:
 
-* Bumping versions frequency
-* When bumping versions, should the Cosmos SDK support both versions?
-    * i.e. v1beta1 -> v1, should we have two folders in the Cosmos SDK, and handlers for both versions?
-* mention ADR-023 Protobuf naming
+* Tần suất tăng phiên bản
+* Khi tăng phiên bản, Cosmos SDK có nên hỗ trợ cả hai phiên bản không?
+    * tức là v1beta1 -> v1, chúng ta có nên có hai thư mục trong Cosmos SDK và handler cho cả hai phiên bản không?
+* đề cập ADR-023 đặt tên Protobuf
 
-## Consequences
+## Hậu Quả
 
-> This section describes the resulting context, after applying the decision. All consequences should be listed here, not just the "positive" ones. A particular decision may have positive, negative, and neutral consequences, but all of them affect the team and project in the future.
+### Tương Thích Ngược
 
-### Backwards Compatibility
+### Tích Cực
 
-> All ADRs that introduce backwards incompatibilities must include a section describing these incompatibilities and their severity. The ADR must explain how the author proposes to deal with these incompatibilities. ADR submissions without a sufficient backwards compatibility treatise may be rejected outright.
+* ít đau đớn hơn cho nhà phát triển công cụ
+* khả năng tương thích tốt hơn trong hệ sinh thái
 
-### Positive
+### Tiêu Cực
 
-* less pain to tool developers
-* more compatibility in the ecosystem
-* ...
+{hậu quả tiêu cực}
 
-### Negative
+### Trung Lập
 
-{negative consequences}
+* xem xét Protobuf nghiêm ngặt hơn
 
-### Neutral
+## Thảo Luận Thêm
 
-* more rigor in Protobuf review
+ADR này vẫn đang ở giai đoạn DRAFT, và "Tăng Phiên Bản Package Protobuf" sẽ được điền khi chúng ta đưa ra quyết định về cách thực hiện đúng.
 
-## Further Discussions
+## Tài Liệu Tham Khảo
 
-This ADR is still in the DRAFT stage, and the "Incrementing Protobuf Package Version" will be filled in once we make a decision on how to correctly do it.
-
-## Test Cases [optional]
-
-Test cases for an implementation are mandatory for ADRs that are affecting consensus changes. Other ADRs can choose to include links to test cases if applicable.
-
-## References
-
-* [#9445](https://github.com/cosmos/cosmos-sdk/issues/9445) Release proto definitions v1
-* [#9446](https://github.com/cosmos/cosmos-sdk/issues/9446) Address v1beta1 proto breaking changes
+* [#9445](https://github.com/cosmos/cosmos-sdk/issues/9445) Phát hành định nghĩa proto v1
+* [#9446](https://github.com/cosmos/cosmos-sdk/issues/9446) Giải quyết các thay đổi vi phạm proto v1beta1

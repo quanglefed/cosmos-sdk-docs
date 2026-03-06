@@ -1,90 +1,66 @@
-# ADR 019: Protocol Buffer State Encoding
+# ADR 019: Mã Hóa Trạng Thái Bằng Protocol Buffer
 
 ## Changelog
 
-* 2020 Feb 15: Initial Draft
-* 2020 Feb 24: Updates to handle messages with interface fields
-* 2020 Apr 27: Convert usages of `oneof` for interfaces to `Any`
-* 2020 May 15: Describe `cosmos_proto` extensions and amino compatibility
-* 2020 Dec 4: Move and rename `MarshalAny` and `UnmarshalAny` into the `codec.Codec` interface.
-* 2021 Feb 24: Remove mentions of `HybridCodec`, which has been abandoned in [#6843](https://github.com/cosmos/cosmos-sdk/pull/6843).
+* 2020 15 tháng 2: Bản nháp đầu tiên
+* 2020 24 tháng 2: Cập nhật để xử lý các message có trường interface
+* 2020 27 tháng 4: Chuyển đổi cách dùng `oneof` cho interface sang `Any`
+* 2020 15 tháng 5: Mô tả các extension `cosmos_proto` và tương thích amino
+* 2020 4 tháng 12: Di chuyển và đổi tên `MarshalAny` và `UnmarshalAny` vào interface `codec.Codec`.
+* 2021 24 tháng 2: Xóa đề cập về `HybridCodec`, đã bị loại bỏ trong [#6843](https://github.com/cosmos/cosmos-sdk/pull/6843).
 
-## Status
+## Trạng Thái
 
-Accepted
+Đã Chấp Nhận
 
-## Context
+## Bối Cảnh
 
-Currently, the Cosmos SDK utilizes [go-amino](https://github.com/tendermint/go-amino/) for binary
-and JSON object encoding over the wire bringing parity between logical objects and persistence objects.
+Hiện tại, Cosmos SDK sử dụng [go-amino](https://github.com/tendermint/go-amino/) để mã hóa đối tượng nhị phân và JSON qua mạng, mang lại sự đồng nhất giữa các đối tượng logic và đối tượng lưu trữ.
 
-From the Amino docs:
+Từ tài liệu Amino:
 
-> Amino is an object encoding specification. It is a subset of Proto3 with an extension for interface
-> support. See the [Proto3 spec](https://developers.google.com/protocol-buffers/docs/proto3) for more
-> information on Proto3, which Amino is largely compatible with (but not with Proto2).
+> Amino là một đặc tả mã hóa đối tượng. Đây là một tập con của Proto3 với phần mở rộng để hỗ trợ interface. Xem [đặc tả Proto3](https://developers.google.com/protocol-buffers/docs/proto3) để biết thêm thông tin về Proto3, mà Amino phần lớn tương thích (nhưng không tương thích với Proto2).
 >
-> The goal of the Amino encoding protocol is to bring parity into logic objects and persistence objects.
+> Mục tiêu của giao thức mã hóa Amino là mang lại sự đồng nhất giữa các đối tượng logic và đối tượng lưu trữ.
 
-Amino also aims to have the following goals (not a complete list):
+Amino cũng hướng đến các mục tiêu sau (không phải danh sách đầy đủ):
 
-* Binary bytes must be decodable with a schema.
-* Schema must be upgradeable.
-* The encoder and decoder logic must be reasonably simple.
+* Các byte nhị phân phải có thể giải mã được với một schema.
+* Schema phải có thể nâng cấp được.
+* Logic của encoder và decoder phải tương đối đơn giản.
 
-However, we believe that Amino does not fulfill these goals completely and does not fully meet the
-needs of a truly flexible cross-language and multi-client compatible encoding protocol in the Cosmos SDK.
-Namely, Amino has proven to be a big pain-point in regards to supporting object serialization across
-clients written in various languages while providing virtually little in the way of true backwards
-compatibility and upgradeability. Furthermore, through profiling and various benchmarks, Amino has
-been shown to be an extremely large performance bottleneck in the Cosmos SDK <sup>1</sup>. This is
-largely reflected in the performance of simulations and application transaction throughput.
+Tuy nhiên, chúng tôi tin rằng Amino không đáp ứng đầy đủ các mục tiêu này và không thỏa mãn hoàn toàn nhu cầu của một giao thức mã hóa thực sự linh hoạt, đa ngôn ngữ và tương thích với nhiều client trong Cosmos SDK. Cụ thể, Amino đã cho thấy là một điểm gây khó khăn lớn trong việc hỗ trợ tuần tự hóa đối tượng đa ngôn ngữ trong khi gần như không cung cấp khả năng tương thích ngược thực sự và khả năng nâng cấp. Hơn nữa, thông qua việc profiling và các benchmark, Amino đã được chứng minh là một điểm thắt cổ chai hiệu suất cực kỳ lớn trong Cosmos SDK <sup>1</sup>. Điều này phần lớn được phản ánh trong hiệu suất của các mô phỏng và thông lượng giao dịch của ứng dụng.
 
-Thus, we need to adopt an encoding protocol that meets the following criteria for state serialization:
+Do đó, chúng ta cần áp dụng một giao thức mã hóa đáp ứng các tiêu chí sau cho tuần tự hóa trạng thái:
 
-* Language agnostic
-* Platform agnostic
-* Rich client support and thriving ecosystem
-* High performance
-* Minimal encoded message size
-* Codegen-based over reflection-based
-* Supports backward and forward compatibility
+* Độc lập ngôn ngữ
+* Độc lập nền tảng
+* Hỗ trợ client phong phú và hệ sinh thái sầm uất
+* Hiệu suất cao
+* Kích thước message mã hóa tối thiểu
+* Dựa trên codegen thay vì reflection
+* Hỗ trợ tương thích ngược và tương thích xuôi
 
-Note, migrating away from Amino should be viewed as a two-pronged approach, state and client encoding.
-This ADR focuses on state serialization in the Cosmos SDK state machine. A corresponding ADR will be
-made to address client-side encoding.
+Lưu ý, việc di chuyển khỏi Amino nên được xem như một cách tiếp cận hai hướng: mã hóa trạng thái và mã hóa client. ADR này tập trung vào tuần tự hóa trạng thái trong state machine của Cosmos SDK. Một ADR tương ứng sẽ được tạo ra để giải quyết mã hóa phía client.
 
-## Decision
+## Quyết Định
 
-We will adopt [Protocol Buffers](https://developers.google.com/protocol-buffers) for serializing
-persisted structured data in the Cosmos SDK while providing a clean mechanism and developer UX for
-applications wishing to continue to use Amino. We will provide this mechanism by updating modules to
-accept a codec interface, `Marshaler`, instead of a concrete Amino codec. Furthermore, the Cosmos SDK
-will provide two concrete implementations of the `Marshaler` interface: `AminoCodec` and `ProtoCodec`.
+Chúng ta sẽ áp dụng [Protocol Buffers](https://developers.google.com/protocol-buffers) để tuần tự hóa dữ liệu có cấu trúc được lưu trữ trong Cosmos SDK đồng thời cung cấp cơ chế rõ ràng và trải nghiệm nhà phát triển tốt cho các ứng dụng muốn tiếp tục sử dụng Amino. Chúng ta sẽ cung cấp cơ chế này bằng cách cập nhật các module để chấp nhận một codec interface, `Marshaler`, thay vì một Amino codec cụ thể. Hơn nữa, Cosmos SDK sẽ cung cấp hai triển khai cụ thể của interface `Marshaler`: `AminoCodec` và `ProtoCodec`.
 
-* `AminoCodec`: Uses Amino for both binary and JSON encoding.
-* `ProtoCodec`: Uses Protobuf for both binary and JSON encoding.
+* `AminoCodec`: Sử dụng Amino cho cả mã hóa nhị phân và JSON.
+* `ProtoCodec`: Sử dụng Protobuf cho cả mã hóa nhị phân và JSON.
 
-Modules will use whichever codec is instantiated in the app. By default, the Cosmos SDK's `simapp`
-instantiates a `ProtoCodec` as the concrete implementation of `Marshaler`, inside the `MakeTestEncodingConfig`
-function. This can be easily overwritten by app developers if they so desire.
+Các module sẽ sử dụng codec nào được khởi tạo trong app. Theo mặc định, `simapp` của Cosmos SDK khởi tạo một `ProtoCodec` là triển khai cụ thể của `Marshaler`, bên trong hàm `MakeTestEncodingConfig`. Điều này có thể được ghi đè dễ dàng bởi nhà phát triển app nếu họ muốn.
 
-The ultimate goal will be to replace Amino JSON encoding with Protobuf encoding and thus have
-modules accept and/or extend `ProtoCodec`. Until then, Amino JSON is still provided for legacy use-cases.
-A handful of places in the Cosmos SDK still have Amino JSON hardcoded, such as the Legacy API REST endpoints
-and the `x/params` store. They are planned to be converted to Protobuf in a gradual manner.
+Mục tiêu cuối cùng sẽ là thay thế mã hóa Amino JSON bằng mã hóa Protobuf và do đó có các module chấp nhận và/hoặc mở rộng `ProtoCodec`. Cho đến khi đó, Amino JSON vẫn được cung cấp cho các trường hợp sử dụng cũ. Một vài chỗ trong Cosmos SDK vẫn có Amino JSON được hardcode, chẳng hạn như các Legacy API REST endpoint và store `x/params`. Chúng được lên kế hoạch chuyển đổi sang Protobuf theo cách tuần tự.
 
-### Module Codecs
+### Codec Của Module
 
-Modules that do not require the ability to work with and serialize interfaces, the path to Protobuf
-migration is pretty straightforward. These modules are to simply migrate any existing types that
-are encoded and persisted via their concrete Amino codec to Protobuf and have their keeper accept a
-`Marshaler` that will be a `ProtoCodec`. This migration is simple as things will just work as-is.
+Đối với các module không yêu cầu khả năng làm việc và tuần tự hóa interface, con đường di chuyển sang Protobuf khá đơn giản. Các module này chỉ cần di chuyển bất kỳ kiểu hiện có nào được mã hóa và lưu trữ qua Amino codec cụ thể sang Protobuf và để keeper của chúng chấp nhận một `Marshaler` sẽ là `ProtoCodec`. Việc di chuyển này đơn giản vì mọi thứ sẽ hoạt động ngay như cũ.
 
-Note, any business logic that needs to encode primitive types like `bool` or `int64` should use
-[gogoprotobuf](https://github.com/cosmos/gogoproto) Value types.
+Lưu ý, bất kỳ logic nghiệp vụ nào cần mã hóa các kiểu nguyên thủy như `bool` hoặc `int64` nên sử dụng các kiểu Value của [gogoprotobuf](https://github.com/cosmos/gogoproto).
 
-Example:
+Ví dụ:
 
 ```go
   ts, err := gogotypes.TimestampProto(completionTime)
@@ -95,12 +71,9 @@ Example:
   bz := cdc.MustMarshal(ts)
 ```
 
-However, modules can vary greatly in purpose and design and so we must support the ability for modules
-to be able to encode and work with interfaces (e.g. `Account` or `Content`). For these modules, they
-must define their own codec interface that extends `Marshaler`. These specific interfaces are unique
-to the module and will contain method contracts that know how to serialize the needed interfaces.
+Tuy nhiên, các module có thể khác nhau rất nhiều về mục đích và thiết kế, vì vậy chúng ta phải hỗ trợ khả năng để các module có thể mã hóa và làm việc với interface (ví dụ: `Account` hoặc `Content`). Đối với những module này, chúng phải định nghĩa codec interface riêng mở rộng `Marshaler`. Các interface cụ thể này là duy nhất cho module và sẽ chứa các hợp đồng phương thức biết cách tuần tự hóa các interface cần thiết.
 
-Example:
+Ví dụ:
 
 ```go
 // x/auth/types/codec.go
@@ -116,90 +89,58 @@ type Codec interface {
 }
 ```
 
-### Usage of `Any` to encode interfaces
+### Sử Dụng `Any` Để Mã Hóa Interface
 
-In general, module-level .proto files should define messages which encode interfaces
-using [`google.protobuf.Any`](https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/any.proto).
-After [extension discussion](https://github.com/cosmos/cosmos-sdk/issues/6030),
-this was chosen as the preferred alternative to application-level `oneof`s
-as in our original protobuf design. The arguments in favor of `Any` can be
-summarized as follows:
+Nói chung, các file .proto ở cấp module nên định nghĩa các message mã hóa interface bằng [`google.protobuf.Any`](https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/any.proto). Sau [thảo luận mở rộng](https://github.com/cosmos/cosmos-sdk/issues/6030), đây được chọn là lựa chọn ưu tiên thay thế cho `oneof` ở cấp ứng dụng như trong thiết kế protobuf ban đầu của chúng ta. Các lập luận ủng hộ `Any` có thể được tóm tắt như sau:
 
-* `Any` provides a simpler, more consistent client UX for dealing with
-interfaces than app-level `oneof`s that will need to be coordinated more
-carefully across applications. Creating a generic transaction
-signing library using `oneof`s may be cumbersome and critical logic may need
-to be reimplemented for each chain
-* `Any` provides more resistance against human error than `oneof`
-* `Any` is generally simpler to implement for both modules and apps
+* `Any` cung cấp trải nghiệm client đơn giản hơn, nhất quán hơn khi xử lý interface so với `oneof` ở cấp app cần được phối hợp cẩn thận hơn giữa các ứng dụng. Việc tạo một thư viện ký giao dịch chung sử dụng `oneof` có thể cồng kềnh và logic quan trọng có thể cần được triển khai lại cho mỗi chain.
+* `Any` cung cấp khả năng chống lỗi của con người tốt hơn so với `oneof`.
+* `Any` nhìn chung đơn giản hơn để triển khai cho cả module lẫn app.
 
-The main counter-argument to using `Any` centers around its additional space
-and possibly performance overhead. The space overhead could be dealt with using
-compression at the persistence layer in the future and the performance impact
-is likely to be small. Thus, not using `Any` is seen as a pre-mature optimization,
-with user experience as the higher order concern.
+Lập luận phản bác chính khi sử dụng `Any` xoay quanh không gian bổ sung của nó và có thể ảnh hưởng đến hiệu suất. Overhead về không gian có thể được giải quyết bằng cách nén ở lớp lưu trữ trong tương lai và tác động đến hiệu suất có thể là nhỏ. Do đó, không sử dụng `Any` được coi là tối ưu hóa non-mature, với trải nghiệm người dùng là mối quan tâm bậc cao hơn.
 
-Note, that given the Cosmos SDK's decision to adopt the `Codec` interfaces described
-above, apps can still choose to use `oneof` to encode state and transactions
-but it is not the recommended approach. If apps do choose to use `oneof`s
-instead of `Any` they will likely lose compatibility with client apps that
-support multiple chains. Thus developers should think carefully about whether
-they care more about what is possibly a premature optimization or end-user
-and client developer UX.
+Lưu ý rằng, theo quyết định của Cosmos SDK về việc áp dụng các interface `Codec` được mô tả ở trên, các app vẫn có thể chọn sử dụng `oneof` để mã hóa trạng thái và giao dịch nhưng đây không phải là cách tiếp cận được khuyến nghị. Nếu các app chọn sử dụng `oneof` thay vì `Any`, họ có thể mất khả năng tương thích với các app client hỗ trợ nhiều chain. Do đó, các nhà phát triển nên suy nghĩ cẩn thận về việc họ quan tâm nhiều hơn đến tối ưu hóa có thể là non-mature hay trải nghiệm người dùng cuối và nhà phát triển client.
 
-### Safe usage of `Any`
+### Sử Dụng An Toàn `Any`
 
-By default, the [gogo protobuf implementation of `Any`](https://pkg.go.dev/github.com/cosmos/gogoproto/types)
-uses [global type registration]( https://github.com/cosmos/gogoproto/blob/master/proto/properties.go#L540)
-to decode values packed in `Any` into concrete
-go types. This introduces a vulnerability where any malicious module
-in the dependency tree could register a type with the global protobuf registry
-and cause it to be loaded and unmarshaled by a transaction that referenced
-it in the `type_url` field.
+Theo mặc định, [triển khai gogo protobuf của `Any`](https://pkg.go.dev/github.com/cosmos/gogoproto/types) sử dụng [đăng ký kiểu toàn cục](https://github.com/cosmos/gogoproto/blob/master/proto/properties.go#L540) để giải mã các giá trị được đóng gói trong `Any` thành các kiểu go cụ thể. Điều này tạo ra một lỗ hổng trong đó bất kỳ module độc hại nào trong dependency tree có thể đăng ký một kiểu với registry protobuf toàn cục và khiến nó được tải và unmarshaled bởi một giao dịch tham chiếu đến nó trong trường `type_url`.
 
-To prevent this, we introduce a type registration mechanism for decoding `Any`
-values into concrete types through the `InterfaceRegistry` interface which
-bears some similarity to type registration with Amino:
+Để ngăn chặn điều này, chúng ta giới thiệu một cơ chế đăng ký kiểu để giải mã các giá trị `Any` thành các kiểu cụ thể thông qua interface `InterfaceRegistry`, có một số điểm tương đồng với đăng ký kiểu trong Amino:
 
 ```go
 type InterfaceRegistry interface {
-    // RegisterInterface associates protoName as the public name for the
-    // interface passed in as iface
-    // Ex:
+    // RegisterInterface liên kết protoName là tên công khai cho
+    // interface được truyền vào là iface
+    // Ví dụ:
     //   registry.RegisterInterface("cosmos_sdk.Msg", (*sdk.Msg)(nil))
     RegisterInterface(protoName string, iface interface{})
 
-    // RegisterImplementations registers impls as concrete implementations of
-    // the interface iface
-    // Ex:
+    // RegisterImplementations đăng ký impls là các triển khai cụ thể của
+    // interface iface
+    // Ví dụ:
     //  registry.RegisterImplementations((*sdk.Msg)(nil), &MsgSend{}, &MsgMultiSend{})
     RegisterImplementations(iface interface{}, impls ...proto.Message)
 
 }
 ```
 
-In addition to serving as a whitelist, `InterfaceRegistry` can also serve
-to communicate the list of concrete types that satisfy an interface to clients.
+Ngoài việc đóng vai trò như một whitelist, `InterfaceRegistry` cũng có thể đóng vai trò truyền đạt danh sách các kiểu cụ thể thỏa mãn một interface đến các client.
 
-In .proto files:
+Trong các file .proto:
 
-* fields which accept interfaces should be annotated with `cosmos_proto.accepts_interface`
-using the same full-qualified name passed as `protoName` to `InterfaceRegistry.RegisterInterface`
-* interface implementations should be annotated with `cosmos_proto.implements_interface`
-using the same full-qualified name passed as `protoName` to `InterfaceRegistry.RegisterInterface`
+* các trường chấp nhận interface nên được chú thích với `cosmos_proto.accepts_interface` sử dụng cùng tên đầy đủ được truyền là `protoName` cho `InterfaceRegistry.RegisterInterface`
+* các triển khai interface nên được chú thích với `cosmos_proto.implements_interface` sử dụng cùng tên đầy đủ được truyền là `protoName` cho `InterfaceRegistry.RegisterInterface`
 
-In the future, `protoName`, `cosmos_proto.accepts_interface`, `cosmos_proto.implements_interface`
-may be used via code generation, reflection &/or static linting.
+Trong tương lai, `protoName`, `cosmos_proto.accepts_interface`, `cosmos_proto.implements_interface` có thể được sử dụng qua code generation, reflection và/hoặc static linting.
 
-The same struct that implements `InterfaceRegistry` will also implement an
-interface `InterfaceUnpacker` to be used for unpacking `Any`s:
+Cùng struct triển khai `InterfaceRegistry` cũng sẽ triển khai một interface `InterfaceUnpacker` được dùng để unpack các `Any`:
 
 ```go
 type InterfaceUnpacker interface {
-    // UnpackAny unpacks the value in any to the interface pointer passed in as
-    // iface. Note that the type in any must have been registered with
-    // RegisterImplementations as a concrete type for that interface
-    // Ex:
+    // UnpackAny unpack giá trị trong any vào con trỏ interface được truyền vào là
+    // iface. Lưu ý rằng kiểu trong any phải đã được đăng ký với
+    // RegisterImplementations là kiểu cụ thể cho interface đó
+    // Ví dụ:
     //    var msg sdk.Msg
     //    err := ctx.UnpackAny(any, &msg)
     //    ...
@@ -207,13 +148,9 @@ type InterfaceUnpacker interface {
 }
 ```
 
-Note that `InterfaceRegistry` usage does not deviate from standard protobuf
-usage of `Any`, it just introduces a security and introspection layer for
-golang usage.
+Lưu ý rằng việc sử dụng `InterfaceRegistry` không khác với việc sử dụng protobuf tiêu chuẩn của `Any`, nó chỉ giới thiệu một lớp bảo mật và introspection cho việc sử dụng golang.
 
-`InterfaceRegistry` will be a member of `ProtoCodec`
-described above. In order for modules to register interface types, app modules
-can optionally implement the following interface:
+`InterfaceRegistry` sẽ là thành viên của `ProtoCodec` được mô tả ở trên. Để các module đăng ký các kiểu interface, app module có thể tùy chọn triển khai interface sau:
 
 ```go
 type InterfaceModule interface {
@@ -221,17 +158,16 @@ type InterfaceModule interface {
 }
 ```
 
-The module manager will include a method to call `RegisterInterfaceTypes` on
-every module that implements it in order to populate the `InterfaceRegistry`.
+Module manager sẽ bao gồm một phương thức để gọi `RegisterInterfaceTypes` trên mỗi module triển khai nó để điền vào `InterfaceRegistry`.
 
-### Using `Any` to encode state
+### Sử Dụng `Any` Để Mã Hóa Trạng Thái
 
-The Cosmos SDK will provide support methods `MarshalInterface` and `UnmarshalInterface` to hide the complexity of wrapping interface types into `Any` and allow easy serialization.
+Cosmos SDK sẽ cung cấp các phương thức hỗ trợ `MarshalInterface` và `UnmarshalInterface` để ẩn độ phức tạp của việc bao các kiểu interface vào `Any` và cho phép tuần tự hóa dễ dàng.
 
 ```go
 import "github.com/cosmos/cosmos-sdk/codec"
 
-// note: eviexported.Evidence is an interface type
+// lưu ý: eviexported.Evidence là kiểu interface
 func MarshalEvidence(cdc codec.BinaryCodec, e eviexported.Evidence) ([]byte, error) {
 	return cdc.MarshalInterface(e)
 }
@@ -243,11 +179,9 @@ func UnmarshalEvidence(cdc codec.BinaryCodec, bz []byte) (eviexported.Evidence, 
 }
 ```
 
-### Using `Any` in `sdk.Msg`s
+### Sử Dụng `Any` Trong `sdk.Msg`
 
-A similar concept is to be applied for messages that contain interface fields.
-For example, we can define `MsgSubmitEvidence` as follows where `Evidence` is
-an interface:
+Một khái niệm tương tự được áp dụng cho các message chứa các trường interface. Ví dụ, chúng ta có thể định nghĩa `MsgSubmitEvidence` như sau, trong đó `Evidence` là một interface:
 
 ```protobuf
 // x/evidence/types/types.proto
@@ -261,17 +195,11 @@ message MsgSubmitEvidence {
 }
 ```
 
-Note that in order to unpack the evidence from `Any` we do need a reference to
-`InterfaceRegistry`. In order to reference evidence in methods like
-`ValidateBasic` which shouldn't have to know about the `InterfaceRegistry`, we
-introduce an `UnpackInterfaces` phase to deserialization which unpacks
-interfaces before they're needed.
+Lưu ý rằng để unpack evidence từ `Any`, chúng ta cần một tham chiếu đến `InterfaceRegistry`. Để tham chiếu evidence trong các phương thức như `ValidateBasic` không cần biết về `InterfaceRegistry`, chúng ta giới thiệu một giai đoạn `UnpackInterfaces` để deserialization, unpack các interface trước khi chúng cần được sử dụng.
 
-### Unpacking Interfaces
+### Giải Nén Interface
 
-To implement the `UnpackInterfaces` phase of deserialization which unpacks
-interfaces wrapped in `Any` before they're needed, we create an interface
-that `sdk.Msg`s and other types can implement:
+Để triển khai giai đoạn `UnpackInterfaces` của deserialization, giai đoạn unpack các interface được bao trong `Any` trước khi chúng cần thiết, chúng ta tạo một interface mà `sdk.Msg` và các kiểu khác có thể triển khai:
 
 ```go
 type UnpackInterfacesMessage interface {
@@ -279,26 +207,15 @@ type UnpackInterfacesMessage interface {
 }
 ```
 
-We also introduce a private `cachedValue interface{}` field onto the `Any`
-struct itself with a public getter `GetCachedValue() interface{}`.
+Chúng ta cũng giới thiệu một trường `cachedValue interface{}` private trên chính struct `Any` với một getter công khai `GetCachedValue() interface{}`.
 
-The `UnpackInterfaces` method is to be invoked during message deserialization right
-after `Unmarshal` and any interface values packed in `Any`s will be decoded
-and stored in `cachedValue` for reference later.
+Phương thức `UnpackInterfaces` được gọi trong quá trình deserialization message ngay sau `Unmarshal` và bất kỳ giá trị interface nào được đóng gói trong `Any` sẽ được giải mã và lưu trữ trong `cachedValue` để tham chiếu sau này.
 
-Then unpacked interface values can safely be used in any code afterwards
-without knowledge of the `InterfaceRegistry`
-and messages can introduce a simple getter to cast the cached value to the
-correct interface type.
+Sau đó, các giá trị interface đã được unpack có thể được sử dụng an toàn trong bất kỳ code nào sau đó mà không cần biết về `InterfaceRegistry`, và các message có thể giới thiệu một getter đơn giản để cast giá trị được cache thành kiểu interface đúng.
 
-This has the added benefit that unmarshaling of `Any` values only happens once
-during initial deserialization rather than every time the value is read. Also,
-when `Any` values are first packed (for instance in a call to
-`NewMsgSubmitEvidence`), the original interface value is cached so that
-unmarshaling isn't needed to read it again.
+Điều này có lợi ích bổ sung là việc unmarshaling các giá trị `Any` chỉ xảy ra một lần trong quá trình deserialization ban đầu thay vì mỗi lần giá trị được đọc. Ngoài ra, khi các giá trị `Any` lần đầu tiên được đóng gói (ví dụ: trong một lần gọi `NewMsgSubmitEvidence`), giá trị interface ban đầu được cache để không cần unmarshaling để đọc lại.
 
-`MsgSubmitEvidence` could implement `UnpackInterfaces`, plus a convenience getter
-`GetEvidence` as follows:
+`MsgSubmitEvidence` có thể triển khai `UnpackInterfaces`, cùng với một getter tiện lợi `GetEvidence` như sau:
 
 ```go
 func (msg MsgSubmitEvidence) UnpackInterfaces(ctx sdk.InterfaceRegistry) error {
@@ -311,69 +228,52 @@ func (msg MsgSubmitEvidence) GetEvidence() eviexported.Evidence {
 }
 ```
 
-### Amino Compatibility
+### Tương Thích Với Amino
 
-Our custom implementation of `Any` can be used transparently with Amino if used
-with the proper codec instance. What this means is that interfaces packed within
-`Any`s will be amino marshaled like regular Amino interfaces (assuming they
-have been registered properly with Amino).
+Triển khai tùy chỉnh của chúng ta về `Any` có thể được sử dụng minh bạch với Amino nếu được sử dụng với instance codec phù hợp. Điều này có nghĩa là các interface được đóng gói trong `Any` sẽ được amino marshal như các interface Amino thông thường (giả sử chúng đã được đăng ký đúng cách với Amino).
 
-In order for this functionality to work:
+Để chức năng này hoạt động:
 
-* **all legacy code must use `*codec.LegacyAmino` instead of `*amino.Codec` which is
-  now a wrapper which properly handles `Any`**
-* **all new code should use `Marshaler` which is compatible with both amino and
-  protobuf**
-* Also, before v0.39, `codec.LegacyAmino` will be renamed to `codec.LegacyAmino`.
+* **tất cả code cũ phải sử dụng `*codec.LegacyAmino` thay vì `*amino.Codec` hiện là một wrapper xử lý đúng `Any`**
+* **tất cả code mới nên sử dụng `Marshaler` tương thích với cả amino và protobuf**
+* Ngoài ra, trước v0.39, `codec.LegacyAmino` sẽ được đổi tên thành `codec.LegacyAmino`.
 
-### Why Wasn't X Chosen Instead
+### Tại Sao X Không Được Chọn Thay Thế
 
-For a more complete comparison to alternative protocols, see [here](https://codeburst.io/json-vs-protocol-buffers-vs-flatbuffers-a4247f8bda6f).
+Để so sánh đầy đủ hơn với các giao thức thay thế, xem [tại đây](https://codeburst.io/json-vs-protocol-buffers-vs-flatbuffers-a4247f8bda6f).
 
 ### Cap'n Proto
 
-While [Cap’n Proto](https://capnproto.org/) does seem like an advantageous alternative to Protobuf
-due to its native support for interfaces/generics and built-in canonicalization, it does lack the
-rich client ecosystem compared to Protobuf and is a bit less mature.
+Mặc dù [Cap'n Proto](https://capnproto.org/) có vẻ là một lựa chọn thay thế có lợi thế hơn Protobuf do hỗ trợ gốc cho interface/generics và tính năng canonical hóa tích hợp sẵn, nó thiếu hệ sinh thái client phong phú so với Protobuf và kém trưởng thành hơn một chút.
 
 ### FlatBuffers
 
-[FlatBuffers](https://google.github.io/flatbuffers/) is also a potentially viable alternative, with the
-primary difference being that FlatBuffers does not need a parsing/unpacking step to a secondary
-representation before you can access data, often coupled with per-object memory allocation.
+[FlatBuffers](https://google.github.io/flatbuffers/) cũng là một lựa chọn thay thế khả thi, với sự khác biệt chính là FlatBuffers không cần bước phân tích/giải nén sang biểu diễn thứ cấp trước khi bạn có thể truy cập dữ liệu, thường kết hợp với cấp phát bộ nhớ per-object.
 
-However, it would require great efforts into research and a full understanding the scope of the migration
-and path forward -- which isn't immediately clear. In addition, FlatBuffers aren't designed for
-untrusted inputs.
+Tuy nhiên, nó sẽ đòi hỏi nỗ lực lớn vào nghiên cứu và hiểu đầy đủ phạm vi di chuyển và con đường tiến lên — điều không rõ ràng ngay lập tức. Ngoài ra, FlatBuffers không được thiết kế cho các đầu vào không đáng tin cậy.
 
-## Future Improvements & Roadmap
+## Cải Tiến Tương Lai & Lộ Trình
 
-In the future we may consider a compression layer right above the persistence
-layer which doesn't change tx or merkle tree hashes, but reduces the storage
-overhead of `Any`. In addition, we may adopt protobuf naming conventions which
-make type URLs a bit more concise while remaining descriptive.
+Trong tương lai, chúng ta có thể xem xét một lớp nén ngay trên lớp lưu trữ mà không thay đổi hash tx hoặc merkle tree, nhưng giảm overhead lưu trữ của `Any`. Ngoài ra, chúng ta có thể áp dụng các quy ước đặt tên protobuf làm cho các type URL ngắn gọn hơn trong khi vẫn mô tả.
 
-Additional code generation support around the usage of `Any` is something that
-could also be explored in the future to make the UX for go developers more
-seamless.
+Hỗ trợ tạo code bổ sung xung quanh việc sử dụng `Any` là điều cũng có thể được khám phá trong tương lai để làm cho UX cho các nhà phát triển Go liền mạch hơn.
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Significant performance gains.
-* Supports backward and forward type compatibility.
-* Better support for cross-language clients.
+* Cải thiện hiệu suất đáng kể.
+* Hỗ trợ tương thích kiểu ngược và xuôi.
+* Hỗ trợ tốt hơn cho các client đa ngôn ngữ.
 
-### Negative
+### Tiêu Cực
 
-* Learning curve required to understand and implement Protobuf messages.
-* Slightly larger message size due to use of `Any`, although this could be offset
-  by a compression layer in the future
+* Cần thời gian học để hiểu và triển khai các message Protobuf.
+* Kích thước message lớn hơn đôi chút do sử dụng `Any`, mặc dù điều này có thể được bù đắp bởi một lớp nén trong tương lai.
 
-### Neutral
+### Trung Lập
 
-## References
+## Tài Liệu Tham Khảo
 
 1. https://github.com/cosmos/cosmos-sdk/issues/4977
 2. https://github.com/cosmos/cosmos-sdk/issues/5444

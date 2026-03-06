@@ -1,30 +1,22 @@
-# ADR 012: State Accessors
+# ADR 012: Bộ Truy Cập Trạng Thái
 
 ## Changelog
 
-* 2019 Sep 04: Initial draft
+* 04 tháng 9 năm 2019: Bản nháp đầu tiên
 
-## Context
+## Bối Cảnh
 
-Cosmos SDK modules currently use the `KVStore` interface and `Codec` to access their respective state. While
-this provides a large degree of freedom to module developers, it is hard to modularize and the UX is
-mediocre.
+Các module Cosmos SDK hiện sử dụng interface `KVStore` và `Codec` để truy cập trạng thái tương ứng của chúng. Mặc dù điều này cung cấp mức độ tự do lớn cho nhà phát triển module, nhưng khó mô-đun hóa và UX còn kém.
 
-First, each time a module tries to access the state, it has to marshal the value and set or get the
-value and finally unmarshal. Usually this is done by declaring `Keeper.GetXXX` and `Keeper.SetXXX` functions,
-which are repetitive and hard to maintain.
+Thứ nhất, mỗi lần một module cố gắng truy cập trạng thái, nó phải marshal giá trị và set hoặc get giá trị, rồi cuối cùng unmarshal. Thông thường điều này được thực hiện bằng cách khai báo các hàm `Keeper.GetXXX` và `Keeper.SetXXX`, vốn lặp đi lặp lại và khó bảo trì.
 
-Second, this makes it harder to align with the object capability theorem: the right to access the
-state is defined as a `StoreKey`, which gives full access on the entire Merkle tree, so a module cannot
-send the access right to a specific key-value pair (or a set of key-value pairs) to another module safely.
+Thứ hai, điều này làm khó khăn hơn để căn chỉnh với định lý object capability: quyền truy cập trạng thái được định nghĩa là `StoreKey`, cung cấp toàn quyền truy cập vào toàn bộ cây Merkle, vì vậy một module không thể gửi quyền truy cập đến một cặp key-value cụ thể (hoặc tập hợp các cặp key-value) cho module khác một cách an toàn.
 
-Finally, because the getter/setter functions are defined as methods of a module's `Keeper`, the reviewers
-have to consider the whole Merkle tree space when they reviewing a function accessing any part of the state.
-There is no static way to know which part of the state that the function is accessing (and which is not).
+Cuối cùng, vì các hàm getter/setter được định nghĩa là phương thức của `Keeper` của module, những người review phải xem xét toàn bộ không gian cây Merkle khi họ review một hàm truy cập bất kỳ phần nào của trạng thái. Không có cách tĩnh nào để biết phần nào của trạng thái mà hàm đang truy cập (và phần nào không).
 
-## Decision
+## Quyết Định
 
-We will define a type named `Value`:
+Chúng ta sẽ định nghĩa một kiểu tên là `Value`:
 
 ```go
 type Value struct {
@@ -33,10 +25,9 @@ type Value struct {
 }
 ```
 
-The `Value` works as a reference for a key-value pair in the state, where `Value.m` defines the key-value
-space it will access and `Value.key` defines the exact key for the reference.
+`Value` hoạt động như một tham chiếu cho một cặp key-value trong trạng thái, trong đó `Value.m` định nghĩa không gian key-value nó sẽ truy cập và `Value.key` định nghĩa khóa chính xác cho tham chiếu.
 
-We will define a type named `Mapping`:
+Chúng ta sẽ định nghĩa một kiểu tên là `Mapping`:
 
 ```go
 type Mapping struct {
@@ -46,60 +37,58 @@ type Mapping struct {
 }
 ```
 
-The `Mapping` works as a reference for a key-value space in the state, where `Mapping.storeKey` defines
-the IAVL (sub-)tree and `Mapping.prefix` defines the optional subspace prefix.
+`Mapping` hoạt động như một tham chiếu cho một không gian key-value trong trạng thái, trong đó `Mapping.storeKey` định nghĩa cây IAVL (con) và `Mapping.prefix` định nghĩa tiền tố subspace tùy chọn.
 
-We will define the following core methods for the `Value` type:
+Chúng ta sẽ định nghĩa các phương thức core sau cho kiểu `Value`:
 
 ```go
-// Get and unmarshal stored data, noop if not exists, panic if cannot unmarshal
+// Get và unmarshal dữ liệu được lưu trữ, noop nếu không tồn tại, panic nếu không thể unmarshal
 func (Value) Get(ctx Context, ptr interface{}) {}
 
-// Get and unmarshal stored data, return error if not exists or cannot unmarshal
+// Get và unmarshal dữ liệu được lưu trữ, trả về lỗi nếu không tồn tại hoặc không thể unmarshal
 func (Value) GetSafe(ctx Context, ptr interface{}) {}
 
-// Get stored data as raw byte slice
+// Get dữ liệu được lưu trữ dưới dạng slice byte thô
 func (Value) GetRaw(ctx Context) []byte {}
 
-// Marshal and set a raw value
+// Marshal và set một giá trị thô
 func (Value) Set(ctx Context, o interface{}) {}
 
-// Check if a raw value exists
+// Kiểm tra xem giá trị thô có tồn tại không
 func (Value) Exists(ctx Context) bool {}
 
-// Delete a raw value 
+// Xóa một giá trị thô
 func (Value) Delete(ctx Context) {}
 ```
 
-We will define the following core methods for the `Mapping` type:
+Chúng ta sẽ định nghĩa các phương thức core sau cho kiểu `Mapping`:
 
 ```go
-// Constructs key-value pair reference corresponding to the key argument in the Mapping space
+// Xây dựng tham chiếu cặp key-value tương ứng với đối số key trong không gian Mapping
 func (Mapping) Value(key []byte) Value {}
 
-// Get and unmarshal stored data, noop if not exists, panic if cannot unmarshal
+// Get và unmarshal dữ liệu được lưu trữ, noop nếu không tồn tại, panic nếu không thể unmarshal
 func (Mapping) Get(ctx Context, key []byte, ptr interface{}) {}
 
-// Get and unmarshal stored data, return error if not exists or cannot unmarshal
+// Get và unmarshal dữ liệu được lưu trữ, trả về lỗi nếu không tồn tại hoặc không thể unmarshal
 func (Mapping) GetSafe(ctx Context, key []byte, ptr interface{})
 
-// Get stored data as raw byte slice
+// Get dữ liệu được lưu trữ dưới dạng slice byte thô
 func (Mapping) GetRaw(ctx Context, key []byte) []byte {}
 
-// Marshal and set a raw value
+// Marshal và set một giá trị thô
 func (Mapping) Set(ctx Context, key []byte, o interface{}) {}
 
-// Check if a raw value exists
+// Kiểm tra xem giá trị thô có tồn tại không
 func (Mapping) Has(ctx Context, key []byte) bool {}
 
-// Delete a raw value
+// Xóa một giá trị thô
 func (Mapping) Delete(ctx Context, key []byte) {}
 ```
 
-Each method of the `Mapping` type that is passed the arguments `ctx`, `key`, and `args...` will proxy
-the call to `Mapping.Value(key)` with arguments `ctx` and `args...`.
+Mỗi phương thức của kiểu `Mapping` được truyền các đối số `ctx`, `key` và `args...` sẽ proxy lời gọi đến `Mapping.Value(key)` với các đối số `ctx` và `args...`.
 
-In addition, we will define and provide a common set of types derived from the `Value` type:
+Ngoài ra, chúng ta sẽ định nghĩa và cung cấp một tập hợp chung các kiểu bắt nguồn từ kiểu `Value`:
 
 ```go
 type Boolean struct { Value }
@@ -109,10 +98,9 @@ type String struct { Value }
 // ...
 ```
 
-Where the encoding schemes can be different, `o` arguments in core methods are typed, and `ptr` arguments
-in core methods are replaced by explicit return types.
+Trong đó các phương thức mã hóa có thể khác nhau, đối số `o` trong các phương thức core được gõ, và đối số `ptr` trong các phương thức core được thay thế bằng các kiểu trả về rõ ràng.
 
-Finally, we will define a family of types derived from the `Mapping` type:
+Cuối cùng, chúng ta sẽ định nghĩa một họ kiểu bắt nguồn từ kiểu `Mapping`:
 
 ```go
 type Indexer struct {
@@ -121,35 +109,35 @@ type Indexer struct {
 }
 ```
 
-Where the `key` argument in core method is typed.
+Trong đó đối số `key` trong phương thức core được gõ.
 
-Some of the properties of the accessor types are:
+Một số thuộc tính của các kiểu accessor là:
 
-* State access happens only when a function which takes a `Context` as an argument is invoked
-* Accessor type structs give rights to access the state only that the struct is referring, no other
-* Marshalling/Unmarshalling happens implicitly within the core methods
+* Truy cập trạng thái chỉ xảy ra khi một hàm nhận `Context` làm đối số được gọi
+* Các struct kiểu accessor cung cấp quyền truy cập trạng thái chỉ là những gì struct đang tham chiếu, không có gì khác
+* Marshalling/Unmarshalling xảy ra ngầm định trong các phương thức core
 
-## Status
+## Trạng Thái
 
-Proposed
+Đề Xuất
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Serialization will be done automatically
-* Shorter code size, less boilerplate, better UX
-* References to the state can be transferred safely
-* Explicit scope of accessing
+* Tuần tự hóa sẽ được thực hiện tự động
+* Kích thước code ngắn hơn, ít boilerplate hơn, UX tốt hơn
+* Tham chiếu đến trạng thái có thể được chuyển giao an toàn
+* Phạm vi truy cập rõ ràng
 
-### Negative
+### Tiêu Cực
 
-* Serialization format will be hidden
-* Different architecture from the current, but the use of accessor types can be opt-in
-* Type-specific types (e.g. `Boolean` and `Integer`) have to be defined manually
+* Định dạng tuần tự hóa sẽ bị ẩn
+* Kiến trúc khác với hiện tại, nhưng việc sử dụng các kiểu accessor có thể là tùy chọn
+* Các kiểu cụ thể theo kiểu dữ liệu (ví dụ: `Boolean` và `Integer`) phải được định nghĩa thủ công
 
-### Neutral
+### Trung Lập
 
-## References
+## Tài Liệu Tham Khảo
 
 * [#4554](https://github.com/cosmos/cosmos-sdk/issues/4554)

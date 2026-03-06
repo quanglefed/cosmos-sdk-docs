@@ -1,29 +1,39 @@
 # `x/circuit`
 
-## Concepts
+## Khái niệm
 
-Circuit Breaker is a module that is meant to avoid a chain needing to halt/shut down in the presence of a vulnerability, instead the module will allow specific messages or all messages to be disabled. When operating a chain, if it is app specific then a halt of the chain is less detrimental, but if there are applications built on top of the chain then halting is expensive due to the disturbance to applications. 
+Circuit Breaker là một module nhằm tránh việc chain phải halt/tắt khi xuất hiện
+một lỗ hổng; thay vào đó, module cho phép vô hiệu hoá (disable) các message cụ
+thể hoặc toàn bộ message. Khi vận hành một chain, nếu chain chỉ phục vụ mục đích
+riêng của ứng dụng (app-specific) thì việc halt ít gây tác hại hơn; nhưng nếu có
+nhiều ứng dụng được xây dựng trên chain thì việc halt sẽ rất tốn kém do gây gián
+đoạn cho các ứng dụng đó.
 
-Circuit Breaker works with the idea that an address or set of addresses have the right to block messages from being executed and/or included in the mempool. Any address with a permission is able to reset the circuit breaker for the message. 
+Circuit Breaker hoạt động dựa trên ý tưởng rằng một địa chỉ hoặc một tập địa chỉ
+có quyền chặn message không được thực thi và/hoặc không được đưa vào mempool.
+Bất kỳ địa chỉ nào có quyền cũng có thể reset circuit breaker cho message.
 
-The transactions are checked and can be rejected at two points:
+Giao dịch sẽ được kiểm tra và có thể bị từ chối tại hai điểm:
 
-* In `CircuitBreakerDecorator` [ante handler](https://docs.cosmos.network/main/learn/advanced/baseapp#antehandler):
+* Trong [ante handler](https://docs.cosmos.network/main/learn/advanced/baseapp#antehandler) `CircuitBreakerDecorator`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/x/circuit/v0.1.0/x/circuit/ante/circuit.go#L27-L41
 ``` 
 
-* With a [message router check](https://docs.cosmos.network/main/learn/advanced/baseapp#msg-service-router):
+* Bằng một [kiểm tra ở message router](https://docs.cosmos.network/main/learn/advanced/baseapp#msg-service-router):
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.1/baseapp/msg_service_router.go#L104-L115
 ``` 
 
-:::note
-The `CircuitBreakerDecorator` works for most use cases, but [does not check the inner messages of a transaction](https://docs.cosmos.network/main/learn/beginner/tx-lifecycle#antehandler). This means some transactions (such as `x/authz` transactions or some `x/gov` transactions) may pass the ante handler. **This does not affect the circuit breaker** as the message router check will still fail the transaction.
-This tradeoff is to avoid introducing more dependencies in the `x/circuit` module. Chains can re-define the `CircuitBreakerDecorator` to check for inner messages if they wish to do so.
-:::
+::::note
+`CircuitBreakerDecorator` hoạt động cho phần lớn use-case, nhưng [không kiểm tra các message “bên trong” của một giao dịch](https://docs.cosmos.network/main/learn/beginner/tx-lifecycle#antehandler).
+Điều này nghĩa là một số giao dịch (như giao dịch `x/authz` hoặc một số giao dịch `x/gov`) có thể vượt qua ante handler.
+**Điều này không ảnh hưởng tới circuit breaker** vì kiểm tra ở message router vẫn sẽ làm giao dịch thất bại.
+Đánh đổi này nhằm tránh đưa thêm phụ thuộc (dependency) vào module `x/circuit`.
+Các chain có thể định nghĩa lại `CircuitBreakerDecorator` để kiểm tra inner message nếu muốn.
+::::
 
 ## State
 
@@ -57,18 +67,22 @@ type Access struct {
 }
 ```
 
+### Danh sách vô hiệu hoá (Disable List)
 
-### Disable List
-
-List of type urls that are disabled.
+Danh sách type URL đang bị vô hiệu hoá.
 
 * DisableList `0x2 | msg_type_url -> []byte{}` <!--- should this be stored in json to skip encoding and decoding each block, does it matter?-->
 
-## State Transitions
+## Chuyển trạng thái (State transitions)
 
-### Authorize 
+### Authorize
 
-Authorize, is called by the module authority (default governance module account) or any account with `LEVEL_SUPER_ADMIN` to give permission to disable/enable messages to another account. There are three levels of permissions that can be granted. `LEVEL_SOME_MSGS` limits the number of messages that can be disabled. `LEVEL_ALL_MSGS` permits all messages to be disabled. `LEVEL_SUPER_ADMIN` allows an account to take all circuit breaker actions including authorizing and deauthorizing other accounts.
+Authorize được gọi bởi authority của module (mặc định là tài khoản module governance)
+hoặc bất kỳ tài khoản nào có `LEVEL_SUPER_ADMIN` để cấp quyền vô hiệu hoá/bật message
+cho một tài khoản khác. Có ba mức quyền có thể cấp. `LEVEL_SOME_MSGS` giới hạn số
+message có thể bị vô hiệu hoá. `LEVEL_ALL_MSGS` cho phép vô hiệu hoá mọi message.
+`LEVEL_SUPER_ADMIN` cho phép một tài khoản thực hiện mọi hành động circuit breaker,
+bao gồm uỷ quyền và huỷ uỷ quyền tài khoản khác.
 
 ```protobuf
   // AuthorizeCircuitBreaker allows a super-admin to grant (or revoke) another
@@ -78,7 +92,8 @@ Authorize, is called by the module authority (default governance module account)
 
 ### Trip
 
-Trip, is called by an authorized account to disable message execution for a specific msgURL. If empty, all the msgs will be disabled.
+Trip được gọi bởi tài khoản đã được uỷ quyền để vô hiệu hoá thực thi message cho
+một msgURL cụ thể. Nếu để trống, mọi message sẽ bị vô hiệu hoá.
 
 ```protobuf
   // TripCircuitBreaker pauses processing of Msg's in the state machine.
@@ -87,7 +102,8 @@ Trip, is called by an authorized account to disable message execution for a spec
 
 ### Reset
 
-Reset is called by an authorized account to enable execution for a specific msgURL of previously disabled message. If empty, all the disabled messages will be enabled.
+Reset được gọi bởi tài khoản đã được uỷ quyền để bật lại thực thi cho một msgURL
+cụ thể đã bị vô hiệu hoá. Nếu để trống, mọi message đang bị vô hiệu hoá sẽ được bật lại.
 
 ```protobuf
   // ResetCircuitBreaker resumes processing of Msg's in the state machine that
@@ -95,7 +111,7 @@ Reset is called by an authorized account to enable execution for a specific msgU
   rpc ResetCircuitBreaker(MsgResetCircuitBreaker) returns (MsgResetCircuitBreakerResponse);
 ```
 
-## Messages
+## Message
 
 ### MsgAuthorizeCircuitBreaker
 
@@ -103,9 +119,9 @@ Reset is called by an authorized account to enable execution for a specific msgU
 https://github.com/cosmos/cosmos-sdk/blob/main/proto/cosmos/circuit/v1/tx.proto#L25-L75
 ```
 
-This message is expected to fail if:
+Message này dự kiến sẽ thất bại nếu:
 
-* the granter is not an account with permission level `LEVEL_SUPER_ADMIN` or the module authority
+* granter không phải tài khoản có permission level `LEVEL_SUPER_ADMIN` hoặc không phải module authority
 
 ### MsgTripCircuitBreaker
 
@@ -113,9 +129,9 @@ This message is expected to fail if:
 https://github.com/cosmos/cosmos-sdk/blob/main/proto/cosmos/circuit/v1/tx.proto#L77-L93
 ```
 
-This message is expected to fail if:
+Message này dự kiến sẽ thất bại nếu:
 
-* if the signer does not have a permission level with the ability to disable the specified type url message
+* signer không có permission level đủ để vô hiệu hoá message type URL được chỉ định
 
 ### MsgResetCircuitBreaker
 
@@ -123,13 +139,13 @@ This message is expected to fail if:
 https://github.com/cosmos/cosmos-sdk/blob/main/proto/cosmos/circuit/v1/tx.proto#L95-109
 ```
 
-This message is expected to fail if:
+Message này dự kiến sẽ thất bại nếu:
 
-* if the type url is not disabled
+* type URL không đang bị vô hiệu hoá
 
-## Events - list and describe event tags 
+## Events - liệt kê và mô tả tag
 
-The circuit module emits the following events:
+Module circuit phát ra các event sau:
 
 ### Message Events
 
@@ -145,37 +161,38 @@ The circuit module emits the following events:
 
 #### MsgTripCircuitBreaker
 
-| Type     | Attribute Key | Attribute Value    |
-|----------|---------------|--------------------|
-| string   | authority     | {authorityAddress} |
-| []string | msg_urls      | []string{msg_urls} |
-| message  | module        | circuit            |
+| Type     | Attribute Key | Attribute Value      |
+|----------|---------------|----------------------|
+| string   | authority     | {authorityAddress}   |
+| []string | msg_urls      | []string{msg_urls}   |
+| message  | module        | circuit              |
 | message  | action        | trip_circuit_breaker |
 
 #### ResetCircuitBreaker
 
-| Type     | Attribute Key | Attribute Value    |
-|----------|---------------|--------------------|
-| string   | authority     | {authorityAddress} |
-| []string | msg_urls      | []string{msg_urls} |
-| message  | module        | circuit            |
+| Type     | Attribute Key | Attribute Value       |
+|----------|---------------|-----------------------|
+| string   | authority     | {authorityAddress}    |
+| []string | msg_urls      | []string{msg_urls}    |
+| message  | module        | circuit               |
 | message  | action        | reset_circuit_breaker |
 
-
-## Keys - list of key prefixes used by the circuit module
+## Keys - danh sách prefix key
 
 * `AccountPermissionPrefix` - `0x01`
 * `DisableListPrefix` -  `0x02`
 
-## Client - list and describe CLI commands and gRPC and REST endpoints
+## Client - liệt kê và mô tả CLI, gRPC, REST
 
-## Examples: Using Circuit Breaker CLI Commands
+## Ví dụ: dùng các lệnh CLI của Circuit Breaker
 
-This section provides practical examples for using the Circuit Breaker module through the command-line interface (CLI). These examples demonstrate how to authorize accounts, disable (trip) specific message types, and re-enable (reset) them when needed.
+Phần này cung cấp các ví dụ thực tế khi dùng module Circuit Breaker qua dòng lệnh (CLI).
+Các ví dụ minh hoạ cách uỷ quyền tài khoản, vô hiệu hoá (trip) các loại message cụ thể,
+và bật lại (reset) chúng khi cần.
 
-### Querying Circuit Breaker Permissions
+### Truy vấn quyền Circuit Breaker
 
-Check an account's current circuit breaker permissions:
+Kiểm tra quyền circuit breaker hiện tại của một tài khoản:
 
 ```bash
 # Query permissions for a specific account
@@ -185,7 +202,7 @@ Check an account's current circuit breaker permissions:
 simd query circuit account-permissions cosmos1...
 ```
 
-Check which message types are currently disabled:
+Kiểm tra các loại message hiện đang bị vô hiệu hoá:
 
 ```bash
 # Query all disabled message types
@@ -195,9 +212,10 @@ Check which message types are currently disabled:
 simd query circuit disabled-list
 ```
 
-### Authorizing an Account as Circuit Breaker
+### Uỷ quyền một tài khoản làm Circuit Breaker
 
-Only a super-admin or the module authority (typically the governance module account) can grant circuit breaker permissions to other accounts:
+Chỉ super-admin hoặc authority của module (thường là tài khoản module governance)
+mới có thể cấp quyền circuit breaker cho tài khoản khác:
 
 ```bash
 # Grant LEVEL_ALL_MSGS permission (can disable any message type)
@@ -210,9 +228,9 @@ Only a super-admin or the module authority (typically the governance module acco
 <appd> tx circuit authorize <grantee_address> --level=SUPER_ADMIN --from=<super_admin_key> --gas=auto --gas-adjustment=1.5
 ```
 
-### Disabling Message Processing (Trip)
+### Vô hiệu hoá xử lý message (Trip)
 
-Disable specific message types to prevent their execution (requires authorization):
+Vô hiệu hoá các loại message cụ thể để ngăn thực thi (yêu cầu đã được uỷ quyền):
 
 ```bash
 # Disable a single message type
@@ -225,9 +243,9 @@ Disable specific message types to prevent their execution (requires authorizatio
 <appd> tx circuit trip --from=<authorized_key> --gas=auto --gas-adjustment=1.5
 ```
 
-### Re-enabling Message Processing (Reset)
+### Bật lại xử lý message (Reset)
 
-Re-enable previously disabled message types (requires authorization):
+Bật lại các loại message đã bị vô hiệu hoá (yêu cầu đã được uỷ quyền):
 
 ```bash
 # Re-enable a single message type
@@ -240,20 +258,22 @@ Re-enable previously disabled message types (requires authorization):
 <appd> tx circuit reset --from=<authorized_key> --gas=auto --gas-adjustment=1.5
 ```
 
-### Usage in Emergency Scenarios
+### Cách dùng trong tình huống khẩn cấp
 
-In case of a critical vulnerability in a specific message type:
+Khi có lỗ hổng nghiêm trọng trong một loại message cụ thể:
 
-1. Quickly disable the vulnerable message type:
+1. Nhanh chóng vô hiệu hoá message bị lỗi:
 
    ```bash
    <appd> tx circuit trip --type-urls="/cosmos.vulnerable.v1beta1.MsgVulnerable" --from=<authorized_key> --gas=auto --gas-adjustment=1.5
    ```
 
-2. After a fix is deployed, re-enable the message type:
+2. Sau khi triển khai bản sửa lỗi, bật lại message đó:
 
    ```bash
    <appd> tx circuit reset --type-urls="/cosmos.vulnerable.v1beta1.MsgVulnerable" --from=<authorized_key> --gas=auto --gas-adjustment=1.5
    ```
 
-This allows chains to surgically disable problematic functionality without halting the entire chain, providing time for developers to implement and deploy fixes.
+Điều này cho phép chain vô hiệu hoá “đúng chỗ” chức năng có vấn đề mà không cần
+halt toàn bộ chain, tạo thời gian để developer triển khai và phát hành bản sửa.
+

@@ -4,50 +4,50 @@ sidebar_position: 1
 
 # `x/epochs`
 
-## Abstract
+## Tóm tắt
 
-Often in the SDK, we would like to run certain code every so often. The
-purpose of `epochs` module is to allow other modules to set that they
-would like to be signaled once every period. So another module can
-specify it wants to execute code once a week, starting at UTC-time = x.
-`epochs` creates a generalized epoch interface to other modules so that
-they can easily be signaled upon such events.
+Trong SDK, ta thường muốn chạy một số đoạn code theo chu kỳ. Mục đích của module
+`epochs` là cho phép các module khác đăng ký rằng chúng muốn được “báo hiệu”
+(signaled) mỗi khi hết một chu kỳ. Vì vậy một module khác có thể chỉ định rằng
+nó muốn thực thi code mỗi tuần, bắt đầu tại thời điểm UTC = x. `epochs` tạo một
+interface epoch tổng quát cho các module khác để chúng có thể dễ dàng nhận tín
+hiệu khi các sự kiện như vậy xảy ra.
 
-## Contents
+## Nội dung
 
-1. **[Concept](#concepts)**
+1. **[Khái niệm](#khái-niệm)**
 2. **[State](#state)**
 3. **[Events](#events)**
-4. **[Keeper](#keepers)**
+4. **[Keeper](#keeper)**
 5. **[Hooks](#hooks)**
-6. **[Queries](#queries)**
+6. **[Query](#query)**
 
-## Concepts
+## Khái niệm
 
-The epochs module defines on-chain timers that execute at fixed time intervals.
-Other SDK modules can then register logic to be executed at the timer ticks.
-We refer to the period in between two timer ticks as an "epoch".
+Module epochs định nghĩa các “timer” on-chain chạy theo các khoảng thời gian cố định.
+Các module SDK khác có thể đăng ký logic để được thực thi tại mỗi nhịp (tick) của timer.
+Ta gọi khoảng thời gian giữa hai nhịp tick là một “epoch”.
 
-Every timer has a unique identifier.
-Every epoch will have a start time, and an end time, where `end time = start time + timer interval`.
-On mainnet, we only utilize one identifier, with a time interval of `one day`.
+Mỗi timer có một định danh (identifier) duy nhất.
+Mỗi epoch có thời điểm bắt đầu và kết thúc, trong đó `end time = start time + timer interval`.
+Trên mainnet, ta chỉ dùng một identifier với khoảng thời gian `một ngày`.
 
-The timer will tick at the first block whose block time is greater than the timer end time,
-and set the start as the prior timer end time. (Notably, it's not set to the block time!)
-This means that if the chain has been down for a while, you will get one timer tick per block,
-until the timer has caught up.
+Timer sẽ tick ở block đầu tiên có block time lớn hơn end time của timer, và đặt start
+time mới bằng end time của timer trước đó. (Đáng chú ý: nó không đặt bằng block time!)
+Điều này nghĩa là nếu chain bị down một thời gian, bạn sẽ nhận được một timer tick
+mỗi block cho tới khi timer “bắt kịp”.
 
 ## State
 
-The Epochs module keeps a single `EpochInfo` per identifier.
-This contains the current state of the timer with the corresponding identifier.
-Its fields are modified at every timer tick.
-EpochInfos are initialized as part of genesis initialization or upgrade logic,
-and are only modified on begin blockers.
+Module Epochs giữ một `EpochInfo` cho mỗi identifier.
+Đối tượng này chứa trạng thái hiện tại của timer ứng với identifier đó.
+Các field của nó được sửa ở mỗi lần timer tick.
+EpochInfo được khởi tạo như một phần của khởi tạo genesis hoặc logic upgrade, và
+chỉ được sửa trong begin blocker.
 
 ## Events
 
-The `epochs` module emits the following events:
+Module `epochs` phát ra các event sau:
 
 ### BeginBlocker
 
@@ -62,11 +62,11 @@ The `epochs` module emits the following events:
 | --------- | ------------- | --------------- |
 | epoch_end | epoch_number  | {epoch_number}  |
 
-## Keepers
+## Keeper
 
-### Keeper functions
+### Hàm của keeper
 
-Epochs keeper module provides utility functions to manage epochs.
+Keeper của module epochs cung cấp các hàm tiện ích để quản lý epoch.
 
 ## Hooks
 
@@ -77,14 +77,13 @@ Epochs keeper module provides utility functions to manage epochs.
   BeforeEpochStart(ctx sdk.Context, epochIdentifier string, epochNumber int64)
 ```
 
-### How modules receive hooks
+### Cách module nhận hook
 
-On hook receiver function of other modules, they need to filter
-`epochIdentifier` and only do executions for only specific
-epochIdentifier. Filtering epochIdentifier could be in `Params` of other
-modules so that they can be modified by governance.
+Trong hàm nhận hook của module khác, họ cần lọc `epochIdentifier` và chỉ thực thi
+logic cho identifier cụ thể. Việc lọc epochIdentifier có thể đặt trong `Params` của
+module khác để có thể bị sửa bởi governance.
 
-This is the standard dev UX of this:
+Đây là UX dev tiêu chuẩn:
 
 ```golang
 func (k MyModuleKeeper) AfterEpochEnd(ctx sdk.Context, epochIdentifier string, epochNumber int64) {
@@ -95,21 +94,20 @@ func (k MyModuleKeeper) AfterEpochEnd(ctx sdk.Context, epochIdentifier string, e
 }
 ```
 
-### Panic isolation
+### Cô lập panic
 
-If a given epoch hook panics, its state update is reverted, but we keep
-proceeding through the remaining hooks. This allows more advanced epoch
-logic to be used, without concern over state machine halting, or halting
-subsequent modules.
+Nếu một epoch hook panic, cập nhật state của hook đó sẽ bị revert, nhưng ta vẫn
+tiếp tục chạy các hook còn lại. Điều này cho phép dùng logic epoch nâng cao mà
+không lo state machine bị halt, hoặc làm halt các module chạy sau.
 
-This does mean that if there is behavior you expect from a prior epoch
-hook, and that epoch hook reverted, your hook may also have an issue. So
-do keep in mind "what if a prior hook didn't get executed" in the safety
-checks you consider for a new epoch hook.
+Điều này cũng nghĩa là nếu hook của bạn kỳ vọng một hành vi từ hook trước đó, và
+hook trước đó đã bị revert, hook của bạn cũng có thể gặp vấn đề. Vì vậy hãy luôn
+tính tới tình huống “nếu hook trước đó không chạy” trong các kiểm tra an toàn
+khi viết epoch hook mới.
 
-## Queries
+## Query
 
-The Epochs module provides the following queries to check the module's state.
+Module Epochs cung cấp các truy vấn sau để kiểm tra state của module.
 
 ```protobuf
 service Query {
@@ -122,15 +120,15 @@ service Query {
 
 ### Epoch Infos
 
-Query the currently running epochInfos
+Truy vấn danh sách epochInfos đang chạy:
 
 ```sh
 <appd> query epochs epoch-infos
 ```
 
-:::details Example
+::::details Ví dụ
 
-An example output:
+Ví dụ output:
 
 ```sh
 epochs:
@@ -150,28 +148,29 @@ epochs:
   start_time: "2021-06-18T17:00:00Z"
 ```
 
-:::
+::::
 
 ### Current Epoch
 
-Query the current epoch by the specified identifier
+Truy vấn epoch hiện tại theo identifier chỉ định:
 
 ```sh
 <appd> query epochs current-epoch [identifier]
 ```
 
-:::details Example
+::::details Ví dụ
 
-Query the current `day` epoch:
+Truy vấn epoch `day` hiện tại:
 
 ```sh
 <appd> query epochs current-epoch day
 ```
 
-Which in this example outputs:
+Trong ví dụ này sẽ trả về:
 
 ```sh
 current_epoch: "183"
 ```
 
-:::
+::::
+

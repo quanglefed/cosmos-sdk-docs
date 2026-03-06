@@ -2,62 +2,76 @@
 
 ## Changelog
 
-* Sept 13, 2023: Initial Draft
+* Sept 13, 2023: Bản nháp ban đầu
 
-## Status
+## Trạng thái
 
-DRAFT
+BẢN NHÁP
 
-## Abstract
+## Tóm tắt
 
-Introduce `PreBlock`, which runs before the begin blocker of other modules, and allows modifying consensus parameters, and the changes are visible to the following state machine logics.
+Giới thiệu `PreBlock`, chạy trước begin blocker của các module khác, và cho phép
+chỉnh sửa tham số đồng thuận (consensus parameters); các thay đổi này sẽ hiển thị
+(visible) cho các logic state machine thực thi sau đó.
 
-## Context
+## Bối cảnh
 
-When upgrading to sdk 0.47, the storage format for consensus parameters changed, but in the migration block, `ctx.ConsensusParams()` is always `nil`, because it fails to load the old format using new code, it's supposed to be migrated by the `x/upgrade` module first, but unfortunately, the migration happens in `BeginBlocker` handler, which runs after the `ctx` is initialized.
-When we try to solve this, we find the `x/upgrade` module can't modify the context to make the consensus parameters visible for the other modules, the context is passed by value, and sdk team want to keep it that way, that's good for isolation between modules.
+Khi nâng cấp lên sdk 0.47, định dạng lưu trữ của consensus parameters đã thay đổi,
+nhưng trong block migration, `ctx.ConsensusParams()` luôn là `nil`, vì nó không thể
+tải định dạng cũ bằng code mới. Đáng lẽ nó phải được migrate bởi module `x/upgrade`
+trước, nhưng không may, migration xảy ra trong handler `BeginBlocker`, vốn chạy
+sau khi `ctx` đã được khởi tạo.
 
-## Alternatives
+Khi cố gắng giải quyết điều này, ta thấy module `x/upgrade` không thể sửa context
+để khiến consensus parameters hiển thị cho các module khác, vì context được truyền
+bằng giá trị (passed by value), và đội sdk muốn giữ như vậy — điều này tốt cho
+tính cô lập giữa các module.
 
-The first alternative solution introduced a `MigrateModuleManager`, which only includes the `x/upgrade` module right now, and baseapp will run their `BeginBlocker`s before the other modules, and reload context's consensus parameters in between.
+## Phương án thay thế
 
-## Decision
+Giải pháp thay thế đầu tiên giới thiệu `MigrateModuleManager`, hiện chỉ bao gồm
+module `x/upgrade`. Baseapp sẽ chạy `BeginBlocker` của chúng trước các module khác,
+và tải lại consensus parameters của context ở giữa.
 
-Suggested this new lifecycle method.
+## Quyết định
+
+Đề xuất phương thức vòng đời (lifecycle) mới này.
 
 ### `PreBlocker`
 
-There are two semantics around the new lifecycle method:
+Có hai ngữ nghĩa xung quanh phương thức vòng đời mới:
 
-* It runs before the `BeginBlocker` of all modules
-* It can modify consensus parameters in storage, and signal the caller through the return value.
+* Nó chạy trước `BeginBlocker` của tất cả module
+* Nó có thể sửa consensus parameters trong storage, và báo hiệu cho caller thông
+  qua giá trị trả về.
 
-When it returns `ConsensusParamsChanged=true`, the caller must refresh the consensus parameters in the finalize context:
+Khi nó trả về `ConsensusParamsChanged=true`, caller phải refresh consensus parameters
+trong finalize context:
 
 ```
 app.finalizeBlockState.ctx = app.finalizeBlockState.ctx.WithConsensusParams(app.GetConsensusParams())
 ```
 
-The new ctx must be passed to all the other lifecycle methods.
+Context mới phải được truyền tới tất cả các phương thức vòng đời còn lại.
 
+## Hệ quả
 
-## Consequences
+### Tương thích ngược
 
-### Backwards Compatibility
+### Tích cực
 
-### Positive
+### Tiêu cực
 
-### Negative
+### Trung tính
 
-### Neutral
-
-## Further Discussions
+## Thảo luận thêm
 
 ## Test Cases
 
-## References
+## Tham khảo
 
 * [1] https://github.com/cosmos/cosmos-sdk/issues/16494
 * [2] https://github.com/cosmos/cosmos-sdk/pull/16583
 * [3] https://github.com/cosmos/cosmos-sdk/pull/17421
 * [4] https://github.com/cosmos/cosmos-sdk/pull/17713
+

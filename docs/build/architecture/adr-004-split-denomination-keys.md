@@ -1,42 +1,37 @@
-# ADR 004: Split Denomination Keys
+# ADR 004: Tách Khóa Denomination
 
 ## Changelog
 
-* 2020-01-08: Initial version
-* 2020-01-09: Alterations to handle vesting accounts
-* 2020-01-14: Updates from review feedback
-* 2020-01-30: Updates from implementation
+* 2020-01-08: Phiên bản đầu tiên
+* 2020-01-09: Sửa đổi để xử lý vesting account
+* 2020-01-14: Cập nhật từ phản hồi review
+* 2020-01-30: Cập nhật từ triển khai
 
-### Glossary
+### Thuật Ngữ
 
-* denom / denomination key -- unique token identifier.
+* denom / denomination key -- định danh token duy nhất.
 
-## Context
+## Bối Cảnh
 
-With permissionless IBC, anyone will be able to send arbitrary denominations to any other account. Currently, all non-zero balances are stored along with the account in an `sdk.Coins` struct, which creates a potential denial-of-service concern, as too many denominations will become expensive to load & store each time the account is modified. See issues [5467](https://github.com/cosmos/cosmos-sdk/issues/5467) and [4982](https://github.com/cosmos/cosmos-sdk/issues/4982) for additional context.
+Với IBC không cần cấp phép, bất kỳ ai cũng có thể gửi các denomination tùy ý đến bất kỳ tài khoản nào khác. Hiện tại, tất cả số dư khác không được lưu cùng với tài khoản trong một struct `sdk.Coins`, điều này tạo ra mối lo ngại denial-of-service tiềm năng, vì quá nhiều denomination sẽ ngày càng tốn kém để tải và lưu mỗi lần tài khoản được sửa đổi. Xem issues [5467](https://github.com/cosmos/cosmos-sdk/issues/5467) và [4982](https://github.com/cosmos/cosmos-sdk/issues/4982) để biết thêm bối cảnh.
 
-Simply rejecting incoming deposits after a denomination count limit doesn't work, since it opens up a griefing vector: someone could send a user lots of nonsensical coins over IBC, and then prevent the user from receiving real denominations (such as staking rewards).
+Đơn giản là từ chối tiền gửi đến sau giới hạn số denomination không hoạt động, vì nó mở ra một vector griefing: ai đó có thể gửi cho người dùng nhiều coin vô nghĩa qua IBC và sau đó ngăn người dùng nhận các denomination thực (như phần thưởng staking).
 
-## Decision
+## Quyết Định
 
-Balances shall be stored per-account & per-denomination under a denomination- and account-unique key, thus enabling O(1) read & write access to the balance of a particular account in a particular denomination.
+Số dư sẽ được lưu trữ theo từng tài khoản và từng denomination dưới một khóa duy nhất theo denomination và tài khoản, cho phép truy cập đọc & ghi O(1) vào số dư của một tài khoản cụ thể trong một denomination cụ thể.
 
-### Account interface (x/auth)
+### Interface Tài Khoản (x/auth)
 
-`GetCoins()` and `SetCoins()` will be removed from the account interface, since coin balances will
-now be stored in & managed by the bank module.
+`GetCoins()` và `SetCoins()` sẽ bị xóa khỏi interface tài khoản, vì số dư coin bây giờ sẽ được lưu trữ và quản lý bởi module bank.
 
-The vesting account interface will replace `SpendableCoins` in favor of `LockedCoins` which does
-not require the account balance anymore. In addition, `TrackDelegation()`  will now accept the
-account balance of all tokens denominated in the vesting balance instead of loading the entire
-account balance.
+Interface vesting account sẽ thay thế `SpendableCoins` bằng `LockedCoins` không cần số dư tài khoản nữa. Ngoài ra, `TrackDelegation()` bây giờ sẽ chấp nhận số dư tài khoản của tất cả token được tính theo vesting balance thay vì tải toàn bộ số dư tài khoản.
 
-Vesting accounts will continue to store original vesting, delegated free, and delegated
-vesting coins (which is safe since these cannot contain arbitrary denominations).
+Vesting account sẽ tiếp tục lưu trữ vesting gốc, delegated free và delegated vesting coin (điều này an toàn vì chúng không thể chứa denomination tùy ý).
 
-### Bank keeper (x/bank)
+### Bank Keeper (x/bank)
 
-The following APIs will be added to the `x/bank` keeper:
+Các API sau sẽ được thêm vào keeper `x/bank`:
 
 * `GetAllBalances(ctx Context, addr AccAddress) Coins`
 * `GetBalance(ctx Context, addr AccAddress, denom string) Coin`
@@ -44,11 +39,9 @@ The following APIs will be added to the `x/bank` keeper:
 * `LockedCoins(ctx Context, addr AccAddress) Coins`
 * `SpendableCoins(ctx Context, addr AccAddress) Coins`
 
-Additional APIs may be added to facilitate iteration and auxiliary functionality not essential to
-core functionality or persistence.
+Các API bổ sung có thể được thêm để hỗ trợ iteration và chức năng phụ trợ không thiết yếu cho chức năng core hay persistence.
 
-Balances will be stored first by the address, then by the denomination (the reverse is also possible,
-but retrieval of all balances for a single account is presumed to be more frequent):
+Số dư sẽ được lưu trữ trước bởi địa chỉ, sau đó bởi denomination (ngược lại cũng có thể, nhưng việc lấy tất cả số dư cho một tài khoản đơn được coi là thường xuyên hơn):
 
 ```go
 var BalancesPrefix = []byte("balances")
@@ -69,51 +62,39 @@ func (k Keeper) SetBalance(ctx Context, addr AccAddress, balance Coin) error {
 }
 ```
 
-This will result in the balances being indexed by the byte representation of
-`balances/{address}/{denom}`.
+Điều này sẽ dẫn đến việc số dư được lập chỉ mục theo biểu diễn byte của `balances/{address}/{denom}`.
 
-`DelegateCoins()` and `UndelegateCoins()` will be altered to only load each individual
-account balance by denomination found in the (un)delegation amount. As a result,
-any mutations to the account balance will be made by denomination.
+`DelegateCoins()` và `UndelegateCoins()` sẽ được thay đổi để chỉ tải từng số dư tài khoản riêng lẻ theo denomination được tìm thấy trong số tiền (un)delegation. Kết quả là, bất kỳ thay đổi nào đối với số dư tài khoản sẽ được thực hiện theo denomination.
 
-`SubtractCoins()` and `AddCoins()` will be altered to read & write the balances
-directly instead of calling `GetCoins()` / `SetCoins()` (which no longer exist).
+`SubtractCoins()` và `AddCoins()` sẽ được thay đổi để đọc và ghi số dư trực tiếp thay vì gọi `GetCoins()` / `SetCoins()` (không còn tồn tại nữa).
 
-`trackDelegation()` and `trackUndelegation()` will be altered to no longer update
-account balances.
+`trackDelegation()` và `trackUndelegation()` sẽ được thay đổi để không còn cập nhật số dư tài khoản nữa.
 
-External APIs will need to scan all balances under an account to retain backwards-compatibility. It
-is advised that these APIs use `GetBalance` and `SetBalance` instead of `GetAllBalances` when
-possible as to not load the entire account balance.
+Các API bên ngoài sẽ cần scan tất cả số dư dưới một tài khoản để duy trì tương thích ngược. Khuyến nghị rằng các API này sử dụng `GetBalance` và `SetBalance` thay vì `GetAllBalances` khi có thể để không tải toàn bộ số dư tài khoản.
 
-### Supply module
+### Module Supply
 
-The supply module, in order to implement the total supply invariant, will now need
-to scan all accounts & call `GetAllBalances` using the `x/bank` Keeper, then sum
-the balances and check that they match the expected total supply.
+Module supply, để triển khai invariant tổng cung, giờ sẽ cần scan tất cả tài khoản và gọi `GetAllBalances` bằng keeper `x/bank`, sau đó tổng hợp số dư và kiểm tra rằng chúng khớp với tổng cung dự kiến.
 
-## Status
+## Trạng Thái
 
-Accepted.
+Đã Chấp Nhận.
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* O(1) reads & writes of balances (with respect to the number of denominations for
-which an account has non-zero balances). Note, this does not relate to the actual
-I/O cost, rather the total number of direct reads needed.
+* Đọc và ghi O(1) số dư (liên quan đến số denomination mà một tài khoản có số dư khác không). Lưu ý, điều này không liên quan đến chi phí I/O thực tế, mà là tổng số lần đọc trực tiếp cần thiết.
 
-### Negative
+### Tiêu Cực
 
-* Slightly less efficient reads/writes when reading & writing all balances of a
-single account in a transaction.
+* Đọc/ghi kém hiệu quả hơn một chút khi đọc và ghi tất cả số dư của một tài khoản đơn trong một giao dịch.
 
-### Neutral
+### Trung Lập
 
-None in particular.
+Không có gì đặc biệt.
 
-## References
+## Tài Liệu Tham Khảo
 
 * Ref: https://github.com/cosmos/cosmos-sdk/issues/4982
 * Ref: https://github.com/cosmos/cosmos-sdk/issues/5467

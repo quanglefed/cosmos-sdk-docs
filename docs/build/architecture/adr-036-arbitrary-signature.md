@@ -1,73 +1,71 @@
-# ADR 036: Arbitrary Message Signature Specification
+# ADR 036: Đặc Tả Chữ Ký Message Tùy Ý
 
-## Changelog
+## Nhật Ký Thay Đổi
 
-* 28/10/2020 - Initial draft
+* 28/10/2020 - Bản nháp đầu tiên
 
-## Authors
+## Tác Giả
 
 * Antoine Herzog (@antoineherzog)
 * Zaki Manian (@zmanian)
 * Aleksandr Bezobchuk (alexanderbez) [1]
 * Frojdi Dymylja (@fdymylja)
 
-## Status
+## Trạng Thái
 
-Draft
+Bản Nháp
 
-## Abstract
+## Tóm Tắt
 
-Currently, in the Cosmos SDK, there is no convention to sign arbitrary messages like in Ethereum. We propose with this specification, for Cosmos SDK ecosystem, a way to sign and validate off-chain arbitrary messages.
+Hiện tại, trong Cosmos SDK, không có quy ước để ký các message tùy ý như trong Ethereum. Chúng tôi đề xuất với đặc tả này, cho hệ sinh thái Cosmos SDK, một cách để ký và xác nhận các message tùy ý off-chain.
 
-This specification serves the purpose of covering every use case; this means that Cosmos SDK application developers decide how to serialize and represent `Data` to users.
+Đặc tả này phục vụ mục đích bao gồm mọi trường hợp sử dụng; điều này có nghĩa là các nhà phát triển ứng dụng Cosmos SDK quyết định cách tuần tự hóa và biểu diễn `Data` cho người dùng.
 
-## Context
+## Bối Cảnh
 
-Having the ability to sign messages off-chain has proven to be a fundamental aspect of nearly any blockchain. The notion of signing messages off-chain has many added benefits such as saving on computational costs and reducing transaction throughput and overhead. Within the context of the Cosmos, some of the major applications of signing such data include, but is not limited to, providing a cryptographic secure and verifiable means of proving validator identity and possibly associating it with some other framework or organization. In addition, having the ability to sign Cosmos messages with a Ledger or similar HSM device.
+Khả năng ký các message off-chain đã được chứng minh là một khía cạnh cơ bản của gần như bất kỳ blockchain nào. Khái niệm ký các message off-chain có nhiều lợi ích được thêm vào như tiết kiệm chi phí tính toán và giảm thông lượng giao dịch và overhead. Trong bối cảnh Cosmos, một số ứng dụng chính của việc ký dữ liệu như vậy bao gồm, nhưng không giới hạn, cung cấp phương tiện mật mã học an toàn và có thể xác minh để chứng minh danh tính validator và có thể liên kết nó với một số framework hoặc tổ chức khác. Ngoài ra, có khả năng ký các message Cosmos bằng thiết bị Ledger hoặc HSM tương tự.
 
-Further context and use cases can be found in the reference links.
+## Quyết Định
 
-## Decision
+Mục tiêu là có thể ký các message tùy ý, ngay cả khi sử dụng thiết bị Ledger hoặc HSM tương tự.
 
-The aim is being able to sign arbitrary messages, even using Ledger or similar HSM devices.
+Kết quả là, các message đã ký nên trông giống các message Cosmos SDK nhưng **không được** là một giao dịch hợp lệ on-chain. `chain-id`, `account_number` và `sequence` đều có thể được gán các giá trị không hợp lệ.
 
-As a result, signed messages should look roughly like Cosmos SDK messages but **must not** be a valid on-chain transaction. `chain-id`, `account_number` and `sequence` can all be assigned invalid values.
+Cosmos SDK 0.40 cũng giới thiệu khái niệm "auth_info" có thể chỉ định SIGN_MODES.
 
-Cosmos SDK 0.40 also introduces a concept of “auth_info” this can specify SIGN_MODES.
+Một spec nên bao gồm `auth_info` hỗ trợ SIGN_MODE_DIRECT và SIGN_MODE_LEGACY_AMINO.
 
-A spec should include an `auth_info` that supports SIGN_MODE_DIRECT and SIGN_MODE_LEGACY_AMINO.
+Để tạo các định nghĩa proto `offchain`, chúng ta mở rộng module auth với gói `offchain` để cung cấp chức năng xác minh và ký các message ngoại tuyến.
 
-To create the `offchain` proto definitions, we extend the auth module with `offchain` package to offer functionalities to verify and sign offline messages.
+Một giao dịch offchain tuân theo các quy tắc sau:
 
-An offchain transaction follows these rules:
+* memo phải rỗng
+* nonce, sequence number phải bằng 0
+* chain-id phải bằng ""
+* fee gas phải bằng 0
+* fee amount phải là mảng rỗng
 
-* the memo must be empty
-* nonce, sequence number must be equal to 0
-* chain-id must be equal to “”
-* fee gas must be equal to 0
-* fee amount must be an empty array
+Xác minh giao dịch offchain tuân theo cùng quy tắc như giao dịch onchain, ngoại trừ các khác biệt về spec được nêu bật ở trên.
 
-Verification of an offchain transaction follows the same rules as an onchain one, except for the spec differences highlighted above.
+Message đầu tiên được thêm vào gói `offchain` là `MsgSignData`.
 
-The first message added to the `offchain` package is `MsgSignData`.
+`MsgSignData` cho phép các nhà phát triển ký các byte tùy ý chỉ có thể xác nhận off-chain. `Signer` là địa chỉ tài khoản của người ký. `Data` là các byte tùy ý có thể đại diện cho `text`, `file`, `object`. Quyết định của nhà phát triển ứng dụng là `Data` nên được giải tuần tự hóa, tuần tự hóa như thế nào và object mà nó có thể đại diện trong bối cảnh của họ.
 
-`MsgSignData` allows developers to sign arbitrary bytes validatable offchain only. `Signer` is the account address of the signer. `Data` is arbitrary bytes which can represent `text`, `files`, `object`s. It's applications developers decision how `Data` should be deserialized, serialized and the object it can represent in their context.
+Quyết định của nhà phát triển ứng dụng là `Data` nên được xử lý như thế nào, theo ý nghĩa xử lý là quá trình tuần tự hóa và giải tuần tự hóa và Object mà `Data` nên đại diện.
 
-It's applications developers decision how `Data` should be treated, by treated we mean the serialization and deserialization process and the Object `Data` should represent.
-
-Proto definition:
+Định nghĩa Proto:
 
 ```protobuf
-// MsgSignData defines an arbitrary, general-purpose, off-chain message
+// MsgSignData định nghĩa một message off-chain tùy ý, mục đích chung
 message MsgSignData {
-    // Signer is the sdk.AccAddress of the message signer
+    // Signer là sdk.AccAddress của người ký message
     bytes Signer = 1 [(gogoproto.jsontag) = "signer", (gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    // Data represents the raw bytes of the content that is signed (text, json, etc)
+    // Data đại diện cho các byte thô của nội dung được ký (văn bản, json, v.v.)
     bytes Data = 2 [(gogoproto.jsontag) = "data"];
 }
 ```
 
-Signed MsgSignData json example:
+Ví dụ json MsgSignData đã ký:
 
 ```json
 {
@@ -100,31 +98,31 @@ Signed MsgSignData json example:
 }
 ```
 
-## Consequences
+## Hậu Quả
 
-There is a specification on how messages, that are not meant to be broadcast to a live chain, should be formed.
+Có một đặc tả về cách các message không dự định được phát sóng tới một chain trực tiếp nên được hình thành.
 
-### Backwards Compatibility
+### Tương Thích Ngược
 
-Backwards compatibility is maintained as this is a new message spec definition.
+Tương thích ngược được duy trì vì đây là định nghĩa đặc tả message mới.
 
-### Positive
+### Tích Cực
 
-* A common format that can be used by multiple applications to sign and verify off-chain messages.
-* The specification is primitive which means it can cover every use case without limiting what is possible to fit inside it.
-* It gives room for other off-chain messages specifications that aim to target more specific and common use cases such as off-chain-based authN/authZ layers [2].
+* Một định dạng chung có thể được sử dụng bởi nhiều ứng dụng để ký và xác minh các message off-chain.
+* Đặc tả mang tính nguyên thủy có nghĩa là nó có thể bao gồm mọi trường hợp sử dụng mà không hạn chế những gì có thể chứa trong nó.
+* Nó tạo không gian cho các đặc tả message off-chain khác nhắm đến các trường hợp sử dụng cụ thể và phổ biến hơn như các lớp authN/authZ dựa trên off-chain [2].
 
-### Negative
+### Tiêu Cực
 
-* The current proposal requires a fixed relationship between an account address and a public key.
-* Doesn't work with multisig accounts.
+* Đề xuất hiện tại yêu cầu mối quan hệ cố định giữa địa chỉ tài khoản và khóa công khai.
+* Không hoạt động với các tài khoản multisig.
 
-## Further discussion
+## Thảo Luận Thêm
 
-* Regarding security in `MsgSignData`, the developer using `MsgSignData` is in charge of making the content contained in `Data` non-replayable when, and if, needed.
-* The offchain package will be further extended with extra messages that target specific use cases such as, but not limited to, authentication in applications, payment channels, L2 solutions in general.
+* Về bảo mật trong `MsgSignData`, nhà phát triển sử dụng `MsgSignData` chịu trách nhiệm làm cho nội dung trong `Data` không thể phát lại khi và nếu cần thiết.
+* Gói offchain sẽ được mở rộng thêm với các message bổ sung nhắm đến các trường hợp sử dụng cụ thể như, nhưng không giới hạn, xác thực trong các ứng dụng, kênh thanh toán, giải pháp L2 nói chung.
 
-## References
+## Tham Khảo
 
 1. https://github.com/cosmos/ics/pull/33
 2. https://github.com/cosmos/cosmos-sdk/pull/7727#discussion_r515668204

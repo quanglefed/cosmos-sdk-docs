@@ -1,35 +1,26 @@
-# ADR 021: Protocol Buffer Query Encoding
+# ADR 021: Mã Hóa Truy Vấn Protocol Buffer
 
-## Changelog
+## Nhật Ký Thay Đổi
 
-* 2020 March 27: Initial Draft
+* 27 tháng 3 năm 2020: Bản nháp đầu tiên
 
-## Status
+## Trạng Thái
 
-Accepted
+Đã Chấp Nhận
 
-## Context
+## Bối Cảnh
 
-This ADR is a continuation of the motivation, design, and context established in
-[ADR 019](./adr-019-protobuf-state-encoding.md) and
-[ADR 020](./adr-020-protobuf-transaction-encoding.md), namely, we aim to design the
-Protocol Buffer migration path for the client-side of the Cosmos SDK.
+ADR này là phần tiếp nối của động lực, thiết kế và bối cảnh được thiết lập trong [ADR 019](./adr-019-protobuf-state-encoding.md) và [ADR 020](./adr-020-protobuf-transaction-encoding.md), cụ thể là chúng ta hướng tới việc thiết kế lộ trình chuyển đổi Protocol Buffer cho phía client của Cosmos SDK.
 
-This ADR continues from [ADR 020](./adr-020-protobuf-transaction-encoding.md)
-to specify the encoding of queries.
+ADR này tiếp nối từ [ADR 020](./adr-020-protobuf-transaction-encoding.md) để chỉ định mã hóa cho các truy vấn.
 
-## Decision
+## Quyết Định
 
-### Custom Query Definition
+### Định Nghĩa Truy Vấn Tùy Chỉnh
 
-Modules define custom queries through a protocol buffers `service` definition.
-These `service` definitions are generally associated with and used by the
-GRPC protocol. However, the protocol buffers specification indicates that
-they can be used more generically by any request/response protocol that uses
-protocol buffer encoding. Thus, we can use `service` definitions for specifying
-custom ABCI queries and even reuse a substantial amount of the GRPC infrastructure.
+Các module định nghĩa truy vấn tùy chỉnh thông qua định nghĩa `service` của protocol buffers. Các định nghĩa `service` này thường được liên kết và sử dụng bởi giao thức GRPC. Tuy nhiên, đặc tả protocol buffers chỉ ra rằng chúng có thể được sử dụng tổng quát hơn bởi bất kỳ giao thức yêu cầu/phản hồi nào sử dụng mã hóa protocol buffer. Do đó, chúng ta có thể sử dụng định nghĩa `service` để chỉ định các truy vấn ABCI tùy chỉnh và thậm chí tái sử dụng phần lớn cơ sở hạ tầng GRPC.
 
-Each module with custom queries should define a service canonically named `Query`:
+Mỗi module có truy vấn tùy chỉnh nên định nghĩa một service có tên chuẩn là `Query`:
 
 ```protobuf
 // x/bank/types/types.proto
@@ -40,19 +31,11 @@ service Query {
 }
 ```
 
-#### Handling of Interface Types
+#### Xử Lý Các Kiểu Interface
 
-Modules that use interface types and need true polymorphism generally force a
-`oneof` up to the app-level that provides the set of concrete implementations of
-that interface that the app supports. While app's are welcome to do the same for
-queries and implement an app-level query service, it is recommended that modules
-provide query methods that expose these interfaces via `google.protobuf.Any`.
-There is a concern on the transaction level that the overhead of `Any` is too
-high to justify its usage. However for queries this is not a concern, and
-providing generic module-level queries that use `Any` does not preclude apps
-from also providing app-level queries that return using the app-level `oneof`s.
+Các module sử dụng kiểu interface và cần tính đa hình thực sự thường đẩy một `oneof` lên cấp app để cung cấp tập hợp các triển khai cụ thể của interface đó mà app hỗ trợ. Mặc dù các app có thể làm tương tự với truy vấn và triển khai một query service cấp app, nhưng khuyến nghị rằng các module nên cung cấp các phương thức truy vấn để lộ các interface này thông qua `google.protobuf.Any`. Có một lo ngại ở cấp giao dịch rằng chi phí của `Any` quá cao để biện minh cho việc sử dụng nó. Tuy nhiên, với truy vấn thì không đáng lo, và việc cung cấp các truy vấn cấp module tổng quát sử dụng `Any` không loại trừ các app khỏi việc cũng cung cấp các truy vấn cấp app sử dụng `oneof` cấp app.
 
-A hypothetical example for the `gov` module would look something like:
+Một ví dụ giả thuyết cho module `gov` sẽ trông như sau:
 
 ```protobuf
 // x/gov/types/types.proto
@@ -69,11 +52,9 @@ message AnyProposal {
 }
 ```
 
-### Custom Query Implementation
+### Triển Khai Truy Vấn Tùy Chỉnh
 
-In order to implement the query service, we can reuse the existing [gogo protobuf](https://github.com/cosmos/gogoproto)
-grpc plugin, which for a service named `Query` generates an interface named
-`QueryServer` as below:
+Để triển khai query service, chúng ta có thể tái sử dụng plugin grpc của [gogo protobuf](https://github.com/cosmos/gogoproto) hiện có, plugin này cho một service có tên `Query` sẽ tạo ra một interface tên `QueryServer` như sau:
 
 ```go
 type QueryServer interface {
@@ -82,17 +63,11 @@ type QueryServer interface {
 }
 ```
 
-The custom queries for our module are implemented by implementing this interface.
+Các truy vấn tùy chỉnh cho module của chúng ta được triển khai bằng cách hiện thực interface này.
 
-The first parameter in this generated interface is a generic `context.Context`,
-whereas querier methods generally need an instance of `sdk.Context` to read
-from the store. Since arbitrary values can be attached to `context.Context`
-using the `WithValue` and `Value` methods, the Cosmos SDK should provide a function
-`sdk.UnwrapSDKContext` to retrieve the `sdk.Context` from the provided
-`context.Context`.
+Tham số đầu tiên trong interface được tạo ra này là `context.Context` chung, trong khi các phương thức querier thường cần một thể hiện của `sdk.Context` để đọc từ store. Vì các giá trị tùy ý có thể được gắn vào `context.Context` sử dụng các phương thức `WithValue` và `Value`, Cosmos SDK nên cung cấp hàm `sdk.UnwrapSDKContext` để lấy `sdk.Context` từ `context.Context` được cung cấp.
 
-An example implementation of `QueryBalance` for the bank module as above would
-look something like:
+Một ví dụ triển khai `QueryBalance` cho module bank như trên sẽ trông như thế này:
 
 ```go
 type Querier struct {
@@ -105,11 +80,9 @@ func (q Querier) QueryBalance(ctx context.Context, params *types.QueryBalancePar
 }
 ```
 
-### Custom Query Registration and Routing
+### Đăng Ký và Định Tuyến Truy Vấn Tùy Chỉnh
 
-Query server implementations as above would be registered with `AppModule`s using
-a new method `RegisterQueryService(grpc.Server)` which could be implemented simply
-as below:
+Các triển khai query server như trên sẽ được đăng ký với `AppModule` sử dụng phương thức mới `RegisterQueryService(grpc.Server)` có thể được triển khai đơn giản như sau:
 
 ```go
 // x/bank/module.go
@@ -118,46 +91,21 @@ func (am AppModule) RegisterQueryService(server grpc.Server) {
 }
 ```
 
-Underneath the hood, a new method `RegisterService(sd *grpc.ServiceDesc, handler interface{})`
-will be added to the existing `baseapp.QueryRouter` to add the queries to the custom
-query routing table (with the routing method being described below).
-The signature for this method matches the existing
-`RegisterServer` method on the GRPC `Server` type where `handler` is the custom
-query server implementation described above.
+Bên dưới, một phương thức mới `RegisterService(sd *grpc.ServiceDesc, handler interface{})` sẽ được thêm vào `baseapp.QueryRouter` hiện có để thêm các truy vấn vào bảng định tuyến truy vấn tùy chỉnh (với phương thức định tuyến được mô tả bên dưới). Chữ ký của phương thức này khớp với phương thức `RegisterServer` hiện có trên kiểu `Server` của GRPC trong đó `handler` là triển khai query server tùy chỉnh được mô tả ở trên.
 
-GRPC-like requests are routed by the service name (ex. `cosmos_sdk.x.bank.v1.Query`)
-and method name (ex. `QueryBalance`) combined with `/`s to form a full
-method name (ex. `/cosmos_sdk.x.bank.v1.Query/QueryBalance`). This gets translated
-into an ABCI query as `custom/cosmos_sdk.x.bank.v1.Query/QueryBalance`. Service handlers
-registered with `QueryRouter.RegisterService` will be routed this way.
+Các yêu cầu dạng GRPC được định tuyến bởi tên service (vd: `cosmos_sdk.x.bank.v1.Query`) và tên phương thức (vd: `QueryBalance`) kết hợp với `/` để tạo thành tên phương thức đầy đủ (vd: `/cosmos_sdk.x.bank.v1.Query/QueryBalance`). Điều này được dịch sang truy vấn ABCI là `custom/cosmos_sdk.x.bank.v1.Query/QueryBalance`. Các service handler đăng ký với `QueryRouter.RegisterService` sẽ được định tuyến theo cách này.
 
-Beyond the method name, GRPC requests carry a protobuf encoded payload, which maps naturally
-to `RequestQuery.Data`, and receive a protobuf encoded response or error. Thus
-there is a quite natural mapping of GRPC-like rpc methods to the existing
-`sdk.Query` and `QueryRouter` infrastructure.
+Ngoài tên phương thức, các yêu cầu GRPC mang theo payload được mã hóa protobuf, ánh xạ tự nhiên tới `RequestQuery.Data`, và nhận phản hồi hoặc lỗi được mã hóa protobuf. Do đó có một ánh xạ khá tự nhiên từ các phương thức rpc dạng GRPC sang cơ sở hạ tầng `sdk.Query` và `QueryRouter` hiện có.
 
-This basic specification allows us to reuse protocol buffer `service` definitions
-for ABCI custom queries substantially reducing the need for manual decoding and
-encoding in query methods.
+Đặc tả cơ bản này cho phép chúng ta tái sử dụng định nghĩa `service` của protocol buffer cho các truy vấn ABCI tùy chỉnh, giảm đáng kể nhu cầu giải mã và mã hóa thủ công trong các phương thức truy vấn.
 
-### GRPC Protocol Support
+### Hỗ Trợ Giao Thức GRPC
 
-In addition to providing an ABCI query pathway, we can easily provide a GRPC
-proxy server that routes requests in the GRPC protocol to ABCI query requests
-under the hood. In this way, clients could use their host languages' existing
-GRPC implementations to make direct queries against Cosmos SDK app's using
-these `service` definitions. In order for this server to work, the `QueryRouter`
-on `BaseApp` will need to expose the service handlers registered with
-`QueryRouter.RegisterService` to the proxy server implementation. Nodes could
-launch the proxy server on a separate port in the same process as the ABCI app
-with a command-line flag.
+Ngoài việc cung cấp đường dẫn truy vấn ABCI, chúng ta có thể dễ dàng cung cấp một proxy server GRPC định tuyến các yêu cầu theo giao thức GRPC sang các yêu cầu truy vấn ABCI bên dưới. Theo cách này, các client có thể sử dụng các triển khai GRPC hiện có của ngôn ngữ host của họ để thực hiện các truy vấn trực tiếp đối với các app Cosmos SDK sử dụng các định nghĩa `service` này. Để server này hoạt động, `QueryRouter` trên `BaseApp` sẽ cần lộ các service handler đã đăng ký với `QueryRouter.RegisterService` cho triển khai proxy server. Các node có thể khởi chạy proxy server trên một cổng riêng biệt trong cùng một tiến trình với app ABCI sử dụng cờ dòng lệnh.
 
-### REST Queries and Swagger Generation
+### Truy Vấn REST và Tạo Swagger
 
-[grpc-gateway](https://github.com/grpc-ecosystem/grpc-gateway) is a project that
-translates REST calls into GRPC calls using special annotations on service
-methods. Modules that want to expose REST queries should add `google.api.http`
-annotations to their `rpc` methods as in this example below.
+[grpc-gateway](https://github.com/grpc-ecosystem/grpc-gateway) là một dự án dịch các lời gọi REST thành lời gọi GRPC sử dụng các chú thích đặc biệt trên các phương thức service. Các module muốn lộ truy vấn REST nên thêm chú thích `google.api.http` vào các phương thức `rpc` của chúng như trong ví dụ dưới đây.
 
 ```protobuf
 // x/bank/types/types.proto
@@ -176,26 +124,15 @@ service Query {
 }
 ```
 
-grpc-gateway will work directly against the GRPC proxy described above which will
-translate requests to ABCI queries under the hood. grpc-gateway can also
-generate Swagger definitions automatically.
+grpc-gateway sẽ hoạt động trực tiếp với proxy GRPC mô tả ở trên, proxy này sẽ dịch các yêu cầu sang truy vấn ABCI bên dưới. grpc-gateway cũng có thể tự động tạo định nghĩa Swagger.
 
-In the current implementation of REST queries, each module needs to implement
-REST queries manually in addition to ABCI querier methods. Using the grpc-gateway
-approach, there will be no need to generate separate REST query handlers, just
-query servers as described above as grpc-gateway handles the translation of protobuf
-to REST as well as Swagger definitions.
+Trong triển khai hiện tại của truy vấn REST, mỗi module cần triển khai truy vấn REST thủ công ngoài các phương thức querier ABCI. Sử dụng cách tiếp cận grpc-gateway, sẽ không cần tạo các handler truy vấn REST riêng biệt, chỉ cần các query server như mô tả ở trên vì grpc-gateway xử lý việc dịch protobuf sang REST cũng như định nghĩa Swagger.
 
-The Cosmos SDK should provide CLI commands for apps to start GRPC gateway either in
-a separate process or the same process as the ABCI app, as well as provide a
-command for generating grpc-gateway proxy `.proto` files and the `swagger.json`
-file.
+Cosmos SDK nên cung cấp các lệnh CLI cho các app để khởi động GRPC gateway hoặc trong một tiến trình riêng biệt hoặc cùng tiến trình với app ABCI, cũng như cung cấp lệnh để tạo các file `.proto` proxy grpc-gateway và file `swagger.json`.
 
-### Client Usage
+### Sử Dụng Phía Client
 
-The gogo protobuf grpc plugin generates client interfaces in addition to server
-interfaces. For the `Query` service defined above we would get a `QueryClient`
-interface like:
+Plugin grpc của gogo protobuf tạo ra các interface client ngoài các interface server. Với service `Query` định nghĩa ở trên, chúng ta sẽ nhận được interface `QueryClient` như:
 
 ```go
 type QueryClient interface {
@@ -204,15 +141,11 @@ type QueryClient interface {
 }
 ```
 
-Via a small patch to gogo protobuf ([gogo/protobuf#675](https://github.com/gogo/protobuf/pull/675))
-we have tweaked the grpc codegen to use an interface rather than a concrete type
-for the generated client struct. This allows us to also reuse the GRPC infrastructure
-for ABCI client queries.
+Thông qua một bản vá nhỏ cho gogo protobuf ([gogo/protobuf#675](https://github.com/gogo/protobuf/pull/675)), chúng ta đã điều chỉnh codegen grpc để sử dụng interface thay vì kiểu cụ thể cho struct client được tạo ra. Điều này cho phép chúng ta cũng tái sử dụng cơ sở hạ tầng GRPC cho các truy vấn client ABCI.
 
-1Context`will receive a new method`QueryConn`that returns a`ClientConn`
-that routes calls to ABCI queries
+`Context` sẽ nhận một phương thức mới `QueryConn` trả về `ClientConn` định tuyến lời gọi tới các truy vấn ABCI.
 
-Clients (such as CLI methods) will then be able to call query methods like this:
+Các client (như các phương thức CLI) sau đó có thể gọi các phương thức truy vấn như thế này:
 
 ```go
 clientCtx := client.NewContext()
@@ -221,10 +154,9 @@ params := &types.QueryBalanceParams{addr, denom}
 result, err := queryClient.QueryBalance(gocontext.Background(), params)
 ```
 
-### Testing
+### Kiểm Thử
 
-Tests would be able to create a query client directly from keeper and `sdk.Context`
-references using a `QueryServerTestHelper` as below:
+Các test có thể tạo một query client trực tiếp từ các tham chiếu keeper và `sdk.Context` sử dụng `QueryServerTestHelper` như sau:
 
 ```go
 queryHelper := baseapp.NewQueryServerTestHelper(ctx)
@@ -232,25 +164,22 @@ types.RegisterQueryServer(queryHelper, keeper.Querier{app.BankKeeper})
 queryClient := types.NewQueryClient(queryHelper)
 ```
 
-## Future Improvements
+## Cải Tiến Tương Lai
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* greatly simplified querier implementation (no manual encoding/decoding)
-* easy query client generation (can use existing grpc and swagger tools)
-* no need for REST query implementations
-* type safe query methods (generated via grpc plugin)
-* going forward, there will be less breakage of query methods because of the
-backwards compatibility guarantees provided by buf
+* Việc triển khai querier đơn giản hơn nhiều (không cần mã hóa/giải mã thủ công)
+* Tạo query client dễ dàng (có thể sử dụng các công cụ grpc và swagger hiện có)
+* Không cần triển khai truy vấn REST
+* Các phương thức truy vấn an toàn về kiểu dữ liệu (được tạo bởi plugin grpc)
+* Trong tương lai, sẽ ít phá vỡ các phương thức truy vấn hơn do các đảm bảo tương thích ngược được cung cấp bởi buf
 
-### Negative
+### Tiêu Cực
 
-* all clients using the existing ABCI/REST queries will need to be refactored
-for both the new GRPC/REST query paths as well as protobuf/proto-json encoded
-data, but this is more or less unavoidable in the protobuf refactoring
+* Tất cả các client sử dụng các truy vấn ABCI/REST hiện có sẽ cần được tái cấu trúc cho cả các đường dẫn truy vấn GRPC/REST mới lẫn dữ liệu được mã hóa protobuf/proto-json, nhưng điều này ít nhiều là không thể tránh khỏi trong việc tái cấu trúc protobuf
 
-### Neutral
+### Trung Lập
 
-## References
+## Tham Khảo

@@ -1,176 +1,138 @@
-# ADR 035: Rosetta API Support
+# ADR 035: Hỗ Trợ Rosetta API
 
-## Authors
+## Tác Giả
 
 * Jonathan Gimeno (@jgimeno)
 * David Grierson (@senormonito)
 * Alessio Treglia (@alessio)
 * Frojdy Dymylja (@fdymylja)
 
-## Changelog
+## Nhật Ký Thay Đổi
 
-* 2021-05-12: the external library [cosmos-rosetta-gateway](https://github.com/tendermint/cosmos-rosetta-gateway) has been moved within the Cosmos SDK.
+* 12-05-2021: thư viện bên ngoài [cosmos-rosetta-gateway](https://github.com/tendermint/cosmos-rosetta-gateway) đã được chuyển vào Cosmos SDK.
 
-## Context
+## Bối Cảnh
 
-[Rosetta API](https://www.rosetta-api.org/) is an open-source specification and set of tools developed by Coinbase to
-standardise blockchain interactions.
+[Rosetta API](https://www.rosetta-api.org/) là một đặc tả mã nguồn mở và bộ công cụ được phát triển bởi Coinbase để tiêu chuẩn hóa các tương tác blockchain.
 
-Through the use of a standard API for integrating blockchain applications it will
+Thông qua việc sử dụng API tiêu chuẩn để tích hợp các ứng dụng blockchain, nó sẽ:
 
-* Be easier for a user to interact with a given blockchain
-* Allow exchanges to integrate new blockchains quickly and easily
-* Enable application developers to build cross-blockchain applications such as block explorers, wallets and dApps at
-  considerably lower cost and effort.
+* Giúp người dùng dễ dàng tương tác với blockchain đã cho hơn
+* Cho phép các sàn giao dịch tích hợp các blockchain mới nhanh chóng và dễ dàng
+* Cho phép các nhà phát triển ứng dụng xây dựng các ứng dụng cross-blockchain như trình khám phá block, ví và dApp với chi phí và công sức thấp hơn đáng kể.
 
-## Decision
+## Quyết Định
 
-It is clear that adding Rosetta API support to the Cosmos SDK will bring value to all the developers and
-Cosmos SDK based chains in the ecosystem. How it is implemented is key.
+Rõ ràng rằng việc thêm hỗ trợ Rosetta API vào Cosmos SDK sẽ mang lại giá trị cho tất cả các nhà phát triển và các chain dựa trên Cosmos SDK trong hệ sinh thái. Cách triển khai là yếu tố then chốt.
 
-The driving principles of the proposed design are:
+Các nguyên tắc chính của thiết kế được đề xuất là:
 
-1. **Extensibility:** it must be as riskless and painless as possible for application developers to set-up network
-   configurations to expose Rosetta API-compliant services.
-2. **Long term support:** This proposal aims to provide support for all the Cosmos SDK release series.
-3. **Cost-efficiency:** Backporting changes to Rosetta API specifications from `master` to the various stable
-   branches of Cosmos SDK is a cost that needs to be reduced.
+1. **Khả năng mở rộng:** việc thiết lập các cấu hình mạng để lộ các dịch vụ tuân thủ Rosetta API phải ít rủi ro và ít phức tạp nhất có thể cho các nhà phát triển ứng dụng.
+2. **Hỗ trợ dài hạn:** Đề xuất này hướng tới cung cấp hỗ trợ cho tất cả các chuỗi phát hành Cosmos SDK.
+3. **Hiệu quả chi phí:** Việc backport các thay đổi theo đặc tả Rosetta API từ `master` tới các nhánh ổn định khác nhau của Cosmos SDK là một chi phí cần được giảm thiểu.
 
-We will achieve these by delivering on these principles by the following:
+Chúng ta sẽ đạt được điều này bằng cách cung cấp những nguyên tắc sau:
 
-1. There will be a package `rosetta/lib`
-   for the implementation of the core Rosetta API features, particularly:
-   a. The types and interfaces (`Client`, `OfflineClient`...), this separates design from implementation detail.
-   b. The `Server` functionality as this is independent of the Cosmos SDK version.
-   c. The `Online/OfflineNetwork`, which is not exported, and implements the rosetta API using the `Client` interface to query the node, build tx and so on.
-   d. The `errors` package to extend rosetta errors.
-2. Due to differences between the Cosmos release series, each series will have its own specific implementation of `Client` interface.
-3. There will be two options for starting an API service in applications:
-   a. API shares the application process
-   b. API-specific process.
+1. Sẽ có một gói `rosetta/lib` để triển khai các tính năng Rosetta API cốt lõi, cụ thể là:
+   a. Các kiểu và interface (`Client`, `OfflineClient`...), điều này tách biệt thiết kế khỏi chi tiết triển khai.
+   b. Chức năng `Server` vì nó độc lập với phiên bản Cosmos SDK.
+   c. `Online/OfflineNetwork`, không được export, và triển khai API rosetta sử dụng interface `Client` để truy vấn node, xây dựng tx và các thao tác khác.
+   d. Gói `errors` để mở rộng lỗi rosetta.
+2. Do sự khác biệt giữa các chuỗi phát hành Cosmos, mỗi chuỗi sẽ có triển khai riêng của interface `Client`.
+3. Sẽ có hai tùy chọn để khởi động dịch vụ API trong các ứng dụng:
+   a. API chia sẻ tiến trình với ứng dụng
+   b. Tiến trình riêng dành cho API.
 
-## Architecture
+## Kiến Trúc
 
-### The External Repo
+### Repo Bên Ngoài
 
-This section will describe the proposed external library, including the service implementation, plus the defined types and interfaces.
+Phần này sẽ mô tả thư viện bên ngoài được đề xuất, bao gồm triển khai service, cộng với các kiểu và interface được định nghĩa.
 
 #### Server
 
-`Server` is a simple `struct` that is started and listens to the port specified in the settings. This is meant to be used across all the Cosmos SDK versions that are actively supported.
+`Server` là một `struct` đơn giản được khởi động và lắng nghe trên cổng được chỉ định trong các thiết lập. Điều này được thiết kế để sử dụng trên tất cả các phiên bản Cosmos SDK đang được hỗ trợ tích cực.
 
-The constructor follows:
+Constructor như sau:
 
 `func NewServer(settings Settings) (Server, error)`
 
-`Settings`, which are used to construct a new server, are the following:
+`Settings`, được sử dụng để xây dựng server mới, như sau:
 
 ```go
-// Settings define the rosetta server settings
+// Settings định nghĩa các thiết lập server rosetta
 type Settings struct {
-	// Network contains the information regarding the network
+	// Network chứa thông tin về mạng
 	Network *types.NetworkIdentifier
-	// Client is the online API handler
+	// Client là handler API trực tuyến
 	Client crgtypes.Client
-	// Listen is the address the handler will listen at
+	// Listen là địa chỉ mà handler sẽ lắng nghe
 	Listen string
-	// Offline defines if the rosetta service should be exposed in offline mode
+	// Offline xác định nếu service rosetta nên được lộ ở chế độ ngoại tuyến
 	Offline bool
-	// Retries is the number of readiness checks that will be attempted when instantiating the handler
-	// valid only for online API
+	// Retries là số lần kiểm tra sẵn sàng sẽ được thực hiện khi khởi tạo handler
+	// chỉ hợp lệ cho API trực tuyến
 	Retries int
-	// RetryWait is the time that will be waited between retries
+	// RetryWait là thời gian sẽ chờ giữa các lần thử
 	RetryWait time.Duration
 }
 ```
 
-#### Types
+#### Các Kiểu
 
-Package types uses a mixture of rosetta types and custom defined type wrappers, that the client must parse and return while executing operations.
+Gói types sử dụng hỗn hợp các kiểu rosetta và các wrapper kiểu tùy chỉnh được định nghĩa, mà client phải phân tích và trả về trong khi thực thi các hoạt động.
 
-##### Interfaces
+##### Interface
 
-Every SDK version uses a different format to connect (rpc, gRPC, etc), query and build transactions, we have abstracted this in what is the `Client` interface.
-The client uses rosetta types, whilst the `Online/OfflineNetwork` takes care of returning correctly parsed rosetta responses and errors.
+Mỗi phiên bản SDK sử dụng định dạng khác nhau để kết nối (rpc, gRPC, v.v.), truy vấn và xây dựng giao dịch, chúng ta đã trừu tượng hóa điều này trong interface `Client`. Client sử dụng các kiểu rosetta, trong khi `Online/OfflineNetwork` đảm nhận việc trả về các phản hồi và lỗi rosetta được phân tích đúng cách.
 
-Each Cosmos SDK release series will have their own `Client` implementations.
-Developers can implement their own custom `Client`s as required.
+Mỗi chuỗi phát hành Cosmos SDK sẽ có triển khai `Client` riêng của họ. Các nhà phát triển có thể triển khai các `Client` tùy chỉnh của riêng họ khi cần.
 
 ```go
-// Client defines the API the client implementation should provide.
+// Client định nghĩa API mà triển khai client nên cung cấp.
 type Client interface {
-	// Needed if the client needs to perform some action before connecting.
+	// Cần thiết nếu client cần thực hiện một số hành động trước khi kết nối.
 	Bootstrap() error
-	// Ready checks if the servicer constraints for queries are satisfied
-	// for example the node might still not be ready, it's useful in process
-	// when the rosetta instance might come up before the node itself
-	// the servicer must return nil if the node is ready
+	// Ready kiểm tra xem các ràng buộc servicer cho các truy vấn có được thỏa mãn không
 	Ready() error
 
 	// Data API
-
-	// Balances fetches the balance of the given address
-	// if height is not nil, then the balance will be displayed
-	// at the provided height, otherwise last block balance will be returned
 	Balances(ctx context.Context, addr string, height *int64) ([]*types.Amount, error)
-	// BlockByHashAlt gets a block and its transaction at the provided height
 	BlockByHash(ctx context.Context, hash string) (BlockResponse, error)
-	// BlockByHeightAlt gets a block given its height, if height is nil then last block is returned
 	BlockByHeight(ctx context.Context, height *int64) (BlockResponse, error)
-	// BlockTransactionsByHash gets the block, parent block and transactions
-	// given the block hash.
 	BlockTransactionsByHash(ctx context.Context, hash string) (BlockTransactionsResponse, error)
-	// BlockTransactionsByHeight gets the block, parent block and transactions
-	// given the block height.
 	BlockTransactionsByHeight(ctx context.Context, height *int64) (BlockTransactionsResponse, error)
-	// GetTx gets a transaction given its hash
 	GetTx(ctx context.Context, hash string) (*types.Transaction, error)
-	// GetUnconfirmedTx gets an unconfirmed Tx given its hash
-	// NOTE(fdymylja): NOT IMPLEMENTED YET!
 	GetUnconfirmedTx(ctx context.Context, hash string) (*types.Transaction, error)
-	// Mempool returns the list of the current non confirmed transactions
 	Mempool(ctx context.Context) ([]*types.TransactionIdentifier, error)
-	// Peers gets the peers currently connected to the node
 	Peers(ctx context.Context) ([]*types.Peer, error)
-	// Status returns the node status, such as sync data, version etc
 	Status(ctx context.Context) (*types.SyncStatus, error)
 
 	// Construction API
-
-	// PostTx posts txBytes to the node and returns the transaction identifier plus metadata related
-	// to the transaction itself.
 	PostTx(txBytes []byte) (res *types.TransactionIdentifier, meta map[string]interface{}, err error)
-	// ConstructionMetadataFromOptions
 	ConstructionMetadataFromOptions(ctx context.Context, options map[string]interface{}) (meta map[string]interface{}, err error)
 	OfflineClient
 }
 
-// OfflineClient defines the functionalities supported without having access to the node
+// OfflineClient định nghĩa các chức năng được hỗ trợ mà không có quyền truy cập vào node
 type OfflineClient interface {
 	NetworkInformationProvider
-	// SignedTx returns the signed transaction given the tx bytes (msgs) plus the signatures
 	SignedTx(ctx context.Context, txBytes []byte, sigs []*types.Signature) (signedTxBytes []byte, err error)
-	// TxOperationsAndSignersAccountIdentifiers returns the operations related to a transaction and the account
-	// identifiers if the transaction is signed
 	TxOperationsAndSignersAccountIdentifiers(signed bool, hexBytes []byte) (ops []*types.Operation, signers []*types.AccountIdentifier, err error)
-	// ConstructionPayload returns the construction payload given the request
 	ConstructionPayload(ctx context.Context, req *types.ConstructionPayloadsRequest) (resp *types.ConstructionPayloadsResponse, err error)
-	// PreprocessOperationsToOptions returns the options given the preprocess operations
 	PreprocessOperationsToOptions(ctx context.Context, req *types.ConstructionPreprocessRequest) (options map[string]interface{}, err error)
-	// AccountIdentifierFromPublicKey returns the account identifier given the public key
 	AccountIdentifierFromPublicKey(pubKey *types.PublicKey) (*types.AccountIdentifier, error)
 }
 ```
 
-### 2. Cosmos SDK Implementation
+### 2. Triển Khai Cosmos SDK
 
-The Cosmos SDK implementation, based on version, takes care of satisfying the `Client` interface.
-In Stargate, Launchpad and 0.37, we have introduced the concept of rosetta.Msg, this message is not in the shared repository as the sdk.Msg type differs between Cosmos SDK versions.
+Triển khai Cosmos SDK, dựa theo phiên bản, đảm nhận việc thỏa mãn interface `Client`. Trong Stargate, Launchpad và 0.37, chúng ta đã giới thiệu khái niệm rosetta.Msg, message này không nằm trong repo được chia sẻ vì kiểu sdk.Msg khác nhau giữa các phiên bản Cosmos SDK.
 
-The rosetta.Msg interface follows:
+Interface rosetta.Msg như sau:
 
 ```go
-// Msg represents a cosmos-sdk message that can be converted from and to a rosetta operation.
+// Msg đại diện cho một cosmos-sdk message có thể được chuyển đổi từ và sang một rosetta operation.
 type Msg interface {
 	sdk.Msg
 	ToOperations(withStatus, hasError bool) []*types.Operation
@@ -178,34 +140,34 @@ type Msg interface {
 }
 ```
 
-Hence developers who want to extend the rosetta set of supported operations just need to extend their module's sdk.Msgs with the `ToOperations` and `FromOperations` methods.
+Do đó, các nhà phát triển muốn mở rộng tập hợp các rosetta operation được hỗ trợ chỉ cần mở rộng các sdk.Msg của module của họ với các phương thức `ToOperations` và `FromOperations`.
 
-### 3. API service invocation
+### 3. Kích Hoạt Dịch Vụ API
 
-As stated at the start, application developers will have two methods for invocation of the Rosetta API service:
+Như đã nêu ở đầu, các nhà phát triển ứng dụng sẽ có hai phương thức để kích hoạt dịch vụ Rosetta API:
 
-1. Shared process for both application and API
-2. Standalone API service
+1. Tiến trình được chia sẻ cho cả ứng dụng và API
+2. Dịch vụ API độc lập
 
-#### Shared Process (Only Stargate)
+#### Tiến Trình Được Chia Sẻ (Chỉ Stargate)
 
-Rosetta API service could run within the same execution process as the application. This would be enabled via app.toml settings, and if gRPC is not enabled the rosetta instance would be spun in offline mode (tx building capabilities only).
+Dịch vụ Rosetta API có thể chạy trong cùng tiến trình thực thi với ứng dụng. Điều này sẽ được kích hoạt thông qua thiết lập app.toml, và nếu gRPC không được bật, thể hiện rosetta sẽ được khởi động ở chế độ ngoại tuyến (chỉ có khả năng xây dựng tx).
 
-#### Separate API service
+#### Dịch Vụ API Riêng Biệt
 
-Client application developers can write a new command to launch a Rosetta API server as a separate process too, using the rosetta command contained in the `/server/rosetta` package. Construction of the command depends on Cosmos SDK version. Examples can be found inside `simd` for stargate, and `contrib/rosetta/simapp` for other release series.
+Các nhà phát triển ứng dụng client cũng có thể viết một lệnh mới để khởi động một Rosetta API server như một tiến trình riêng biệt, sử dụng lệnh rosetta có trong gói `/server/rosetta`. Việc xây dựng lệnh phụ thuộc vào phiên bản Cosmos SDK. Các ví dụ có thể được tìm thấy trong `simd` cho stargate, và `contrib/rosetta/simapp` cho các chuỗi phát hành khác.
 
-## Status
+## Trạng Thái
 
-Proposed
+Đề Xuất
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Out-of-the-box Rosetta API support within Cosmos SDK.
-* Blockchain interface standardisation
+* Hỗ trợ Rosetta API tích hợp sẵn trong Cosmos SDK.
+* Tiêu chuẩn hóa giao diện blockchain
 
-## References
+## Tham Khảo
 
 * https://www.rosetta-api.org/

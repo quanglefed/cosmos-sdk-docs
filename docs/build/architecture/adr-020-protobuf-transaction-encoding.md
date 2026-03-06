@@ -1,61 +1,46 @@
-# ADR 020: Protocol Buffer Transaction Encoding
+# ADR 020: Mã Hóa Giao Dịch Bằng Protocol Buffer
 
 ## Changelog
 
-* 2020 March 06: Initial Draft
-* 2020 March 12: API Updates
-* 2020 April 13: Added details on interface `oneof` handling
-* 2020 April 30: Switch to `Any`
-* 2020 May 14: Describe public key encoding
-* 2020 June 08: Store `TxBody` and `AuthInfo` as bytes in `SignDoc`; Document `TxRaw` as broadcast and storage type.
-* 2020 August 07: Use ADR 027 for serializing `SignDoc`.
-* 2020 August 19: Move sequence field from `SignDoc` to `SignerInfo`, as discussed in [#6966](https://github.com/cosmos/cosmos-sdk/issues/6966).
-* 2020 September 25: Remove `PublicKey` type in favor of `secp256k1.PubKey`, `ed25519.PubKey` and `multisig.LegacyAminoPubKey`.
-* 2020 October 15: Add `GetAccount` and `GetAccountWithHeight` methods to the `AccountRetriever` interface.
-* 2021 Feb 24: The Cosmos SDK does not use Tendermint's `PubKey` interface anymore, but its own `cryptotypes.PubKey`. Updates to reflect this.
-* 2021 May 3: Rename `clientCtx.JSONMarshaler` to `clientCtx.JSONCodec`.
-* 2021 June 10: Add `clientCtx.Codec: codec.Codec`.
+* 2020 06 tháng 3: Bản nháp đầu tiên
+* 2020 12 tháng 3: Cập nhật API
+* 2020 13 tháng 4: Thêm chi tiết về xử lý interface `oneof`
+* 2020 30 tháng 4: Chuyển sang `Any`
+* 2020 14 tháng 5: Mô tả mã hóa khóa công khai
+* 2020 08 tháng 6: Lưu trữ `TxBody` và `AuthInfo` dưới dạng byte trong `SignDoc`; Tài liệu hóa `TxRaw` là kiểu broadcast và lưu trữ.
+* 2020 07 tháng 8: Sử dụng ADR 027 để tuần tự hóa `SignDoc`.
+* 2020 19 tháng 8: Di chuyển trường sequence từ `SignDoc` sang `SignerInfo`, như đã thảo luận trong [#6966](https://github.com/cosmos/cosmos-sdk/issues/6966).
+* 2020 25 tháng 9: Xóa kiểu `PublicKey` thay bằng `secp256k1.PubKey`, `ed25519.PubKey` và `multisig.LegacyAminoPubKey`.
+* 2020 15 tháng 10: Thêm các phương thức `GetAccount` và `GetAccountWithHeight` vào interface `AccountRetriever`.
+* 2021 24 tháng 2: Cosmos SDK không còn sử dụng interface `PubKey` của Tendermint nữa mà dùng `cryptotypes.PubKey` riêng của mình. Cập nhật để phản ánh điều này.
+* 2021 03 tháng 5: Đổi tên `clientCtx.JSONMarshaler` thành `clientCtx.JSONCodec`.
+* 2021 10 tháng 6: Thêm `clientCtx.Codec: codec.Codec`.
 
-## Status
+## Trạng Thái
 
-Accepted
+Đã Chấp Nhận
 
-## Context
+## Bối Cảnh
 
-This ADR is a continuation of the motivation, design, and context established in
-[ADR 019](./adr-019-protobuf-state-encoding.md), namely, we aim to design the
-Protocol Buffer migration path for the client-side of the Cosmos SDK.
+ADR này là sự tiếp nối của động lực, thiết kế và bối cảnh được thiết lập trong [ADR 019](./adr-019-protobuf-state-encoding.md), cụ thể là chúng ta nhằm thiết kế con đường di chuyển Protocol Buffer cho phía client của Cosmos SDK.
 
-Specifically, the client-side migration path primarily includes tx generation and
-signing, message construction and routing, in addition to CLI & REST handlers and
-business logic (i.e. queriers).
+Cụ thể, con đường di chuyển phía client chủ yếu bao gồm tạo và ký giao dịch, xây dựng và định tuyến message, ngoài ra còn có các handler CLI & REST và logic nghiệp vụ (tức là querier).
 
-With this in mind, we will tackle the migration path via two main areas, txs and
-querying. However, this ADR solely focuses on transactions. Querying should be
-addressed in a future ADR, but it should build off of these proposals.
+Với điều này trong tâm trí, chúng ta sẽ giải quyết con đường di chuyển qua hai lĩnh vực chính: tx và truy vấn. Tuy nhiên, ADR này chỉ tập trung vào giao dịch. Truy vấn nên được đề cập trong một ADR tương lai, nhưng nó nên được xây dựng dựa trên các đề xuất này.
 
-Based on detailed discussions ([\#6030](https://github.com/cosmos/cosmos-sdk/issues/6030)
-and [\#6078](https://github.com/cosmos/cosmos-sdk/issues/6078)), the original
-design for transactions was changed substantially from an `oneof` /JSON-signing
-approach to the approach described below.
+Dựa trên các cuộc thảo luận chi tiết ([\\#6030](https://github.com/cosmos/cosmos-sdk/issues/6030) và [\\#6078](https://github.com/cosmos/cosmos-sdk/issues/6078)), thiết kế ban đầu cho giao dịch đã được thay đổi đáng kể từ cách tiếp cận `oneof`/JSON-signing sang cách tiếp cận được mô tả dưới đây.
 
-## Decision
+## Quyết Định
 
-### Transactions
+### Giao Dịch
 
-Since interface values are encoded with `google.protobuf.Any` in state (see [ADR 019](adr-019-protobuf-state-encoding.md)),
-`sdk.Msg`s are encoded with `Any` in transactions.
+Vì các giá trị interface được mã hóa với `google.protobuf.Any` trong trạng thái (xem [ADR 019](adr-019-protobuf-state-encoding.md)), `sdk.Msg` được mã hóa với `Any` trong giao dịch.
 
-One of the main goals of using `Any` to encode interface values is to have a
-core set of types which is reused by apps so that
-clients can safely be compatible with as many chains as possible.
+Một trong những mục tiêu chính của việc sử dụng `Any` để mã hóa các giá trị interface là có một tập core các kiểu được tái sử dụng bởi các app để các client có thể tương thích an toàn với nhiều chain nhất có thể.
 
-It is one of the goals of this specification to provide a flexible cross-chain transaction
-format that can serve a wide variety of use cases without breaking the client
-compatibility.
+Đây là một trong những mục tiêu của đặc tả này để cung cấp định dạng giao dịch cross-chain linh hoạt phục vụ nhiều trường hợp sử dụng mà không phá vỡ tương thích client.
 
-In order to facilitate signing, transactions are separated into `TxBody`,
-which will be reused by `SignDoc` below, and `signatures`:
+Để tạo điều kiện ký, giao dịch được tách thành `TxBody`, sẽ được tái sử dụng bởi `SignDoc` bên dưới, và `signatures`:
 
 ```protobuf
 // types/types.proto
@@ -64,32 +49,32 @@ package cosmos_sdk.v1;
 message Tx {
     TxBody body = 1;
     AuthInfo auth_info = 2;
-    // A list of signatures that matches the length and order of AuthInfo's signer_infos to
-    // allow connecting signature meta information like public key and signing mode by position.
+    // Danh sách chữ ký khớp với độ dài và thứ tự của signer_infos trong AuthInfo để
+    // cho phép kết nối thông tin meta chữ ký như khóa công khai và chế độ ký theo vị trí.
     repeated bytes signatures = 3;
 }
 
-// A variant of Tx that pins the signer's exact binary representation of body and
-// auth_info. This is used for signing, broadcasting and verification. The binary
-// `serialize(tx: TxRaw)` is stored in Tendermint and the hash `sha256(serialize(tx: TxRaw))`
-// becomes the "txhash", commonly used as the transaction ID.
+// Biến thể của Tx ghim biểu diễn nhị phân chính xác của body và
+// auth_info của người ký. Điều này được dùng để ký, broadcast và xác minh. Nhị phân
+// `serialize(tx: TxRaw)` được lưu trữ trong Tendermint và hash `sha256(serialize(tx: TxRaw))`
+// trở thành "txhash", thường được sử dụng làm ID giao dịch.
 message TxRaw {
-    // A protobuf serialization of a TxBody that matches the representation in SignDoc.
+    // Tuần tự hóa protobuf của TxBody khớp với biểu diễn trong SignDoc.
     bytes body = 1;
-    // A protobuf serialization of an AuthInfo that matches the representation in SignDoc.
+    // Tuần tự hóa protobuf của AuthInfo khớp với biểu diễn trong SignDoc.
     bytes auth_info = 2;
-    // A list of signatures that matches the length and order of AuthInfo's signer_infos to
-    // allow connecting signature meta information like public key and signing mode by position.
+    // Danh sách chữ ký khớp với độ dài và thứ tự của signer_infos trong AuthInfo để
+    // cho phép kết nối thông tin meta chữ ký như khóa công khai và chế độ ký theo vị trí.
     repeated bytes signatures = 3;
 }
 
 message TxBody {
-    // A list of messages to be executed. The required signers of those messages define
-    // the number and order of elements in AuthInfo's signer_infos and Tx's signatures.
-    // Each required signer address is added to the list only the first time it occurs.
+    // Danh sách các message cần thực thi. Những người ký bắt buộc của các message đó định nghĩa
+    // số lượng và thứ tự của các phần tử trong signer_infos của AuthInfo và signatures của Tx.
+    // Mỗi địa chỉ người ký bắt buộc được thêm vào danh sách chỉ lần đầu tiên nó xuất hiện.
     //
-    // By convention, the first required signer (usually from the first message) is referred
-    // to as the primary signer and pays the fee for the whole transaction.
+    // Theo quy ước, người ký đầu tiên bắt buộc (thường từ message đầu tiên) được gọi là
+    // người ký chính và trả phí cho toàn bộ giao dịch.
     repeated google.protobuf.Any messages = 1;
     string memo = 2;
     int64 timeout_height = 3;
@@ -97,24 +82,25 @@ message TxBody {
 }
 
 message AuthInfo {
-    // This list defines the signing modes for the required signers. The number
-    // and order of elements must match the required signers from TxBody's messages.
-    // The first element is the primary signer and the one which pays the fee.
+    // Danh sách này định nghĩa các chế độ ký cho những người ký bắt buộc. Số lượng
+    // và thứ tự của các phần tử phải khớp với những người ký bắt buộc từ các message của TxBody.
+    // Phần tử đầu tiên là người ký chính và là người trả phí.
     repeated SignerInfo signer_infos = 1;
-    // The fee can be calculated based on the cost of evaluating the body and doing signature verification of the signers. This can be estimated via simulation.
+    // Phí có thể được tính toán dựa trên chi phí đánh giá body và xác minh chữ ký của người ký.
+    // Điều này có thể được ước tính qua mô phỏng.
     Fee fee = 2;
 }
 
 message SignerInfo {
-    // The public key is optional for accounts that already exist in state. If unset, the
-    // verifier can use the required signer address for this position and lookup the public key.
+    // Khóa công khai là tùy chọn cho các tài khoản đã tồn tại trong trạng thái. Nếu không được đặt,
+    // người xác minh có thể sử dụng địa chỉ người ký bắt buộc cho vị trí này và tra cứu khóa công khai.
     google.protobuf.Any public_key = 1;
-    // ModeInfo describes the signing mode of the signer and is a nested
-    // structure to support nested multisig pubkey's
+    // ModeInfo mô tả chế độ ký của người ký và là cấu trúc lồng nhau
+    // để hỗ trợ khóa công khai multisig lồng nhau.
     ModeInfo mode_info = 2;
-    // sequence is the sequence of the account, which describes the
-    // number of committed transactions signed by a given address. It is used to prevent
-    // replay attacks.
+    // sequence là sequence của tài khoản, mô tả
+    // số lượng giao dịch đã cam kết được ký bởi một địa chỉ nhất định. Nó được dùng để ngăn chặn
+    // tấn công replay.
     uint64 sequence = 3;
 }
 
@@ -124,18 +110,18 @@ message ModeInfo {
         Multi multi = 2;
     }
 
-    // Single is the mode info for a single signer. It is structured as a message
-    // to allow for additional fields such as locale for SIGN_MODE_TEXTUAL in the future
+    // Single là thông tin chế độ cho một người ký đơn. Nó được cấu trúc như một message
+    // để cho phép các trường bổ sung như locale cho SIGN_MODE_TEXTUAL trong tương lai
     message Single {
         SignMode mode = 1;
     }
 
-    // Multi is the mode info for a multisig public key
+    // Multi là thông tin chế độ cho khóa công khai multisig
     message Multi {
-        // bitarray specifies which keys within the multisig are signing
+        // bitarray chỉ định các khóa nào trong multisig đang ký
         CompactBitArray bitarray = 1;
-        // mode_infos is the corresponding modes of the signers of the multisig
-        // which could include nested multisig public keys
+        // mode_infos là các chế độ tương ứng của những người ký của multisig
+        // có thể bao gồm các khóa công khai multisig lồng nhau
         repeated ModeInfo mode_infos = 2;
     }
 }
@@ -151,149 +137,100 @@ enum SignMode {
 }
 ```
 
-As will be discussed below, in order to include as much of the `Tx` as possible
-in the `SignDoc`, `SignerInfo` is separated from signatures so that only the
-raw signatures themselves live outside of what is signed over.
+Như sẽ được thảo luận bên dưới, để bao gồm càng nhiều `Tx` càng tốt trong `SignDoc`, `SignerInfo` được tách khỏi chữ ký để chỉ các chữ ký thô sống ngoài những gì được ký.
 
-Because we are aiming for a flexible, extensible cross-chain transaction
-format, new transaction processing options should be added to `TxBody` as soon
-those use cases are discovered, even if they can't be implemented yet.
+Vì chúng ta hướng đến định dạng giao dịch cross-chain linh hoạt, có thể mở rộng, các tùy chọn xử lý giao dịch mới nên được thêm vào `TxBody` ngay khi các trường hợp sử dụng đó được phát hiện, ngay cả khi chúng chưa thể được triển khai.
 
-Because there is coordination overhead in this, `TxBody` includes an
-`extension_options` field which can be used for any transaction processing
-options that are not already covered. App developers should, nevertheless,
-attempt to upstream important improvements to `Tx`.
+Vì có overhead phối hợp trong điều này, `TxBody` bao gồm một trường `extension_options` có thể được sử dụng cho bất kỳ tùy chọn xử lý giao dịch nào chưa được bao gồm. Tuy nhiên, các nhà phát triển app nên cố gắng đưa các cải tiến quan trọng lên `Tx`.
 
-### Signing
+### Ký
 
-All of the signing modes below aim to provide the following guarantees:
+Tất cả các chế độ ký dưới đây nhằm cung cấp các đảm bảo sau:
 
-* **No Malleability**: `TxBody` and `AuthInfo` cannot change once the transaction
-  is signed
-* **Predictable Gas**: if I am signing a transaction where I am paying a fee,
-  the final gas is fully dependent on what I am signing
+* **Không Thể Biến Dạng (No Malleability)**: `TxBody` và `AuthInfo` không thể thay đổi khi giao dịch đã được ký.
+* **Gas Có Thể Dự Đoán (Predictable Gas)**: nếu tôi đang ký một giao dịch trong đó tôi trả phí, gas cuối cùng phụ thuộc hoàn toàn vào những gì tôi đang ký.
 
-These guarantees give the maximum amount of confidence to message signers that
-manipulation of `Tx`s by intermediaries can't result in any meaningful changes.
+Những đảm bảo này cung cấp mức độ tin tưởng tối đa cho những người ký message rằng việc thao túng `Tx` bởi các trung gian không thể dẫn đến bất kỳ thay đổi có ý nghĩa nào.
 
 #### `SIGN_MODE_DIRECT`
 
-The "direct" signing behavior is to sign the raw `TxBody` bytes as broadcast over
-the wire. This has the advantages of:
+Hành vi ký "direct" là ký các byte `TxBody` thô được broadcast qua mạng. Điều này có những ưu điểm:
 
-* requiring the minimum additional client capabilities beyond a standard protocol
-  buffers implementation
-* leaving effectively zero holes for transaction malleability (i.e. there are no
-  subtle differences between the signing and encoding formats which could
-  potentially be exploited by an attacker)
+* yêu cầu khả năng client bổ sung tối thiểu ngoài triển khai protocol buffer tiêu chuẩn
+* để lại hầu như không có lỗ hổng nào cho transaction malleability (tức là không có sự khác biệt tinh tế nào giữa định dạng ký và mã hóa có thể bị khai thác bởi kẻ tấn công)
 
-Signatures are structured using the `SignDoc` below which reuses the serialization of
-`TxBody` and `AuthInfo` and only adds the fields which are needed for signatures:
+Chữ ký được cấu trúc bằng `SignDoc` bên dưới, tái sử dụng tuần tự hóa của `TxBody` và `AuthInfo` và chỉ thêm các trường cần thiết cho chữ ký:
 
 ```protobuf
 // types/types.proto
 message SignDoc {
-    // A protobuf serialization of a TxBody that matches the representation in TxRaw.
+    // Tuần tự hóa protobuf của TxBody khớp với biểu diễn trong TxRaw.
     bytes body = 1;
-    // A protobuf serialization of an AuthInfo that matches the representation in TxRaw.
+    // Tuần tự hóa protobuf của AuthInfo khớp với biểu diễn trong TxRaw.
     bytes auth_info = 2;
     string chain_id = 3;
     uint64 account_number = 4;
 }
 ```
 
-In order to sign in the default mode, clients take the following steps:
+Để ký theo chế độ mặc định, client thực hiện các bước sau:
 
-1. Serialize `TxBody` and `AuthInfo` using any valid protobuf implementation.
-2. Create a `SignDoc` and serialize it using [ADR 027](./adr-027-deterministic-protobuf-serialization.md).
-3. Sign the encoded `SignDoc` bytes.
-4. Build a `TxRaw` and serialize it for broadcasting.
+1. Tuần tự hóa `TxBody` và `AuthInfo` bằng bất kỳ triển khai protobuf hợp lệ nào.
+2. Tạo `SignDoc` và tuần tự hóa nó bằng [ADR 027](./adr-027-deterministic-protobuf-serialization.md).
+3. Ký các byte `SignDoc` đã mã hóa.
+4. Xây dựng `TxRaw` và tuần tự hóa nó để broadcast.
 
-Signature verification is based on comparing the raw `TxBody` and `AuthInfo`
-bytes encoded in `TxRaw` not based on any ["canonicalization"](https://github.com/regen-network/canonical-proto3)
-algorithm which creates added complexity for clients in addition to preventing
-some forms of upgradeability (to be addressed later in this document).
+Xác minh chữ ký dựa trên việc so sánh các byte `TxBody` và `AuthInfo` thô được mã hóa trong `TxRaw`, không dựa trên bất kỳ thuật toán ["canonical hóa"](https://github.com/regen-network/canonical-proto3) nào tạo thêm độ phức tạp cho client ngoài việc ngăn chặn một số hình thức khả năng nâng cấp (sẽ được giải quyết sau trong tài liệu này).
 
-Signature verifiers do:
+Những người xác minh chữ ký thực hiện:
 
-1. Deserialize a `TxRaw` and pull out `body` and `auth_info`.
-2. Create a list of required signer addresses from the messages.
-3. For each required signer:
-   * Pull account number and sequence from the state.
-   * Obtain the public key either from state or `AuthInfo`'s `signer_infos`.
-   * Create a `SignDoc` and serialize it using [ADR 027](./adr-027-deterministic-protobuf-serialization.md).
-   * Verify the signature at the same list position against the serialized `SignDoc`.
+1. Deserialize `TxRaw` và lấy ra `body` và `auth_info`.
+2. Tạo danh sách địa chỉ người ký bắt buộc từ các message.
+3. Đối với mỗi người ký bắt buộc:
+   * Lấy account number và sequence từ trạng thái.
+   * Lấy khóa công khai từ trạng thái hoặc `signer_infos` của `AuthInfo`.
+   * Tạo `SignDoc` và tuần tự hóa nó bằng [ADR 027](./adr-027-deterministic-protobuf-serialization.md).
+   * Xác minh chữ ký ở cùng vị trí danh sách so với `SignDoc` đã tuần tự hóa.
 
 #### `SIGN_MODE_LEGACY_AMINO`
 
-In order to support legacy wallets and exchanges, Amino JSON will be temporarily
-supported transaction signing. Once wallets and exchanges have had a
-chance to upgrade to protobuf-based signing, this option will be disabled. In
-the meantime, it is foreseen that disabling the current Amino signing would cause
-too much breakage to be feasible. Note that this is mainly a requirement of the
-Cosmos Hub and other chains may choose to disable Amino signing immediately.
+Để hỗ trợ các ví và sàn giao dịch cũ, Amino JSON sẽ tạm thời được hỗ trợ ký giao dịch. Khi các ví và sàn giao dịch đã có cơ hội nâng cấp sang ký dựa trên protobuf, tùy chọn này sẽ bị vô hiệu hóa. Trong thời gian đó, việc vô hiệu hóa ký Amino hiện tại được dự kiến sẽ gây ra quá nhiều hỏng hóc để thực hiện được. Lưu ý rằng đây chủ yếu là yêu cầu của Cosmos Hub và các chain khác có thể chọn vô hiệu hóa ký Amino ngay lập tức.
 
-Legacy clients will be able to sign a transaction using the current Amino
-JSON format and have it encoded to protobuf using the REST `/tx/encode`
-endpoint before broadcasting.
+Các client cũ sẽ có thể ký một giao dịch bằng định dạng Amino JSON hiện tại và mã hóa nó thành protobuf bằng cách sử dụng REST endpoint `/tx/encode` trước khi broadcast.
 
 #### `SIGN_MODE_TEXTUAL`
 
-As was discussed extensively in [\#6078](https://github.com/cosmos/cosmos-sdk/issues/6078),
-there is a desire for a human-readable signing encoding, especially for hardware
-wallets like the [Ledger](https://www.ledger.com) which display
-transaction contents to users before signing. JSON was an attempt at this but
-falls short of the ideal.
+Như đã được thảo luận rộng rãi trong [\\#6078](https://github.com/cosmos/cosmos-sdk/issues/6078), có mong muốn về mã hóa ký có thể đọc được bởi người dùng, đặc biệt là cho các ví phần cứng như [Ledger](https://www.ledger.com) hiển thị nội dung giao dịch cho người dùng trước khi ký. JSON là một nỗ lực theo hướng này nhưng không đáp ứng đầy đủ.
 
-`SIGN_MODE_TEXTUAL` is intended as a placeholder for a human-readable
-encoding which will replace Amino JSON. This new encoding should be even more
-focused on readability than JSON, possibly based on formatting strings like
-[MessageFormat](http://userguide.icu-project.org/formatparse/messages).
+`SIGN_MODE_TEXTUAL` được dự định là một placeholder cho mã hóa có thể đọc được bởi người dùng sẽ thay thế Amino JSON. Mã hóa mới này nên tập trung hơn nữa vào khả năng đọc so với JSON, có thể dựa trên các chuỗi định dạng như [MessageFormat](http://userguide.icu-project.org/formatparse/messages).
 
-In order to ensure that the new human-readable format does not suffer from
-transaction malleability issues, `SIGN_MODE_TEXTUAL`
-requires that the _human-readable bytes are concatenated with the raw `SignDoc`_
-to generate sign bytes.
+Để đảm bảo rằng định dạng có thể đọc mới không bị transaction malleability, `SIGN_MODE_TEXTUAL` yêu cầu _các byte có thể đọc được nối với `SignDoc` thô_ để tạo ra các byte ký.
 
-Multiple human-readable formats (maybe even localized messages) may be supported
-by `SIGN_MODE_TEXTUAL` when it is implemented.
+Nhiều định dạng có thể đọc (thậm chí có thể là các message được bản địa hóa) có thể được hỗ trợ bởi `SIGN_MODE_TEXTUAL` khi nó được triển khai.
 
-### Unknown Field Filtering
+### Lọc Trường Không Xác Định
 
-Unknown fields in protobuf messages should generally be rejected by the transaction
-processors because:
+Các trường không xác định trong các message protobuf nói chung nên bị từ chối bởi các bộ xử lý giao dịch vì:
 
-* important data may be present in the unknown fields, that if ignored, will
-  cause unexpected behavior for clients
-* they present a malleability vulnerability where attackers can bloat tx size
-  by adding random uninterpreted data to unsigned content (i.e. the master `Tx`,
-  not `TxBody`)
+* dữ liệu quan trọng có thể có mặt trong các trường không xác định mà nếu bị bỏ qua, sẽ gây ra hành vi không mong muốn cho client
+* chúng tạo ra lỗ hổng malleability nơi kẻ tấn công có thể làm phình kích thước tx bằng cách thêm dữ liệu ngẫu nhiên không được giải thích vào nội dung không được ký (tức là `Tx` master, không phải `TxBody`)
 
-There are also scenarios where we may choose to safely ignore unknown fields
-(https://github.com/cosmos/cosmos-sdk/issues/6078#issuecomment-624400188) to
-provide graceful forwards compatibility with newer clients.
+Cũng có các tình huống mà chúng ta có thể chọn bỏ qua an toàn các trường không xác định (https://github.com/cosmos/cosmos-sdk/issues/6078#issuecomment-624400188) để cung cấp tương thích xuôi graceful với các client mới hơn.
 
-We propose that field numbers with bit 11 set (for most use cases this is
-the range of 1024-2047) be considered non-critical fields that can safely be
-ignored if unknown.
+Chúng ta đề xuất rằng các số trường có bit 11 được đặt (đối với hầu hết các trường hợp sử dụng, đây là phạm vi 1024-2047) được coi là các trường không quan trọng có thể được bỏ qua an toàn nếu không xác định.
 
-To handle this we will need an unknown field filter that:
+Để xử lý điều này, chúng ta sẽ cần một bộ lọc trường không xác định:
 
-* always rejects unknown fields in unsigned content (i.e. top-level `Tx` and
-  unsigned parts of `AuthInfo` if present based on the signing mode)
-* rejects unknown fields in all messages (including nested `Any`s) other than
-  fields with bit 11 set
+* luôn từ chối các trường không xác định trong nội dung không được ký (tức là `Tx` cấp cao nhất và các phần không được ký của `AuthInfo` nếu có dựa trên chế độ ký)
+* từ chối các trường không xác định trong tất cả các message (bao gồm các `Any` lồng nhau) ngoại trừ các trường có bit 11 được đặt
 
-This will likely need to be a custom protobuf parser pass that takes message bytes
-and `FileDescriptor`s and returns a boolean result.
+Điều này có thể cần là một lần chạy phân tích protobuf tùy chỉnh nhận các byte message và `FileDescriptor` rồi trả về một kết quả boolean.
 
-### Public Key Encoding
+### Mã Hóa Khóa Công Khai
 
-Public keys in the Cosmos SDK implement the `cryptotypes.PubKey` interface.
-We propose to use `Any` for protobuf encoding as we are doing with other interfaces (for example, in `BaseAccount.PubKey` and `SignerInfo.PublicKey`).
-The following public keys are implemented: secp256k1, secp256r1, ed25519 and legacy-multisignature.
+Các khóa công khai trong Cosmos SDK triển khai interface `cryptotypes.PubKey`. Chúng ta đề xuất sử dụng `Any` cho mã hóa protobuf như chúng ta đang làm với các interface khác (ví dụ: trong `BaseAccount.PubKey` và `SignerInfo.PublicKey`). Các khóa công khai sau được triển khai: secp256k1, secp256r1, ed25519 và legacy-multisignature.
 
-Ex:
+Ví dụ:
 
 ```protobuf
 message PubKey {
@@ -301,21 +238,13 @@ message PubKey {
 }
 ```
 
-`multisig.LegacyAminoPubKey` has an array of `Any`'s member to support any
-protobuf public key type.
+`multisig.LegacyAminoPubKey` có một mảng các thành viên `Any` để hỗ trợ bất kỳ kiểu khóa công khai protobuf nào.
 
-Apps should only attempt to handle a registered set of public keys that they
-have tested. The provided signature verification ante handler decorators will
-enforce this.
+Các app chỉ nên cố gắng xử lý một tập hợp khóa công khai đã đăng ký mà họ đã kiểm thử. Các decorator ante handler xác minh chữ ký được cung cấp sẽ thực thi điều này.
 
 ### CLI & REST
 
-Currently, the REST and CLI handlers encode and decode types and txs via Amino
-JSON encoding using a concrete Amino codec. Being that some of the types dealt with
-in the client can be interfaces, similar to how we described in [ADR 019](./adr-019-protobuf-state-encoding.md),
-the client logic will now need to take a codec interface that knows not only how
-to handle all the types, but also knows how to generate transactions, signatures,
-and messages.
+Hiện tại, các handler REST và CLI mã hóa và giải mã các kiểu và tx qua mã hóa Amino JSON bằng một Amino codec cụ thể. Vì một số kiểu được xử lý trong client có thể là interface, tương tự như cách chúng ta mô tả trong [ADR 019](./adr-019-protobuf-state-encoding.md), logic client bây giờ sẽ cần nhận một codec interface không chỉ biết cách xử lý tất cả các kiểu, mà còn biết cách tạo giao dịch, chữ ký và message.
 
 ```go
 type AccountRetriever interface {
@@ -345,13 +274,9 @@ type TxBuilder interface {
 }
 ```
 
-We then update `Context` to have new fields: `Codec`, `TxGenerator`,
-and `AccountRetriever`, and we update `AppModuleBasic.GetTxCmd` to take
-a `Context` which should have all of these fields pre-populated.
+Sau đó chúng ta cập nhật `Context` để có các trường mới: `Codec`, `TxGenerator` và `AccountRetriever`, và chúng ta cập nhật `AppModuleBasic.GetTxCmd` để nhận một `Context` nên có tất cả các trường này được điền trước.
 
-Each client method should then use one of the `Init` methods to re-initialize
-the pre-populated `Context`. `tx.GenerateOrBroadcastTx` can be used to
-generate or broadcast a transaction. For example:
+Mỗi phương thức client sau đó nên sử dụng một trong các phương thức `Init` để khởi tạo lại `Context` đã được điền trước. `tx.GenerateOrBroadcastTx` có thể được dùng để tạo hoặc broadcast một giao dịch. Ví dụ:
 
 ```go
 import "github.com/spf13/cobra"
@@ -369,96 +294,72 @@ func NewCmdDoSomething(clientCtx client.Context) *cobra.Command {
 }
 ```
 
-## Future Improvements
+## Cải Tiến Tương Lai
 
-### `SIGN_MODE_TEXTUAL` specification
+### Đặc Tả `SIGN_MODE_TEXTUAL`
 
-A concrete specification and implementation of `SIGN_MODE_TEXTUAL` is intended
-as a near-term future improvement so that the ledger app and other wallets
-can gracefully transition away from Amino JSON.
+Đặc tả và triển khai cụ thể của `SIGN_MODE_TEXTUAL` được dự kiến là cải tiến tương lai gần để ứng dụng ledger và các ví khác có thể chuyển đổi dần dần khỏi Amino JSON.
 
 ### `SIGN_MODE_DIRECT_AUX`
 
-(\*Documented as option (3) in https://github.com/cosmos/cosmos-sdk/issues/6078#issuecomment-628026933)
+(\\*Được tài liệu hóa là lựa chọn (3) trong https://github.com/cosmos/cosmos-sdk/issues/6078#issuecomment-628026933)
 
-We could add a mode `SIGN_MODE_DIRECT_AUX`
-to support scenarios where multiple signatures
-are being gathered into a single transaction but the message composer does not
-yet know which signatures will be included in the final transaction. For instance,
-I may have a 3/5 multisig wallet and want to send a `TxBody` to all 5
-signers to see who signs first. As soon as I have 3 signatures then I will go
-ahead and build the full transaction.
+Chúng ta có thể thêm một chế độ `SIGN_MODE_DIRECT_AUX` để hỗ trợ các tình huống trong đó nhiều chữ ký đang được thu thập vào một giao dịch duy nhất nhưng người soạn message chưa biết chữ ký nào sẽ được bao gồm trong giao dịch cuối cùng. Ví dụ, tôi có thể có một ví multisig 3/5 và muốn gửi `TxBody` đến tất cả 5 người ký để xem ai ký trước. Ngay khi tôi có 3 chữ ký thì tôi sẽ tiến hành xây dựng giao dịch đầy đủ.
 
-With `SIGN_MODE_DIRECT`, each signer needs
-to sign the full `AuthInfo` which includes the full list of all signers and
-their signing modes, making the above scenario very hard.
+Với `SIGN_MODE_DIRECT`, mỗi người ký cần ký `AuthInfo` đầy đủ bao gồm danh sách đầy đủ của tất cả người ký và các chế độ ký của họ, khiến tình huống trên trở nên rất khó khăn.
 
-`SIGN_MODE_DIRECT_AUX` would allow "auxiliary" signers to create their signature
-using only `TxBody` and their own `PublicKey`. This allows the full list of
-signers in `AuthInfo` to be delayed until signatures have been collected.
+`SIGN_MODE_DIRECT_AUX` sẽ cho phép các người ký "phụ" tạo chữ ký của họ chỉ sử dụng `TxBody` và `PublicKey` của chính họ. Điều này cho phép danh sách đầy đủ người ký trong `AuthInfo` được trì hoãn cho đến khi chữ ký đã được thu thập.
 
-An "auxiliary" signer is any signer besides the primary signer who is paying
-the fee. For the primary signer, the full `AuthInfo` is actually needed to calculate gas and fees
-because that is dependent on how many signers and which key types and signing
-modes they are using. Auxiliary signers, however, do not need to worry about
-fees or gas and thus can just sign `TxBody`.
+Một người ký "phụ" là bất kỳ người ký nào ngoài người ký chính đang trả phí. Đối với người ký chính, `AuthInfo` đầy đủ thực sự cần thiết để tính toán gas và phí vì điều đó phụ thuộc vào số lượng người ký và các kiểu khóa nào cùng chế độ ký họ đang sử dụng. Tuy nhiên, những người ký phụ không cần lo lắng về phí hoặc gas và do đó có thể chỉ ký `TxBody`.
 
-To generate a signature in `SIGN_MODE_DIRECT_AUX` these steps would be followed:
+Để tạo chữ ký trong `SIGN_MODE_DIRECT_AUX`, các bước sau sẽ được thực hiện:
 
-1. Encode `SignDocAux` (with the same requirement that fields must be serialized
-   in order):
+1. Mã hóa `SignDocAux` (với yêu cầu tương tự rằng các trường phải được tuần tự hóa theo thứ tự):
 
     ```protobuf
     // types/types.proto
     message SignDocAux {
         bytes body_bytes = 1;
-        // PublicKey is included in SignDocAux :
-        // 1. as a special case for multisig public keys. For multisig public keys,
-        // the signer should use the top-level multisig public key they are signing
-        // against, not their own public key. This is to prevent a form
-        // of malleability where a signature could be taken out of context of the
-        // multisig key that was intended to be signed for
-        // 2. to guard against scenario where configuration information is encoded
-        // in public keys (it has been proposed) such that two keys can generate
-        // the same signature but have different security properties
+        // PublicKey được bao gồm trong SignDocAux:
+        // 1. như một trường hợp đặc biệt cho khóa công khai multisig. Đối với khóa công khai multisig,
+        // người ký nên sử dụng khóa công khai multisig cấp cao nhất họ đang ký,
+        // không phải khóa công khai của riêng họ. Điều này để ngăn chặn một hình thức
+        // malleability trong đó chữ ký có thể bị lấy ra ngoài bối cảnh của
+        // khóa multisig được dự định ký cho
+        // 2. để bảo vệ chống lại tình huống trong đó thông tin cấu hình được mã hóa
+        // trong khóa công khai (đã được đề xuất) sao cho hai khóa có thể tạo ra
+        // cùng một chữ ký nhưng có các thuộc tính bảo mật khác nhau
         //
-        // By including it here, the composer of AuthInfo cannot reference the
-        // a public key variant the signer did not intend to use
+        // Bằng cách bao gồm nó ở đây, người soạn AuthInfo không thể tham chiếu đến
+        // biến thể khóa công khai mà người ký không có ý định sử dụng
         PublicKey public_key = 2;
         string chain_id = 3;
         uint64 account_number = 4;
     }
     ```
 
-2. Sign the encoded `SignDocAux` bytes
-3. Send their signature and `SignerInfo` to the primary signer who will then
-   sign and broadcast the final transaction (with `SIGN_MODE_DIRECT` and `AuthInfo`
-   added) once enough signatures have been collected
+2. Ký các byte `SignDocAux` đã mã hóa
+3. Gửi chữ ký và `SignerInfo` của họ đến người ký chính, người sau đó sẽ ký và broadcast giao dịch cuối cùng (với `SIGN_MODE_DIRECT` và `AuthInfo` được thêm) khi đã thu thập đủ chữ ký
 
 ### `SIGN_MODE_DIRECT_RELAXED`
 
-(_Documented as option (1)(a) in https://github.com/cosmos/cosmos-sdk/issues/6078#issuecomment-628026933_)
+(_Được tài liệu hóa là lựa chọn (1)(a) trong https://github.com/cosmos/cosmos-sdk/issues/6078#issuecomment-628026933_)
 
-This is a variation of `SIGN_MODE_DIRECT` where multiple signers wouldn't need to
-coordinate public keys and signing modes in advance. It would involve an alternate
-`SignDoc` similar to `SignDocAux` above with fee. This could be added in the future
-if client developers found the burden of collecting public keys and modes in advance
-too burdensome.
+Đây là biến thể của `SIGN_MODE_DIRECT` trong đó nhiều người ký không cần phải phối hợp khóa công khai và chế độ ký trước. Nó sẽ liên quan đến một `SignDoc` thay thế tương tự như `SignDocAux` ở trên với phí. Điều này có thể được thêm trong tương lai nếu các nhà phát triển client thấy gánh nặng thu thập khóa công khai và chế độ trước là quá nặng nề.
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Significant performance gains.
-* Supports backward and forward type compatibility.
-* Better support for cross-language clients.
-* Multiple signing modes allow for greater protocol evolution
+* Cải thiện hiệu suất đáng kể.
+* Hỗ trợ tương thích kiểu ngược và xuôi.
+* Hỗ trợ tốt hơn cho các client đa ngôn ngữ.
+* Nhiều chế độ ký cho phép phát triển giao thức mạnh mẽ hơn.
 
-### Negative
+### Tiêu Cực
 
-* `google.protobuf.Any` type URLs increase transaction size although the effect
-  may be negligible or compression may be able to mitigate it.
+* Các URL kiểu `google.protobuf.Any` làm tăng kích thước giao dịch mặc dù tác động có thể không đáng kể hoặc nén có thể giảm thiểu điều đó.
 
-### Neutral
+### Trung Lập
 
-## References
+## Tài Liệu Tham Khảo

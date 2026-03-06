@@ -1,55 +1,55 @@
-# ADR 14: Proportional Slashing
+# ADR 14: Slashing Tỷ Lệ
 
 ## Changelog
 
-* 2019-10-15: Initial draft
-* 2020-05-25: Removed correlation root slashing
-* 2020-07-01: Updated to include S-curve function instead of linear
+* 2019-10-15: Bản nháp đầu tiên
+* 2020-05-25: Xóa correlation root slashing
+* 2020-07-01: Cập nhật để bao gồm hàm S-curve thay vì tuyến tính
 
-## Context
+## Bối Cảnh
 
-In Proof of Stake-based chains, centralization of consensus power amongst a small set of validators can cause harm to the network due to increased risk of censorship, liveness failure, fork attacks, etc.  However, while this centralization causes a negative externality to the network, it is not directly felt by the delegators contributing towards delegating towards already large validators.  We would like a way to pass on the negative externality cost of centralization onto those large validators and their delegators.
+Trong các chain dựa trên Proof of Stake, việc tập trung hóa quyền lực đồng thuận vào một tập hợp nhỏ validator có thể gây hại cho mạng do tăng nguy cơ kiểm duyệt, thất bại liveness, tấn công fork, v.v. Tuy nhiên, mặc dù sự tập trung hóa này gây ra ngoại tác tiêu cực cho mạng, nó không được cảm nhận trực tiếp bởi những người ủy quyền đang đóng góp vào việc ủy quyền cho các validator đã lớn. Chúng ta muốn có cách chuyển chi phí ngoại tác tiêu cực của tập trung hóa lên các validator lớn và những người ủy quyền của họ.
 
-## Decision
+## Quyết Định
 
-### Design
+### Thiết Kế
 
-To solve this problem, we will implement a procedure called Proportional Slashing.  The desire is that the larger a validator is, the more they should be slashed.  The first naive attempt is to make a validator's slash percent proportional to their share of consensus voting power.
-
-```text
-slash_amount = k * power // power is the faulting validator's voting power and k is some on-chain constant
-```
-
-However, this will incentivize validators with large amounts of stake to split up their voting power amongst accounts (sybil attack), so that if they fault, they all get slashed at a lower percent.  The solution to this is to take into account not just a validator's own voting percentage, but also the voting percentage of all the other validators who get slashed in a specified time frame.
+Để giải quyết vấn đề này, chúng ta sẽ triển khai một quy trình gọi là Proportional Slashing. Mong muốn là validator càng lớn thì họ càng bị slash nhiều hơn. Nỗ lực đầu tiên ngây thơ là làm cho tỷ lệ phần trăm slash của validator tỷ lệ với phần chia sẻ quyền bỏ phiếu đồng thuận của họ.
 
 ```text
-slash_amount = k * (power_1 + power_2 + ... + power_n) // where power_i is the voting power of the ith validator faulting in the specified time frame and k is some on-chain constant
+slash_amount = k * power // power là sức mạnh bỏ phiếu của validator vi phạm và k là hằng số on-chain nào đó
 ```
 
-Now, if someone splits a validator of 10% into two validators of 5% each which both fault, then they both fault in the same time frame, they both will get slashed at the sum 10% amount.
+Tuy nhiên, điều này sẽ khuyến khích các validator với số lượng stake lớn chia quyền bỏ phiếu của họ giữa các tài khoản (tấn công sybil), để nếu họ vi phạm, tất cả bị slash ở tỷ lệ thấp hơn. Giải pháp cho điều này là tính không chỉ phần trăm bỏ phiếu của validator mà còn phần trăm bỏ phiếu của tất cả các validator khác bị slash trong khung thời gian được chỉ định.
 
-However in practice, we likely don't want a linear relation between amount of stake at fault, and the percentage of stake to slash. In particular, solely 5% of stake double signing effectively did nothing to majorly threaten security, whereas 30% of stake being at fault clearly merits a large slashing factor, due to being very close to the point at which Tendermint security is threatened. A linear relation would require a factor of 6 gap between these two, whereas the difference in risk posed to the network is much larger. We propose using S-curves (formally [logistic functions](https://en.wikipedia.org/wiki/Logistic_function) to solve this). S-Curves capture the desired criterion quite well. They allow the slashing factor to be minimal for small values, and then grow very rapidly near some threshold point where the risk posed becomes notable.
+```text
+slash_amount = k * (power_1 + power_2 + ... + power_n) // trong đó power_i là sức mạnh bỏ phiếu của validator thứ i vi phạm trong khung thời gian được chỉ định và k là hằng số on-chain nào đó
+```
 
-#### Parameterization
+Bây giờ, nếu ai đó chia một validator 10% thành hai validator 5% mỗi cái đều vi phạm, và cả hai vi phạm trong cùng khung thời gian, cả hai sẽ bị slash ở tổng mức 10%.
 
-This requires parameterizing a logistic function. It is very well understood how to parameterize this. It has four parameters:
+Tuy nhiên trong thực tế, chúng ta có thể không muốn quan hệ tuyến tính giữa lượng stake bị vi phạm và tỷ lệ phần trăm stake bị slash. Cụ thể, chỉ 5% stake ký kép thực sự không làm gì để đe dọa đáng kể bảo mật, trong khi 30% stake bị vi phạm rõ ràng xứng đáng với hệ số slashing lớn, do rất gần điểm mà bảo mật Tendermint bị đe dọa. Quan hệ tuyến tính sẽ yêu cầu hệ số gap 6 giữa hai trường hợp này, trong khi sự khác biệt về rủi ro đối với mạng lớn hơn nhiều. Chúng tôi đề xuất sử dụng S-curve (chính thức là [hàm logistic](https://en.wikipedia.org/wiki/Logistic_function) để giải quyết điều này. S-Curve nắm bắt tiêu chí mong muốn khá tốt. Chúng cho phép hệ số slashing tối thiểu đối với các giá trị nhỏ, sau đó tăng rất nhanh gần một điểm ngưỡng nào đó trong đó rủi ro đặt ra trở nên đáng chú ý.
 
-1) A minimum slashing factor
-2) A maximum slashing factor
-3) The inflection point of the S-curve (essentially where do you want to center the S)
-4) The rate of growth of the S-curve (How elongated is the S)
+#### Tham Số Hóa
 
-#### Correlation across non-sybil validators
+Điều này yêu cầu tham số hóa một hàm logistic. Cách tham số hóa điều này được hiểu rất rõ. Nó có bốn tham số:
 
-One will note, that this model doesn't differentiate between multiple validators run by the same operators vs validators run by different operators.  This can be seen as an additional benefit in fact.  It incentivizes validators to differentiate their setups from other validators, to avoid having correlated faults with them or else they risk a higher slash.  So for example, operators should avoid using the same popular cloud hosting platforms or using the same Staking as a Service providers.  This will lead to a more resilient and decentralized network.
+1) Hệ số slashing tối thiểu
+2) Hệ số slashing tối đa
+3) Điểm uốn của S-curve (về cơ bản là nơi bạn muốn căn giữa S)
+4) Tốc độ tăng trưởng của S-curve (S được kéo dài như thế nào)
+
+#### Tương Quan Giữa Các Validator Không Phải Sybil
+
+Người ta sẽ lưu ý rằng mô hình này không phân biệt giữa nhiều validator chạy bởi cùng operator so với validator chạy bởi các operator khác nhau. Điều này thực ra có thể được coi là lợi ích bổ sung. Nó khuyến khích validator phân biệt thiết lập của họ với các validator khác, để tránh có các lỗi tương quan với họ hoặc sẽ có nguy cơ slash cao hơn. Vì vậy ví dụ, operator nên tránh sử dụng các nền tảng cloud hosting phổ biến hoặc sử dụng cùng nhà cung cấp Staking-as-a-Service. Điều này sẽ dẫn đến một mạng resilient và phi tập trung hơn.
 
 #### Griefing
 
-Griefing, the act of intentionally getting oneself slashed in order to make another's slash worse, could be a concern here.  However, using the protocol described here, the attacker also gets equally impacted by the grief as the victim, so it would not provide much benefit to the griefer.
+Griefing, hành động cố tình tự làm cho mình bị slash để làm cho slash của người khác tệ hơn, có thể là mối lo ngại ở đây. Tuy nhiên, sử dụng giao thức được mô tả ở đây, kẻ tấn công cũng bị ảnh hưởng tương đương bởi grief như nạn nhân, vì vậy nó sẽ không mang lại nhiều lợi ích cho griefer.
 
-### Implementation
+### Triển Khai
 
-In the slashing module, we will add two queues that will track all of the recent slash events.  For double sign faults, we will define "recent slashes" as ones that have occurred within the last `unbonding period`.  For liveness faults, we will define "recent slashes" as ones that have occurred within the last `jail period`.
+Trong module slashing, chúng ta sẽ thêm hai hàng đợi theo dõi tất cả sự kiện slash gần đây. Đối với lỗi ký kép, chúng ta sẽ định nghĩa "slashes gần đây" là những slash đã xảy ra trong `unbonding period` cuối cùng. Đối với lỗi liveness, chúng ta sẽ định nghĩa "slashes gần đây" là những slash đã xảy ra trong `jail period` cuối cùng.
 
 ```go
 type SlashEvent struct {
@@ -59,27 +59,27 @@ type SlashEvent struct {
 }
 ```
 
-These slash events will be pruned from the queue once they are older than their respective "recent slash period".
+Các sự kiện slash này sẽ được pruning khỏi hàng đợi một khi chúng cũ hơn "giai đoạn slash gần đây" tương ứng.
 
-Whenever a new slash occurs, a `SlashEvent` struct is created with the faulting validator's voting percent and a `SlashedSoFar` of 0.  Because recent slash events are pruned before the unbonding period and unjail period expires, it should not be possible for the same validator to have multiple SlashEvents in the same Queue at the same time.
+Bất cứ khi nào một slash mới xảy ra, một struct `SlashEvent` được tạo với phần trăm bỏ phiếu của validator vi phạm và `SlashedSoFar` là 0. Vì các sự kiện slash gần đây được pruning trước khi unbonding period và unjail period hết hạn, không thể có cùng validator có nhiều SlashEvent trong cùng Queue cùng một lúc.
 
-We then will iterate over all the SlashEvents in the queue, adding their `ValidatorVotingPercent` to calculate the new percent to slash all the validators in the queue at, using the "Square of Sum of Roots" formula introduced above.
+Sau đó chúng ta sẽ iterate qua tất cả SlashEvent trong hàng đợi, cộng `ValidatorVotingPercent` của chúng để tính phần trăm mới để slash tất cả validator trong hàng đợi, sử dụng công thức "Square of Sum of Roots" được giới thiệu ở trên.
 
-Once we have the `NewSlashPercent`, we then iterate over all the `SlashEvent`s in the queue once again, and if `NewSlashPercent > SlashedSoFar` for that SlashEvent, we call the `staking.Slash(slashEvent.Address, slashEvent.Power, Math.Min(Math.Max(minSlashPercent, NewSlashPercent - SlashedSoFar), maxSlashPercent)` (we pass in the power of the validator before any slashes occurred, so that we slash the right amount of tokens).  We then set `SlashEvent.SlashedSoFar` amount to `NewSlashPercent`.
+Khi chúng ta có `NewSlashPercent`, chúng ta sau đó iterate qua tất cả `SlashEvent` trong hàng đợi một lần nữa, và nếu `NewSlashPercent > SlashedSoFar` cho SlashEvent đó, chúng ta gọi `staking.Slash(slashEvent.Address, slashEvent.Power, Math.Min(Math.Max(minSlashPercent, NewSlashPercent - SlashedSoFar), maxSlashPercent)` (chúng ta truyền vào sức mạnh của validator trước khi bất kỳ slash nào xảy ra để slash đúng số lượng token). Sau đó chúng ta đặt lượng `SlashEvent.SlashedSoFar` thành `NewSlashPercent`.
 
-## Status
+## Trạng Thái
 
-Proposed
+Đề Xuất
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Increases decentralization by disincentivizing delegating to large validators
-* Incentivizes Decorrelation of Validators
-* More severely punishes attacks than accidental faults
-* More flexibility in slashing rates parameterization
+* Tăng phi tập trung hóa bằng cách không khuyến khích ủy quyền cho các validator lớn
+* Khuyến khích phi tương quan của Validator
+* Phạt nặng hơn các cuộc tấn công so với lỗi ngẫu nhiên
+* Linh hoạt hơn trong tham số hóa tỷ lệ slashing
 
-### Negative
+### Tiêu Cực
 
-* More computationally expensive than current implementation.  Will require more data about "recent slashing events" to be stored on chain.
+* Tốn kém tính toán hơn so với triển khai hiện tại. Sẽ yêu cầu lưu trữ thêm dữ liệu về "các sự kiện slashing gần đây" trên chain.

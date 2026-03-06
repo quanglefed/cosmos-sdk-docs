@@ -1,120 +1,109 @@
-# ADR 029: Fee Grant Module
+# ADR 029: Module Fee Grant (Cấp Phí)
 
-## Changelog
+## Nhật Ký Thay Đổi
 
-* 2020/08/18: Initial Draft
-* 2021/05/05: Removed height based expiration support and simplified naming.
+* 18/08/2020: Bản nháp đầu tiên
+* 05/05/2021: Xóa hỗ trợ hết hạn dựa theo chiều cao block và đơn giản hóa tên gọi.
 
-## Status
+## Trạng Thái
 
-Accepted
+Đã Chấp Nhận
 
-## Context
+## Bối Cảnh
 
-In order to make blockchain transactions, the signing account must possess a sufficient balance of the right denomination
-in order to pay fees. There are classes of transactions where needing to maintain a wallet with sufficient fees is a
-barrier to adoption.
+Để thực hiện các giao dịch blockchain, tài khoản ký phải sở hữu số dư đủ của đúng mệnh giá để trả phí. Có các loại giao dịch mà việc phải duy trì ví với phí đủ là rào cản để áp dụng.
 
-For instance, when proper permissions are set up, someone may temporarily delegate the ability to vote on proposals to
-a "burner" account that is stored on a mobile phone with only minimal security.
+Ví dụ, khi các quyền thích hợp được thiết lập, ai đó có thể tạm thời ủy quyền cho một tài khoản "burner" được lưu trữ trên điện thoại di động với bảo mật tối thiểu để bỏ phiếu về đề xuất.
 
-Other use cases include workers tracking items in a supply chain or farmers submitting field data for analytics
-or compliance purposes.
+Các trường hợp sử dụng khác bao gồm nhân viên theo dõi các mặt hàng trong chuỗi cung ứng hoặc nông dân gửi dữ liệu trường để phân tích hoặc tuân thủ.
 
-For all of these use cases, UX would be significantly enhanced by obviating the need for these accounts to always
-maintain the appropriate fee balance. This is especially true if we want to achieve enterprise adoption for something
-like supply chain tracking.
+Với tất cả các trường hợp sử dụng này, UX sẽ được cải thiện đáng kể bằng cách loại bỏ nhu cầu cho các tài khoản này phải luôn duy trì số dư phí thích hợp. Điều này đặc biệt đúng nếu chúng ta muốn đạt được áp dụng doanh nghiệp cho các thứ như theo dõi chuỗi cung ứng.
 
-While one solution would be to have a service that fills up these accounts automatically with the appropriate fees, a better UX
-would be provided by allowing these accounts to pull from a common fee pool account with proper spending limits.
-A single pool would reduce the churn of making lots of small "fill up" transactions and also more effectively leverage
-the resources of the organization setting up the pool.
+Mặc dù một giải pháp sẽ là có một dịch vụ tự động nạp các tài khoản này với phí thích hợp, một UX tốt hơn sẽ được cung cấp bằng cách cho phép các tài khoản này rút từ một tài khoản pool phí chung với giới hạn chi tiêu thích hợp. Một pool duy nhất sẽ giảm sự xáo trộn của việc thực hiện nhiều giao dịch "nạp tiền" nhỏ và cũng tận dụng hiệu quả hơn các nguồn lực của tổ chức thiết lập pool.
 
-## Decision
+## Quyết Định
 
-As a solution we propose a module, `x/feegrant` which allows one account, the "granter" to grant another account, the "grantee"
-an allowance to spend the granter's account balance for fees within certain well-defined limits.
+Như một giải pháp chúng tôi đề xuất một module, `x/feegrant` cho phép một tài khoản, "granter" cấp cho tài khoản khác, "grantee" một khoản trợ cấp để chi tiêu số dư tài khoản của granter cho phí trong các giới hạn được định nghĩa rõ ràng.
 
-Fee allowances are defined by the extensible `FeeAllowanceI` interface:
+Trợ cấp phí được định nghĩa bởi interface `FeeAllowanceI` có thể mở rộng:
 
 ```go
 type FeeAllowanceI {
-  // Accept can use fee payment requested as well as timestamp of the current block
-  // to determine whether or not to process this. This is checked in
-  // Keeper.UseGrantedFees and the return values should match how it is handled there.
+  // Accept có thể sử dụng khoản phí được yêu cầu cũng như timestamp của block hiện tại
+  // để xác định có xử lý hay không. Điều này được kiểm tra trong
+  // Keeper.UseGrantedFees và các giá trị trả về nên khớp với cách nó được xử lý ở đó.
   //
-  // If it returns an error, the fee payment is rejected, otherwise it is accepted.
-  // The FeeAllowance implementation is expected to update it's internal state
-  // and will be saved again after an acceptance.
+  // Nếu trả về lỗi, khoản thanh toán phí bị từ chối, ngược lại nó được chấp nhận.
+  // Triển khai FeeAllowance được kỳ vọng cập nhật trạng thái nội bộ của nó
+  // và sẽ được lưu lại sau khi chấp nhận.
   //
-  // If remove is true (regardless of the error), the FeeAllowance will be deleted from storage
-  // (eg. when it is used up). (See call to RevokeFeeAllowance in Keeper.UseGrantedFees)
+  // Nếu remove là true (bất kể lỗi), FeeAllowance sẽ bị xóa khỏi storage
+  // (vd: khi nó được sử dụng hết). (Xem lời gọi tới RevokeFeeAllowance trong Keeper.UseGrantedFees)
   Accept(ctx sdk.Context, fee sdk.Coins, msgs []sdk.Msg) (remove bool, err error)
 
-  // ValidateBasic should evaluate this FeeAllowance for internal consistency.
-  // Don't allow negative amounts, or negative periods for example.
+  // ValidateBasic nên đánh giá FeeAllowance này về tính nhất quán nội bộ.
+  // Không cho phép số âm, hoặc các khoảng thời gian âm chẳng hạn.
   ValidateBasic() error
 }
 ```
 
-Two basic fee allowance types, `BasicAllowance` and `PeriodicAllowance` are defined to support known use cases:
+Hai loại trợ cấp phí cơ bản, `BasicAllowance` và `PeriodicAllowance` được định nghĩa để hỗ trợ các trường hợp sử dụng đã biết:
 
 ```protobuf
-// BasicAllowance implements FeeAllowanceI with a one-time grant of tokens
-// that optionally expires. The delegatee can use up to SpendLimit to cover fees.
+// BasicAllowance triển khai FeeAllowanceI với một khoản cấp phát token một lần
+// tùy chọn hết hạn. Người được ủy quyền có thể sử dụng tối đa SpendLimit để chi phí.
 message BasicAllowance {
-  // spend_limit specifies the maximum amount of tokens that can be spent
-  // by this allowance and will be updated as tokens are spent. If it is
-  // empty, there is no spend limit and any amount of coins can be spent.
+  // spend_limit chỉ định số lượng token tối đa có thể được chi tiêu
+  // bởi khoản trợ cấp này và sẽ được cập nhật khi token được chi tiêu. Nếu rỗng,
+  // không có giới hạn chi tiêu và có thể chi tiêu bất kỳ lượng coin nào.
   repeated cosmos_sdk.v1.Coin spend_limit = 1;
 
-  // expiration specifies an optional time when this allowance expires
+  // expiration chỉ định thời gian tùy chọn khi khoản trợ cấp này hết hạn
   google.protobuf.Timestamp expiration = 2;
 }
 
-// PeriodicAllowance extends FeeAllowanceI to allow for both a maximum cap,
-// as well as a limit per time period.
+// PeriodicAllowance mở rộng FeeAllowanceI để cho phép cả giới hạn tối đa,
+// cũng như giới hạn mỗi khoảng thời gian.
 message PeriodicAllowance {
   BasicAllowance basic = 1;
 
-  // period specifies the time duration in which period_spend_limit coins can
-  // be spent before that allowance is reset
+  // period chỉ định khoảng thời gian mà period_spend_limit coin có thể
+  // được chi tiêu trước khi trợ cấp đó được đặt lại
   google.protobuf.Duration period = 2;
 
-  // period_spend_limit specifies the maximum number of coins that can be spent
-  // in the period
+  // period_spend_limit chỉ định số coin tối đa có thể được chi tiêu
+  // trong khoảng thời gian
   repeated cosmos_sdk.v1.Coin period_spend_limit = 3;
 
-  // period_can_spend is the number of coins left to be spent before the period_reset time
+  // period_can_spend là số coin còn lại có thể chi tiêu trước thời gian period_reset
   repeated cosmos_sdk.v1.Coin period_can_spend = 4;
 
-  // period_reset is the time at which this period resets and a new one begins,
-  // it is calculated from the start time of the first transaction after the
-  // last period ended
+  // period_reset là thời gian mà khoảng thời gian này đặt lại và bắt đầu khoảng mới,
+  // nó được tính từ thời gian bắt đầu của giao dịch đầu tiên sau khi
+  // khoảng thời gian cuối kết thúc
   google.protobuf.Timestamp period_reset = 5;
 }
-
 ```
 
-Allowances can be granted and revoked using `MsgGrantAllowance` and `MsgRevokeAllowance`:
+Các khoản trợ cấp có thể được cấp và thu hồi sử dụng `MsgGrantAllowance` và `MsgRevokeAllowance`:
 
 ```protobuf
-// MsgGrantAllowance adds permission for Grantee to spend up to Allowance
-// of fees from the account of Granter.
+// MsgGrantAllowance thêm quyền cho Grantee chi tiêu tối đa Allowance
+// phí từ tài khoản của Granter.
 message MsgGrantAllowance {
      string granter = 1;
      string grantee = 2;
      google.protobuf.Any allowance = 3;
  }
 
- // MsgRevokeAllowance removes any existing FeeAllowance from Granter to Grantee.
+ // MsgRevokeAllowance xóa bất kỳ FeeAllowance hiện tại nào từ Granter tới Grantee.
  message MsgRevokeAllowance {
      string granter = 1;
      string grantee = 2;
  }
 ```
 
-In order to use allowances in transactions, we add a new field `granter` to the transaction `Fee` type:
+Để sử dụng các khoản trợ cấp trong các giao dịch, chúng ta thêm trường mới `granter` vào kiểu `Fee` của giao dịch:
 
 ```protobuf
 package cosmos.tx.v1beta1;
@@ -127,27 +116,24 @@ message Fee {
 }
 ```
 
-`granter` must either be left empty or must correspond to an account which has granted
-a fee allowance to the fee payer (either the first signer or the value of the `payer` field).
+`granter` phải được để trống hoặc phải tương ứng với một tài khoản đã cấp trợ cấp phí cho người trả phí (người ký đầu tiên hoặc giá trị của trường `payer`).
 
-A new `AnteDecorator` named `DeductGrantedFeeDecorator` will be created in order to process transactions with `fee_payer`
-set and correctly deduct fees based on fee allowances.
+Một `AnteDecorator` mới có tên `DeductGrantedFeeDecorator` sẽ được tạo ra để xử lý các giao dịch có `fee_payer` được đặt và khấu trừ đúng phí dựa trên trợ cấp phí.
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* improved UX for use cases where it is cumbersome to maintain an account balance just for fees
+* Cải thiện UX cho các trường hợp sử dụng mà việc duy trì số dư tài khoản chỉ để trả phí là cồng kềnh
 
-### Negative
+### Tiêu Cực
 
-### Neutral
+### Trung Lập
 
-* a new field must be added to the transaction `Fee` message and a new `AnteDecorator` must be
-created to use it
+* Một trường mới phải được thêm vào message `Fee` của giao dịch và một `AnteDecorator` mới phải được tạo ra để sử dụng nó
 
-## References
+## Tham Khảo
 
-* Blog article describing initial work: https://medium.com/regen-network/hacking-the-cosmos-cosmwasm-and-key-management-a08b9f561d1b
-* Initial public specification: https://gist.github.com/aaronc/b60628017352df5983791cad30babe56
-* Original subkeys proposal from B-harvest which influenced this design: https://github.com/cosmos/cosmos-sdk/issues/4480
+* Bài viết blog mô tả công việc ban đầu: https://medium.com/regen-network/hacking-the-cosmos-cosmwasm-and-key-management-a08b9f561d1b
+* Đặc tả công khai ban đầu: https://gist.github.com/aaronc/b60628017352df5983791cad30babe56
+* Đề xuất subkeys gốc từ B-harvest đã ảnh hưởng đến thiết kế này: https://github.com/cosmos/cosmos-sdk/issues/4480

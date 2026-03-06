@@ -1,48 +1,56 @@
-# ADR 070: Unordered Transactions
+# ADR 070: Giao dịch không cần thứ tự (Unordered Transactions)
 
 ## Changelog
 
-* Dec 4, 2023: Initial Draft (@yihuang, @tac0turtle, @alexanderbez)
-* Jan 30, 2024: Include section on deterministic transaction encoding
-* Mar 18, 2025: Revise implementation to use Cosmos SDK KV Store and require unique timeouts per-address (@technicallyty)
-* Apr 25, 2025: Add note about rejecting unordered txs with sequence values.
+* Dec 4, 2023: Bản nháp ban đầu (@yihuang, @tac0turtle, @alexanderbez)
+* Jan 30, 2024: Bổ sung mục về encoding giao dịch mang tính quyết định
+* Mar 18, 2025: Sửa đổi triển khai để dùng Cosmos SDK KV Store và yêu cầu timeout duy nhất theo từng địa chỉ (@technicallyty)
+* Apr 25, 2025: Thêm lưu ý về việc từ chối unordered tx có giá trị sequence.
 
-## Status
+## Trạng thái
 
-ACCEPTED Not Implemented
+ĐƯỢC CHẤP NHẬN (Chưa triển khai)
 
-## Abstract
+## Tóm tắt
 
-We propose a way to do replay-attack protection without enforcing the order of
-transactions and without requiring the use of monotonically increasing sequences. Instead, we propose
-the use of a time-based, ephemeral sequence.
+Chúng ta đề xuất một cách để chống replay-attack mà không bắt buộc thứ tự giao
+dịch và không yêu cầu dùng sequence tăng đơn điệu. Thay vào đó, chúng ta đề xuất
+dùng một sequence tạm thời (ephemeral) dựa trên thời gian.
 
-## Context
+## Bối cảnh
 
-Account sequence values serve to prevent replay attacks and ensure transactions from the same sender are included in blocks and executed
-in sequential order. Unfortunately, this makes it difficult to reliably send many concurrent transactions from the
-same sender. Victims of such limitations include IBC relayers and crypto exchanges.
+Giá trị sequence của tài khoản phục vụ để ngăn replay attack và đảm bảo giao dịch
+từ cùng một người gửi được đưa vào khối và thực thi theo thứ tự tuần tự. Thật
+không may, điều này khiến việc gửi nhiều giao dịch đồng thời từ cùng một người
+gửi trở nên khó tin cậy. Những đối tượng chịu ảnh hưởng điển hình gồm IBC relayer
+và các sàn giao dịch crypto.
 
-## Decision
+## Quyết định
 
-We propose adding a boolean field `unordered` and a google.protobuf.Timestamp field `timeout_timestamp` to the transaction body.
+Chúng ta đề xuất thêm một trường boolean `unordered` và một trường
+google.protobuf.Timestamp `timeout_timestamp` vào phần body của giao dịch.
 
-Unordered transactions will bypass the traditional account sequence rules and follow the rules described
-below, without impacting traditional ordered transactions which will follow the same sequence rules as before.
+Giao dịch unordered sẽ bỏ qua các quy tắc sequence tài khoản truyền thống và tuân
+theo các quy tắc mô tả bên dưới, mà không ảnh hưởng tới giao dịch ordered truyền
+thống (vốn vẫn theo quy tắc sequence như trước).
 
-We will introduce new storage of time-based, ephemeral unordered sequences using the SDK's existing KV Store library. 
-Specifically, we will leverage the existing x/auth KV store to store the unordered sequences.
+Chúng ta sẽ đưa vào cơ chế lưu trữ mới cho các unordered sequence tạm thời dựa
+trên thời gian, dùng thư viện KV Store hiện có của SDK. Cụ thể, chúng ta sẽ tận
+dụng x/auth KV store hiện có để lưu unordered sequence.
 
-When an unordered transaction is included in a block, a concatenation of the `timeout_timestamp` and sender’s address bytes
-will be recorded to state (i.e. `542939323/<address_bytes>`). In cases of multi-party signing, one entry per signer
-will be recorded to state.
+Khi một giao dịch unordered được đưa vào một khối, một chuỗi ghép (concatenation)
+của `timeout_timestamp` và bytes của địa chỉ người gửi sẽ được ghi vào state (tức
+`542939323/<address_bytes>`). Trong trường hợp nhiều bên cùng ký, một entry cho
+mỗi signer sẽ được ghi vào state.
 
-New transactions will be checked against the state to prevent duplicate submissions. To prevent the state from growing indefinitely, we propose the following:
+Giao dịch mới sẽ được kiểm tra đối chiếu với state để ngăn gửi trùng. Để ngăn
+state tăng vô hạn, chúng ta đề xuất:
 
-* Define an upper bound for the value of `timeout_timestamp` (i.e. 10 minutes).
-* Add PreBlocker method to x/auth that removes state entries with a `timeout_timestamp` earlier than the current block time.
+* Định nghĩa một cận trên cho giá trị `timeout_timestamp` (ví dụ 10 phút).
+* Thêm phương thức PreBlocker vào x/auth để xoá các entry state có `timeout_timestamp`
+  sớm hơn thời gian của khối hiện tại.
 
-### Transaction Format
+### Định dạng giao dịch
 
 ```protobuf
 message TxBody {
@@ -53,14 +61,16 @@ message TxBody {
 }
 ```
 
-### Replay Protection
+### Bảo vệ chống replay
 
-We facilitate replay protection by storing the unordered sequence in the Cosmos SDK KV store. Upon transaction ingress, we check if the transaction's unordered
-sequence exists in state, or if the TTL value is stale, i.e. before the current block time. If so, we reject it. Otherwise,
-we add the unordered sequence to the state. This section of the state will belong to the `x/auth` module.
+Chúng ta thực hiện bảo vệ chống replay bằng cách lưu unordered sequence trong
+Cosmos SDK KV store. Khi giao dịch đi vào (ingress), chúng ta kiểm tra unordered
+sequence của giao dịch có tồn tại trong state hay không, hoặc giá trị TTL đã “cũ”
+(stale) hay không, tức là sớm hơn thời gian của khối hiện tại. Nếu có, ta từ chối.
+Nếu không, ta thêm unordered sequence vào state. Phần state này thuộc module `x/auth`.
 
-The state is evaluated during x/auth's `PreBlocker`. All transactions with an unordered sequence earlier than the current block time
-will be deleted.
+State sẽ được đánh giá trong `PreBlocker` của x/auth. Mọi giao dịch có unordered
+sequence sớm hơn thời gian khối hiện tại sẽ bị xoá.
 
 ```go
 func (am AppModule) PreBlock(ctx context.Context) (appmodule.ResponsePreBlock, error) {
@@ -126,9 +136,9 @@ func (m *AccountKeeper) RemoveExpired(ctx sdk.Context) error {
 
 ### AnteHandler Decorator
 
-To facilitate bypassing nonce verification, we must modify the existing
-`IncrementSequenceDecorator` AnteHandler decorator to skip the nonce verification
-when the transaction is marked as unordered.
+Để bỏ qua việc xác minh nonce, chúng ta phải sửa decorator AnteHandler hiện có
+`IncrementSequenceDecorator` để bỏ qua xác minh nonce khi giao dịch được đánh dấu
+là unordered.
 
 ```golang
 func (isd IncrementSequenceDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
@@ -140,7 +150,7 @@ func (isd IncrementSequenceDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, sim
 }
 ```
 
-We also introduce a new decorator to perform the unordered transaction verification.
+Chúng ta cũng giới thiệu một decorator mới để thực hiện xác minh giao dịch unordered.
 
 ```golang
 package ante
@@ -276,12 +286,13 @@ func getSigners(tx sdk.Tx) ([][]byte, error) {
 
 ```
 
-### Unordered Sequences
+### Unordered sequence
 
-Unordered sequences provide a simple, straightforward mechanism to protect against both transaction malleability and
-transaction duplication. It is important to note that the unordered sequence must still be unique. However,
-the value is not required to be strictly increasing as with regular sequences, and the order in which the node receives
-the transactions no longer matters. Clients can handle building unordered transactions similarly to the code below:
+Unordered sequence cung cấp cơ chế đơn giản, thẳng thắn để bảo vệ chống cả transaction
+malleability lẫn trùng lặp giao dịch. Cần lưu ý rằng unordered sequence vẫn phải
+duy nhất. Tuy nhiên, giá trị không cần tăng строго (strictly increasing) như
+sequence thông thường, và thứ tự node nhận giao dịch không còn quan trọng. Client
+có thể xây dựng giao dịch unordered tương tự như đoạn code bên dưới:
 
 ```go
 for _, tx := range txs {
@@ -290,38 +301,48 @@ for _, tx := range txs {
 }
 ```
 
-We will reject transactions that have both sequence and unordered timeouts set. We do this to avoid assuming the intent of the user.
+Chúng ta sẽ từ chối các giao dịch có cả sequence và unordered timeouts được thiết lập.
+Chúng ta làm vậy để tránh phải suy đoán ý định của người dùng.
 
-### State Management
+### Quản lý state
 
-The storage of unordered sequences will be facilitated using the Cosmos SDK's KV Store service.
+Việc lưu trữ unordered sequence sẽ được thực hiện bằng Cosmos SDK KV Store service.
 
-## Note On Previous Design Iteration
+## Ghi chú về vòng thiết kế trước
 
-The previous iteration of unordered transactions worked by using an ad-hoc state-management system that posed severe 
-risks and a vector for duplicated tx processing. It relied on graceful app closure which would flush the current state
-of the unordered sequence mapping. If 2/3 of the network crashed, and the graceful closure did not trigger, 
-the system would lose track of all sequences in the mapping, allowing those transactions to be replayed. The 
-implementation proposed in the updated version of this ADR solves this by writing directly to the Cosmos KV Store.
-While this is less performant, for the initial implementation, we opted to choose a safer path and postpone performance optimizations until we have more data on real-world impacts and a more battle-tested approach to optimization.
+Phiên bản trước của giao dịch unordered hoạt động bằng một hệ thống quản lý state
+tự phát (ad-hoc) và tạo ra rủi ro nghiêm trọng cũng như một vector để xử lý tx
+trùng lặp. Nó phụ thuộc vào việc ứng dụng đóng một cách “êm” (graceful) để flush
+trạng thái hiện tại của mapping unordered sequence. Nếu 2/3 mạng bị crash và quá
+trình graceful closure không kích hoạt, hệ thống sẽ mất dấu toàn bộ sequence trong
+mapping, cho phép các giao dịch đó bị replay. Triển khai được đề xuất trong phiên
+bản cập nhật ADR này giải quyết điều đó bằng cách ghi trực tiếp vào Cosmos KV Store.
+Dù cách này kém hiệu năng hơn, trong triển khai ban đầu chúng ta chọn con đường
+an toàn hơn và hoãn tối ưu hiệu năng cho tới khi có thêm dữ liệu về tác động thực
+tế và có một cách tiếp cận tối ưu “thực chiến” hơn.
 
-Additionally, the previous iteration relied on using hashes to create what we call an "unordered sequence." There are known
-issues with transaction malleability in Cosmos SDK signing modes. This ADR gets away from this problem by enforcing
-single-use unordered nonces, instead of deriving nonces from bytes in the transaction.
+Ngoài ra, phiên bản trước dựa vào việc dùng hash để tạo cái mà ta gọi là “unordered
+sequence”. Có các vấn đề đã biết về transaction malleability trong các chế độ ký
+(signing mode) của Cosmos SDK. ADR này tránh vấn đề đó bằng cách ép buộc nonce unordered
+dùng một lần (single-use), thay vì suy dẫn nonce từ bytes trong giao dịch.
 
-## Consequences
+## Hệ quả
 
-### Positive
+### Tích cực
 
-* Support unordered transaction inclusion, enabling the ability to "fire and forget" many transactions at once.
+* Hỗ trợ việc đưa giao dịch unordered vào khối, cho phép “fire and forget” nhiều
+  giao dịch cùng lúc.
 
-### Negative
+### Tiêu cực
 
-* Requires additional storage overhead.
-* Requirement of unique timestamps per transaction causes a small amount of additional overhead for clients. Clients must ensure each transaction's timeout timestamp is different. However, nanosecond differentials suffice.
-* Usage of Cosmos SDK KV store is slower in comparison to using a non-merkleized store or ad-hoc methods, and block times may slow down as a result.
+* Yêu cầu overhead lưu trữ bổ sung.
+* Yêu cầu timestamp duy nhất cho mỗi giao dịch tạo thêm một chút overhead cho client.
+  Client phải đảm bảo timeout timestamp của mỗi giao dịch khác nhau. Tuy nhiên, chỉ
+  cần chênh lệch nano giây là đủ.
+* Việc dùng Cosmos SDK KV store chậm hơn so với dùng một store không merkle hoá hoặc
+  các phương pháp ad-hoc, và block time có thể chậm lại theo đó.
 
-## References
+## Tham khảo
 
 * https://github.com/cosmos/cosmos-sdk/issues/13009
 

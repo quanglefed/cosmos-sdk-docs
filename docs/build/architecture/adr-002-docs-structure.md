@@ -1,17 +1,17 @@
-# ADR 002: SDK Documentation Structure
+# ADR 002: Cấu Trúc Tài Liệu SDK
 
-## Context
+## Bối Cảnh
 
-There is a need for a scalable structure of the Cosmos SDK documentation. Current documentation includes a lot of non-related Cosmos SDK material, is difficult to maintain and hard to follow as a user.
+Cần có một cấu trúc có khả năng mở rộng cho tài liệu Cosmos SDK. Tài liệu hiện tại bao gồm nhiều tài liệu không liên quan đến Cosmos SDK, khó bảo trì và khó theo dõi với người dùng.
 
-Ideally, we would have:
+Lý tưởng nhất, chúng ta sẽ có:
 
-* All docs related to dev frameworks or tools live in their respective github repos (sdk repo would contain sdk docs, hub repo would contain hub docs, lotion repo would contain lotion docs, etc.)
-* All other docs (faqs, whitepaper, high-level material about Cosmos) would live on the website.
+* Tất cả tài liệu liên quan đến framework hoặc công cụ dev nằm trong các repo github tương ứng (sdk repo chứa sdk docs, hub repo chứa hub docs, lotion repo chứa lotion docs, v.v.)
+* Tất cả tài liệu khác (faqs, whitepaper, tài liệu high-level về Cosmos) sẽ nằm trên website.
 
-## Decision
+## Quyết Định
 
-Re-structure the `/docs` folder of the Cosmos SDK github repo as follows:
+Tái cấu trúc thư mục `/docs` của repo github Cosmos SDK như sau:
 
 ```text
 docs/
@@ -37,49 +37,49 @@ docs/
 └── architecture/
 ```
 
-The files in each sub-folders do not matter and will likely change. What matters is the sectioning:
+Các file trong mỗi thư mục con không quan trọng và có thể thay đổi. Điều quan trọng là phân mục:
 
-* `README`: Landing page of the docs.
-* `intro`: Introductory material. Goal is to have a short explainer of the Cosmos SDK and then channel people to the resource they need. The [Cosmos SDK tutorial](https://github.com/cosmos/sdk-application-tutorial/) will be highlighted, as well as the `godocs`.
-* `concepts`: Contains high-level explanations of the abstractions of the Cosmos SDK. It does not contain specific code implementation and does not need to be updated often. **It is not an API specification of the interfaces**. API spec is the `godoc`.
-* `clients`: Contains specs and info about the various Cosmos SDK clients.
-* `spec`: Contains specs of modules, and others.
-* `modules`: Contains links to `godocs` and the spec of the modules.
-* `architecture`: Contains architecture-related docs like the present one.
-* `translations`: Contains different translations of the documentation.
+* `README`: Trang đích của tài liệu.
+* `intro`: Tài liệu giới thiệu. Mục tiêu là có một giải thích ngắn về Cosmos SDK rồi dẫn người dùng đến tài nguyên họ cần. [Hướng dẫn Cosmos SDK](https://github.com/cosmos/sdk-application-tutorial/) sẽ được nêu bật, cũng như `godocs`.
+* `concepts`: Chứa các giải thích high-level về các trừu tượng của Cosmos SDK. Không chứa triển khai code cụ thể và không cần cập nhật thường xuyên. **Đây không phải là đặc tả API của các interface**. Đặc tả API là `godoc`.
+* `clients`: Chứa các spec và thông tin về các Cosmos SDK client khác nhau.
+* `spec`: Chứa spec của các module và các thứ khác.
+* `modules`: Chứa các link đến `godocs` và spec của các module.
+* `architecture`: Chứa các tài liệu liên quan đến kiến trúc như tài liệu hiện tại.
+* `translations`: Chứa các bản dịch khác nhau của tài liệu.
 
-Website docs sidebar will only include the following sections:
+Sidebar tài liệu website chỉ bao gồm các phần sau:
 
 * `README`
 * `intro`
 * `concepts`
 * `clients`
 
-`architecture` need not be displayed on the website.
+`architecture` không cần hiển thị trên website.
 
-## Status
+## Trạng Thái
 
-Accepted
+Đã Chấp Nhận
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Much clearer organisation of the Cosmos SDK docs.
-* The `/docs` folder now only contains Cosmos SDK and gaia related material. Later, it will only contain Cosmos SDK related material.
-* Developers only have to update `/docs` folder when they open a PR (and not `/examples` for example).
-* Easier for developers to find what they need to update in the docs thanks to reworked architecture.
-* Cleaner vuepress build for website docs.
-* Will help build an executable doc (cf https://github.com/cosmos/cosmos-sdk/issues/2611)
+* Tổ chức tài liệu Cosmos SDK rõ ràng hơn nhiều.
+* Thư mục `/docs` giờ chỉ chứa tài liệu liên quan đến Cosmos SDK và gaia. Sau này, nó chỉ chứa tài liệu liên quan đến Cosmos SDK.
+* Nhà phát triển chỉ cần cập nhật thư mục `/docs` khi họ mở PR (không cần cập nhật `/examples` chẳng hạn).
+* Dễ dàng hơn cho nhà phát triển tìm những gì cần cập nhật trong tài liệu nhờ kiến trúc được cải thiện.
+* Build vuepress sạch hơn cho tài liệu website.
+* Sẽ giúp xây dựng một tài liệu có thể thực thi (cf https://github.com/cosmos/cosmos-sdk/issues/2611)
 
-### Neutral
+### Trung Lập
 
-* We need to move a bunch of deprecated stuff to `/_attic` folder.
-* We need to integrate content in `docs/sdk/docs/core` in `concepts`.
-* We need to move all the content that currently lives in `docs` and does not fit in new structure (like `lotion`, intro material, whitepaper) to the website repository.
-* Update `DOCS_README.md`
+* Chúng ta cần chuyển một số thứ đã lỗi thời vào thư mục `/_attic`.
+* Chúng ta cần tích hợp nội dung trong `docs/sdk/docs/core` vào `concepts`.
+* Chúng ta cần chuyển tất cả nội dung hiện đang nằm trong `docs` và không phù hợp với cấu trúc mới (như `lotion`, tài liệu giới thiệu, whitepaper) sang repository website.
+* Cập nhật `DOCS_README.md`
 
-## References
+## Tài Liệu Tham Khảo
 
 * https://github.com/cosmos/cosmos-sdk/issues/1460
 * https://github.com/cosmos/cosmos-sdk/pull/2695

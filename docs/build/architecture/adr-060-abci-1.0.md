@@ -1,80 +1,79 @@
-# ADR 60: ABCI 1.0 Integration (Phase I)
+# ADR 60: Tích hợp ABCI 1.0 (Giai đoạn I)
 
 ## Changelog
 
-* 2022-08-10: Initial Draft (@alexanderbez, @tac0turtle)
-* Nov 12, 2022: Update `PrepareProposal` and `ProcessProposal` semantics per the
-  initial implementation [PR](https://github.com/cosmos/cosmos-sdk/pull/13453) (@alexanderbez)
+* 2022-08-10: Bản nháp ban đầu (@alexanderbez, @tac0turtle)
+* Nov 12, 2022: Cập nhật ngữ nghĩa `PrepareProposal` và `ProcessProposal` theo
+  triển khai ban đầu [PR](https://github.com/cosmos/cosmos-sdk/pull/13453) (@alexanderbez)
 
-## Status
+## Trạng thái
 
-ACCEPTED
+ĐƯỢC CHẤP NHẬN
 
-## Abstract
+## Tóm tắt
 
-This ADR describes the initial adoption of [ABCI 1.0](https://github.com/tendermint/tendermint/blob/master/spec/abci%2B%2B/README.md),
-the next evolution of ABCI, within the Cosmos SDK. ABCI 1.0 aims to provide
-application developers with more flexibility and control over application and
-consensus semantics, e.g. in-application mempools, in-process oracles, and
-order-book style matching engines.
+ADR này mô tả việc áp dụng ban đầu [ABCI 1.0](https://github.com/tendermint/tendermint/blob/master/spec/abci%2B%2B/README.md),
+bước tiến hoá tiếp theo của ABCI, trong Cosmos SDK. ABCI 1.0 nhằm cung cấp cho
+nhà phát triển ứng dụng nhiều tính linh hoạt và quyền kiểm soát hơn đối với ngữ
+nghĩa của ứng dụng và đồng thuận, ví dụ: mempool trong ứng dụng (in-application),
+oracle chạy cùng tiến trình (in-process), và các matching engine kiểu sổ lệnh (order-book).
 
-## Context
+## Bối cảnh
 
-Tendermint will release ABCI 1.0. Notably, at the time of this writing,
-Tendermint is releasing v0.37.0 which will include `PrepareProposal` and `ProcessProposal`.
+Tendermint sẽ phát hành ABCI 1.0. Đáng chú ý, tại thời điểm viết tài liệu này,
+Tendermint đang phát hành v0.37.0, phiên bản sẽ bao gồm `PrepareProposal` và `ProcessProposal`.
 
-The `PrepareProposal` ABCI method is concerned with a block proposer requesting
-the application to evaluate a series of transactions to be included in the next
-block, defined as a slice of `TxRecord` objects. The application can either
-accept, reject, or completely ignore some or all of these transactions. This is
-an important consideration to make as the application can essentially define and
-control its own mempool allowing it to define sophisticated transaction priority
-and filtering mechanisms, by completely ignoring the `TxRecords` Tendermint
-sends it, favoring its own transactions. This essentially means that the Tendermint
-mempool acts more like a gossip data structure.
+Phương thức ABCI `PrepareProposal` liên quan đến việc proposer của khối yêu cầu
+ứng dụng đánh giá một loạt giao dịch để đưa vào khối tiếp theo, được mô tả như
+một lát (slice) các đối tượng `TxRecord`. Ứng dụng có thể chấp nhận, từ chối,
+hoặc hoàn toàn bỏ qua một phần hoặc toàn bộ các giao dịch này. Đây là điểm cần
+cân nhắc quan trọng bởi vì về bản chất ứng dụng có thể tự định nghĩa và kiểm
+soát mempool của riêng mình: bằng cách hoàn toàn bỏ qua các `TxRecords` mà
+Tendermint gửi, và ưu tiên các giao dịch do chính ứng dụng lựa chọn. Điều này
+về cơ bản khiến mempool của Tendermint hoạt động giống một cấu trúc dữ liệu
+gossip hơn.
 
-The second ABCI method, `ProcessProposal`, is used to process the block proposer's
-proposal as defined by `PrepareProposal`. It is important to note the following
-with respect to `ProcessProposal`:
+Phương thức ABCI thứ hai, `ProcessProposal`, được dùng để xử lý đề xuất khối
+của proposer như đã được định nghĩa bởi `PrepareProposal`. Cần lưu ý các điểm
+sau đối với `ProcessProposal`:
 
-* Execution of `ProcessProposal` must be deterministic.
-* There must be coherence between `PrepareProposal` and `ProcessProposal`. In
-  other words, for any two correct processes *p* and *q*, if *q*'s Tendermint
-	calls `RequestProcessProposal` on *u<sub>p</sub>*, *q*'s Application returns
-	ACCEPT in `ResponseProcessProposal`.
+* Việc thực thi `ProcessProposal` phải mang tính quyết định (deterministic).
+* Phải có tính nhất quán (coherence) giữa `PrepareProposal` và `ProcessProposal`.
+  Nói cách khác, với bất kỳ hai tiến trình đúng *p* và *q*, nếu Tendermint của *q*
+  gọi `RequestProcessProposal` trên *u<sub>p</sub>*, thì Ứng dụng của *q* sẽ trả
+  về ACCEPT trong `ResponseProcessProposal`.
 
-It is important to note that in ABCI 1.0 integration, the application
-is NOT responsible for locking semantics -- Tendermint will still be responsible
-for that. In the future, however, the application will be responsible for locking,
-which allows for parallel execution possibilities.
+Cần lưu ý rằng trong tích hợp ABCI 1.0, ứng dụng KHÔNG chịu trách nhiệm về ngữ
+nghĩa khoá (locking) — Tendermint vẫn chịu trách nhiệm cho phần đó. Tuy nhiên,
+trong tương lai, ứng dụng sẽ chịu trách nhiệm về locking, điều này mở ra khả
+năng thực thi song song.
 
-## Decision
+## Quyết định
 
-We will integrate ABCI 1.0, which will be introduced in Tendermint
-v0.37.0, in the next major release of the Cosmos SDK. We will integrate ABCI 1.0
-methods on the `BaseApp` type. We describe the implementations of the two methods
-individually below.
+Chúng ta sẽ tích hợp ABCI 1.0, sẽ được giới thiệu trong Tendermint v0.37.0, vào
+lần phát hành major tiếp theo của Cosmos SDK. Chúng ta sẽ tích hợp các phương
+thức ABCI 1.0 trên kiểu `BaseApp`. Bên dưới mô tả riêng lẻ phần triển khai của
+hai phương thức.
 
-Prior to describing the implementation of the two new methods, it is important to
-note that the existing ABCI methods, `CheckTx`, `DeliverTx`, etc, still exist and
-serve the same functions as they do now.
+Trước khi mô tả triển khai của hai phương thức mới, cần lưu ý rằng các phương
+thức ABCI hiện có như `CheckTx`, `DeliverTx`, v.v... vẫn tồn tại và giữ nguyên
+chức năng như hiện tại.
 
 ### `PrepareProposal`
 
-Prior to evaluating the decision for how to implement `PrepareProposal`, it is
-important to note that `CheckTx` will still be executed and will be responsible
-for evaluating transaction validity as it does now, with one very important
-*additive* distinction.
+Trước khi đánh giá quyết định về cách triển khai `PrepareProposal`, cần lưu ý
+rằng `CheckTx` vẫn sẽ được thực thi và vẫn chịu trách nhiệm đánh giá tính hợp
+lệ của giao dịch như hiện tại, nhưng có một điểm phân biệt *bổ sung* rất quan trọng.
 
-When executing transactions in `CheckTx`, the application will now add valid
-transactions, i.e. passing the AnteHandler, to its own mempool data structure.
-In order to provide a flexible approach to meet the varying needs of application
-developers, we will define both a mempool interface and a data structure utilizing
-Golang generics, allowing developers to focus only on transaction
-ordering. Developers requiring absolute full control can implement their own
-custom mempool implementation.
+Khi thực thi giao dịch trong `CheckTx`, ứng dụng giờ đây sẽ thêm các giao dịch
+hợp lệ, tức là vượt qua AnteHandler, vào cấu trúc dữ liệu mempool của riêng nó.
+Để cung cấp một cách tiếp cận linh hoạt đáp ứng các nhu cầu khác nhau của nhà
+phát triển ứng dụng, chúng ta sẽ định nghĩa cả một interface mempool và một cấu
+trúc dữ liệu sử dụng generics của Golang, cho phép nhà phát triển chỉ tập trung
+vào việc sắp xếp (ordering) giao dịch. Các nhà phát triển cần quyền kiểm soát
+tuyệt đối có thể tự cài đặt mempool tuỳ biến.
 
-We define the general mempool interface as follows (subject to change):
+Chúng ta định nghĩa interface mempool tổng quát như sau (có thể thay đổi):
 
 ```go
 type Mempool interface {
@@ -108,14 +107,14 @@ type Iterator interface {
 }
 ```
 
-We will define an implementation of `Mempool`, defined by `nonceMempool`, that
-will cover most basic application use-cases. Namely, it will prioritize transactions
-by transaction sender, allowing for multiple transactions from the same sender.
+Chúng ta sẽ định nghĩa một triển khai của `Mempool`, được định nghĩa bởi
+`nonceMempool`, để bao phủ phần lớn các use-case cơ bản. Cụ thể, nó sẽ ưu tiên
+giao dịch theo người gửi, cho phép nhiều giao dịch từ cùng một người gửi.
 
-The default app-side mempool implementation, `nonceMempool`, will operate on a 
-single skip list data structure. Specifically, transactions with the lowest nonce
-globally are prioritized. Transactions with the same nonce are prioritized by
-sender address.
+Triển khai mempool phía ứng dụng mặc định, `nonceMempool`, sẽ vận hành trên một
+cấu trúc dữ liệu skip list duy nhất. Cụ thể, các giao dịch có nonce nhỏ nhất
+trên toàn cục sẽ được ưu tiên. Các giao dịch có cùng nonce được ưu tiên theo
+địa chỉ người gửi.
 
 ```go
 type nonceMempool struct {
@@ -123,116 +122,112 @@ type nonceMempool struct {
 }
 ```
 
-Previous discussions<sup>1</sup> have come to the agreement that Tendermint will
-perform a request to the application, via `RequestPrepareProposal`, with a certain
-amount of transactions reaped from Tendermint's local mempool. The exact amount
-of transactions reaped will be determined by a local operator configuration.
-This is referred to as the "one-shot approach" seen in discussions.
+Các thảo luận trước đó<sup>1</sup> đã thống nhất rằng Tendermint sẽ gửi một yêu
+cầu đến ứng dụng, thông qua `RequestPrepareProposal`, với một số lượng giao dịch
+nhất định được reaping từ mempool cục bộ của Tendermint. Số lượng giao dịch được
+reaping sẽ được xác định bởi cấu hình cục bộ của operator. Cách tiếp cận này
+được gọi là “one-shot approach” trong các thảo luận.
 
-When Tendermint reaps transactions from the local mempool and sends them to the
-application via `RequestPrepareProposal`, the application will have to evaluate
-the transactions. Specifically, it will need to inform Tendermint if it should
-reject and or include each transaction. Note, the application can even *replace*
-transactions entirely with other transactions.
+Khi Tendermint reaps giao dịch từ mempool cục bộ và gửi chúng đến ứng dụng qua
+`RequestPrepareProposal`, ứng dụng sẽ phải đánh giá các giao dịch. Cụ thể, ứng
+dụng cần thông báo cho Tendermint giao dịch nào nên bị từ chối và/hoặc được đưa
+vào. Lưu ý, ứng dụng thậm chí có thể *thay thế* hoàn toàn các giao dịch bằng các
+giao dịch khác.
 
-When evaluating transactions from `RequestPrepareProposal`, the application will
-ignore *ALL* transactions sent to it in the request and instead reap up to
-`RequestPrepareProposal.max_tx_bytes` from it's own mempool.
+Khi đánh giá giao dịch từ `RequestPrepareProposal`, ứng dụng sẽ bỏ qua *TOÀN BỘ*
+các giao dịch được gửi trong request và thay vào đó reaps tối đa
+`RequestPrepareProposal.max_tx_bytes` từ mempool của chính mình.
 
-Since an application can technically insert or inject transactions on `Insert`
-during `CheckTx` execution, it is recommended that applications ensure transaction
-validity when reaping transactions during `PrepareProposal`. However, what validity
-exactly means is entirely determined by the application.
+Vì ứng dụng về mặt kỹ thuật có thể chèn (insert) hoặc tiêm (inject) giao dịch
+trong `Insert` trong quá trình thực thi `CheckTx`, nên khuyến nghị các ứng dụng
+đảm bảo tính hợp lệ của giao dịch khi reaping giao dịch trong `PrepareProposal`.
+Tuy nhiên, “hợp lệ” nghĩa là gì sẽ hoàn toàn do ứng dụng quyết định.
 
-The Cosmos SDK will provide a default `PrepareProposal` implementation that simply
-select up to `MaxBytes` *valid* transactions.
+Cosmos SDK sẽ cung cấp một triển khai `PrepareProposal` mặc định, đơn giản là
+chọn tối đa `MaxBytes` giao dịch *hợp lệ*.
 
-However, applications can override this default implementation with their own
-implementation and set that on `BaseApp` via `SetPrepareProposal`.
-
+Tuy nhiên, các ứng dụng có thể override triển khai mặc định này bằng triển khai
+của riêng mình và gán nó trên `BaseApp` thông qua `SetPrepareProposal`.
 
 ### `ProcessProposal`
 
-The `ProcessProposal` ABCI method is relatively straightforward. It is responsible
-for ensuring validity of the proposed block containing transactions that were
-selected from the `PrepareProposal` step. However, how an application determines
-validity of a proposed block depends on the application and its varying use cases.
-For most applications, simply calling the `AnteHandler` chain would suffice, but
-there could easily be other applications that need more control over the validation
-process of the proposed block, such as ensuring txs are in a certain order or
-that certain transactions are included. While this theoretically could be achieved
-with a custom `AnteHandler` implementation, it's not the cleanest UX or the most
-efficient solution.
+Phương thức ABCI `ProcessProposal` tương đối đơn giản. Nó chịu trách nhiệm đảm
+bảo tính hợp lệ của khối được đề xuất chứa các giao dịch đã được chọn từ bước
+`PrepareProposal`. Tuy nhiên, cách một ứng dụng xác định tính hợp lệ của một khối
+đề xuất phụ thuộc vào ứng dụng và các use-case khác nhau. Với phần lớn ứng dụng,
+chỉ cần gọi chuỗi `AnteHandler` là đủ, nhưng hoàn toàn có thể có các ứng dụng
+khác cần kiểm soát nhiều hơn đối với quá trình xác thực khối, chẳng hạn đảm bảo
+các tx theo một thứ tự nhất định hoặc đảm bảo có chứa các giao dịch cụ thể.
+Về lý thuyết có thể đạt được bằng một `AnteHandler` tuỳ biến, nhưng đó không phải
+UX sạch nhất hoặc giải pháp hiệu quả nhất.
 
-Instead, we will define an additional ABCI interface method on the existing
-`Application` interface, similar to the existing ABCI methods such as `BeginBlock`
-or `EndBlock`. This new interface method will be defined as follows:
+Thay vào đó, chúng ta sẽ định nghĩa một phương thức ABCI bổ sung trên interface
+`Application` hiện có, tương tự như các phương thức ABCI hiện có như `BeginBlock`
+hoặc `EndBlock`. Phương thức interface mới này được định nghĩa như sau:
 
 ```go
 ProcessProposal(sdk.Context, abci.ProcessProposalRequest) error {}
 ```
 
-Note, we must call `ProcessProposal` with a new internal branched state on the
-`Context` argument as we cannot simply just use the existing `checkState` because
-`BaseApp` already has a modified `checkState` at this point. So when executing
-`ProcessProposal`, we create a similar branched state, `processProposalState`,
-off of `deliverState`. Note, the `processProposalState` is never committed and
-is completely discarded after `ProcessProposal` finishes execution.
+Lưu ý, chúng ta phải gọi `ProcessProposal` với một state phân nhánh (branched)
+nội bộ mới trên đối số `Context` bởi vì không thể đơn giản dùng `checkState` hiện
+có, vì tại thời điểm này `BaseApp` đã có `checkState` bị chỉnh sửa. Vì vậy khi
+thực thi `ProcessProposal`, chúng ta tạo một state phân nhánh tương tự,
+`processProposalState`, từ `deliverState`. Lưu ý `processProposalState` không bao
+giờ được commit và sẽ bị loại bỏ hoàn toàn sau khi `ProcessProposal` kết thúc.
 
-The Cosmos SDK will provide a default implementation of `ProcessProposal` in which
-all transactions are validated using the CheckTx flow, i.e. the AnteHandler, and
-will always return ACCEPT unless any transaction cannot be decoded.
+Cosmos SDK sẽ cung cấp một triển khai mặc định của `ProcessProposal` trong đó
+tất cả giao dịch được xác thực theo luồng CheckTx, tức là AnteHandler, và sẽ
+luôn trả về ACCEPT trừ khi có giao dịch nào không thể decode.
 
 ### `DeliverTx`
 
-Since transactions are not truly removed from the app-side mempool during
-`PrepareProposal`, since `ProcessProposal` can fail or take multiple rounds and
-we do not want to lose transactions, we need to finally remove the transaction
-from the app-side mempool during `DeliverTx` since during this phase, the
-transactions are being included in the proposed block.
+Vì giao dịch không thực sự bị xoá khỏi mempool phía ứng dụng trong `PrepareProposal`,
+do `ProcessProposal` có thể thất bại hoặc cần nhiều vòng (round), và chúng ta
+không muốn mất giao dịch, nên cần cuối cùng xoá giao dịch khỏi mempool phía ứng
+dụng trong `DeliverTx` vì trong giai đoạn này, các giao dịch đang được đưa vào
+khối đề xuất.
 
-Alternatively, we can keep the transactions as truly being removed during the
-reaping phase in `PrepareProposal` and add them back to the app-side mempool in
-case `ProcessProposal` fails.
+Hoặc, chúng ta có thể coi giao dịch bị xoá thật sự ngay trong giai đoạn reaping
+trong `PrepareProposal` và thêm chúng trở lại mempool phía ứng dụng trong trường
+hợp `ProcessProposal` thất bại.
 
-## Consequences
+## Hệ quả
 
-### Backwards Compatibility
+### Tương thích ngược
 
-ABCI 1.0 is naturally not backwards compatible with prior versions of the Cosmos SDK
-and Tendermint. For example, an application that requests `RequestPrepareProposal`
-to the same application that does not speak ABCI 1.0 will naturally fail.
+ABCI 1.0 một cách tự nhiên là không tương thích ngược với các phiên bản trước
+của Cosmos SDK và Tendermint. Ví dụ, một ứng dụng thực hiện `RequestPrepareProposal`
+đến một ứng dụng không “nói” ABCI 1.0 sẽ thất bại.
 
-However, in the first phase of the integration, the existing ABCI methods as we
-know them today will still exist and function as they currently do.
+Tuy nhiên, trong giai đoạn tích hợp đầu tiên, các phương thức ABCI hiện có như
+chúng ta biết ngày nay vẫn tồn tại và hoạt động như hiện tại.
 
-### Positive
+### Tích cực
 
-* Applications now have full control over transaction ordering and priority.
-* Lays the groundwork for the full integration of ABCI 1.0, which will unlock more
-  app-side use cases around block construction and integration with the Tendermint
-  consensus engine.
+* Ứng dụng giờ đây có toàn quyền kiểm soát thứ tự và mức ưu tiên của giao dịch.
+* Đặt nền tảng cho việc tích hợp đầy đủ ABCI 1.0, giúp mở khoá nhiều use-case
+  phía ứng dụng quanh xây dựng khối và tích hợp với consensus engine của Tendermint.
 
-### Negative
+### Tiêu cực
 
-* Requires that the "mempool", as a general data structure that collects and stores
-  uncommitted transactions will be duplicated between both Tendermint and the
-  Cosmos SDK.
-* Additional requests between Tendermint and the Cosmos SDK in the context of
-  block execution. Albeit, the overhead should be negligible.
-* Not backwards compatible with previous versions of Tendermint and the Cosmos SDK.
+* Yêu cầu “mempool”, như một cấu trúc dữ liệu tổng quát để thu thập và lưu trữ
+  các giao dịch chưa commit, bị nhân đôi giữa Tendermint và Cosmos SDK.
+* Phát sinh thêm các request giữa Tendermint và Cosmos SDK trong bối cảnh thực thi khối.
+  Tuy vậy, overhead dự kiến là không đáng kể.
+* Không tương thích ngược với các phiên bản trước của Tendermint và Cosmos SDK.
 
-## Further Discussions
+## Thảo luận thêm
 
-It is possible to design the app-side implementation of the `Mempool[T MempoolTx]`
-in many different ways using different data structures and implementations. All
-of which have different tradeoffs. The proposed solution keeps things simple
-and covers cases that would be required for most basic applications. There are
-tradeoffs that can be made to improve performance of reaping and inserting into
-the provided mempool implementation.
+Có thể thiết kế triển khai phía ứng dụng của `Mempool[T MempoolTx]` theo nhiều
+cách khác nhau bằng các cấu trúc dữ liệu và cài đặt khác nhau, mỗi cách có các
+đánh đổi riêng. Giải pháp đề xuất giữ mọi thứ đơn giản và bao phủ các trường hợp
+cần thiết cho hầu hết ứng dụng cơ bản. Có thể thực hiện các đánh đổi để cải thiện
+hiệu năng của việc reaping và inserting vào triển khai mempool được cung cấp.
 
-## References
+## Tham khảo
 
 * https://github.com/tendermint/tendermint/blob/master/spec/abci%2B%2B/README.md
 * [1] https://github.com/tendermint/tendermint/issues/7750#issuecomment-1076806155
 * [2] https://github.com/tendermint/tendermint/issues/7750#issuecomment-1075717151
+

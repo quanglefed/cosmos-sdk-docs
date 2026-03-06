@@ -8,9 +8,9 @@ sidebar_position: 1
 
 ## Abstract
 
-The following documents specify the group module.
+Các tài liệu sau đây mô tả chi tiết module group.
 
-This module allows the creation and management of on-chain multisig accounts and enables voting for message execution based on configurable decision policies.
+Module này cho phép tạo và quản lý các tài khoản multisig trên chuỗi, đồng thời hỗ trợ bỏ phiếu cho việc thực thi message dựa trên các chính sách quyết định có thể cấu hình.
 
 ## Contents
 
@@ -62,45 +62,21 @@ This module allows the creation and management of on-chain multisig accounts and
 
 ### Group
 
-A group is simply an aggregation of accounts with associated weights. It is not
-an account and doesn't have a balance. It doesn't in and of itself have any
-sort of voting or decision weight. It does have an "administrator" which has
-the ability to add, remove and update members in the group. Note that a
-group policy account could be an administrator of a group, and that the
-administrator doesn't necessarily have to be a member of the group.
+Một group đơn giản là tập hợp các tài khoản với trọng số liên kết. Nó không phải là một tài khoản và không có số dư. Bản thân nó không có bất kỳ quyền bỏ phiếu hay trọng số quyết định nào. Group có một "administrator" có khả năng thêm, xóa và cập nhật thành viên trong group. Lưu ý rằng tài khoản group policy có thể là administrator của một group, và administrator không nhất thiết phải là thành viên của group.
 
 ### Group Policy
 
-A group policy is an account associated with a group and a decision policy.
-Group policies are abstracted from groups because a single group may have
-multiple decision policies for different types of actions. Managing group
-membership separately from decision policies results in the least overhead
-and keeps membership consistent across different policies. The pattern that
-is recommended is to have a single master group policy for a given group,
-and then to create separate group policies with different decision policies
-and delegate the desired permissions from the master account to
-those "sub-accounts" using the `x/authz` module.
+Group policy là một tài khoản liên kết với một group và một decision policy. Group policy được tách biệt khỏi group vì một group có thể có nhiều decision policy cho các loại hành động khác nhau. Quản lý thành viên group tách biệt khỏi decision policy giúp giảm thiểu chi phí và duy trì tính nhất quán của thành viên giữa các policy khác nhau. Mô hình được khuyến nghị là có một group policy chính duy nhất cho một group, sau đó tạo các group policy riêng biệt với các decision policy khác nhau và ủy quyền quyền mong muốn từ tài khoản chính sang các "sub-account" đó bằng module `x/authz`.
 
 ### Decision Policy
 
-A decision policy is the mechanism by which members of a group can vote on
-proposals, as well as the rules that dictate whether a proposal should pass
-or not based on its tally outcome.
+Decision policy là cơ chế mà qua đó các thành viên của group có thể bỏ phiếu cho các proposal, cũng như các quy tắc quy định proposal có được thông qua hay không dựa trên kết quả kiểm đếm.
 
-All decision policies generally would have a minimum execution period and a
-maximum voting window. The minimum execution period is the minimum amount of time
-that must pass after submission in order for a proposal to potentially be executed, and it may
-be set to 0. The maximum voting window is the maximum time after submission that a proposal may
-be voted on before it is tallied.
+Tất cả decision policy thường có thời gian thực thi tối thiểu và cửa sổ bỏ phiếu tối đa. Thời gian thực thi tối thiểu là khoảng thời gian tối thiểu phải trôi qua sau khi gửi để proposal có thể được thực thi, và có thể được đặt là 0. Cửa sổ bỏ phiếu tối đa là thời gian tối đa sau khi gửi mà proposal có thể được bỏ phiếu trước khi được kiểm đếm.
 
-The chain developer also defines an app-wide maximum execution period, which is
-the maximum amount of time after a proposal's voting period end where users are
-allowed to execute a proposal.
+Nhà phát triển chuỗi cũng định nghĩa thời gian thực thi tối đa toàn ứng dụng, đây là khoảng thời gian tối đa sau khi kết thúc thời gian bỏ phiếu của proposal mà người dùng được phép thực thi proposal.
 
-The current group module comes shipped with two decision policies: threshold
-and percentage. Any chain developer can extend upon these two, by creating
-custom decision policies, as long as they adhere to the `DecisionPolicy`
-interface:
+Module group hiện tại đi kèm hai decision policy: threshold và percentage. Bất kỳ nhà phát triển chuỗi nào cũng có thể mở rộng hai loại này bằng cách tạo decision policy tùy chỉnh, miễn là tuân thủ interface `DecisionPolicy`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/x/group/types.go#L27-L45
@@ -108,413 +84,351 @@ https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/x/group/types.go#L27-L
 
 #### Threshold decision policy
 
-A threshold decision policy defines a threshold of yes votes (based on a tally
-of voter weights) that must be achieved in order for a proposal to pass. For
-this decision policy, abstain and veto are simply treated as no's.
+Threshold decision policy định nghĩa ngưỡng phiếu đồng ý (dựa trên kiểm đếm trọng số người bỏ phiếu) phải đạt được để proposal được thông qua. Với decision policy này, abstain và veto đơn giản được coi là phiếu không đồng ý.
 
-This decision policy also has a VotingPeriod window and a MinExecutionPeriod
-window. The former defines the duration after proposal submission where members
-are allowed to vote, after which tallying is performed. The latter specifies
-the minimum duration after proposal submission where the proposal can be
-executed. If set to 0, then the proposal is allowed to be executed immediately
-on submission (using the `TRY_EXEC` option). Obviously, MinExecutionPeriod
-cannot be greater than VotingPeriod+MaxExecutionPeriod (where MaxExecution is
-the app-defined duration that specifies the window after voting ended where a
-proposal can be executed).
+Decision policy này cũng có cửa sổ VotingPeriod và cửa sổ MinExecutionPeriod. Cái trước định nghĩa khoảng thời gian sau khi gửi proposal mà các thành viên được phép bỏ phiếu, sau đó việc kiểm đếm được thực hiện. Cái sau chỉ định khoảng thời gian tối thiểu sau khi gửi proposal mà proposal có thể được thực thi. Nếu đặt là 0, thì proposal được phép thực thi ngay khi gửi (sử dụng tùy chọn `TRY_EXEC`). Rõ ràng, MinExecutionPeriod không thể lớn hơn VotingPeriod+MaxExecutionPeriod (trong đó MaxExecution là khoảng thời gian do ứng dụng định nghĩa chỉ định cửa sổ sau khi bỏ phiếu kết thúc mà proposal có thể được thực thi).
 
 #### Percentage decision policy
 
-A percentage decision policy is similar to a threshold decision policy, except
-that the threshold is not defined as a constant weight, but as a percentage.
-It's more suited for groups where the group members' weights can be updated, as
-the percentage threshold stays the same, and doesn't depend on how those member
-weights get updated.
+Percentage decision policy tương tự threshold decision policy, ngoại trừ việc ngưỡng không được định nghĩa là trọng số cố định mà là phần trăm. Nó phù hợp hơn cho các group mà trọng số thành viên có thể được cập nhật, vì ngưỡng phần trăm giữ nguyên và không phụ thuộc vào cách các trọng số thành viên được cập nhật.
 
-Same as the Threshold decision policy, the percentage decision policy has the
-two VotingPeriod and MinExecutionPeriod parameters.
+Giống như Threshold decision policy, percentage decision policy có hai tham số VotingPeriod và MinExecutionPeriod.
 
 ### Proposal
 
-Any member(s) of a group can submit a proposal for a group policy account to decide upon.
-A proposal consists of a set of messages that will be executed if the proposal
-passes as well as any metadata associated with the proposal.
+Bất kỳ thành viên nào của group đều có thể gửi proposal để tài khoản group policy quyết định. Một proposal bao gồm một tập hợp các message sẽ được thực thi nếu proposal được thông qua cũng như bất kỳ metadata nào liên kết với proposal.
 
 #### Voting
 
-There are four choices to choose while voting - yes, no, abstain and veto. Not
-all decision policies will take the four choices into account. Votes can contain some optional metadata.
-In the current implementation, the voting window begins as soon as a proposal
-is submitted, and the end is defined by the group policy's decision policy.
+Có bốn lựa chọn khi bỏ phiếu - yes, no, abstain và veto. Không phải tất cả decision policy đều tính đến bốn lựa chọn. Phiếu bầu có thể chứa một số metadata tùy chọn. Trong triển khai hiện tại, cửa sổ bỏ phiếu bắt đầu ngay khi proposal được gửi, và kết thúc được định nghĩa bởi decision policy của group policy.
 
 #### Withdrawing Proposals
 
-Proposals can be withdrawn any time before the voting period end, either by the
-admin of the group policy or by one of the proposers. Once withdrawn, it is
-marked as `PROPOSAL_STATUS_WITHDRAWN`, and no more voting or execution is
-allowed on it.
+Proposal có thể được rút bất kỳ lúc nào trước khi kết thúc thời gian bỏ phiếu, bởi admin của group policy hoặc bởi một trong các proposer. Sau khi rút, nó được đánh dấu là `PROPOSAL_STATUS_WITHDRAWN`, và không còn bỏ phiếu hay thực thi nào được phép trên nó.
 
 #### Aborted Proposals
 
-If the group policy is updated during the voting period of the proposal, then
-the proposal is marked as `PROPOSAL_STATUS_ABORTED`, and no more voting or
-execution is allowed on it. This is because the group policy defines the rules
-of proposal voting and execution, so if those rules change during the lifecycle
-of a proposal, then the proposal should be marked as stale.
+Nếu group policy được cập nhật trong thời gian bỏ phiếu của proposal, thì proposal được đánh dấu là `PROPOSAL_STATUS_ABORTED`, và không còn bỏ phiếu hay thực thi nào được phép trên nó. Điều này là vì group policy định nghĩa các quy tắc bỏ phiếu và thực thi proposal, vì vậy nếu các quy tắc đó thay đổi trong vòng đời của proposal, thì proposal nên được đánh dấu là lỗi thời.
 
 #### Tallying
 
-Tallying is the counting of all votes on a proposal. It happens only once in
-the lifecycle of a proposal, but can be triggered by two factors, whichever
-happens first:
+Tallying là việc đếm tất cả phiếu bầu trên một proposal. Nó chỉ xảy ra một lần trong vòng đời của proposal, nhưng có thể được kích hoạt bởi hai yếu tố, cái nào xảy ra trước:
 
-* either someone tries to execute the proposal (see next section), which can
-  happen on a `Msg/Exec` transaction, or a `Msg/{SubmitProposal,Vote}`
-  transaction with the `Exec` field set. When a proposal execution is attempted,
-  a tally is done first to make sure the proposal passes.
-* or on `EndBlock` when the proposal's voting period end just passed.
+* hoặc ai đó cố gắng thực thi proposal (xem phần tiếp theo), có thể xảy ra trên giao dịch `Msg/Exec`, hoặc giao dịch `Msg/{SubmitProposal,Vote}` với trường `Exec` được đặt. Khi thực thi proposal được thử, việc kiểm đếm được thực hiện trước để đảm bảo proposal được thông qua.
+* hoặc trên `EndBlock` khi thời gian bỏ phiếu của proposal vừa kết thúc.
 
-If the tally result passes the decision policy's rules, then the proposal is
-marked as `PROPOSAL_STATUS_ACCEPTED`, or else it is marked as
-`PROPOSAL_STATUS_REJECTED`. In any case, no more voting is allowed anymore, and the tally
-result is persisted to state in the proposal's `FinalTallyResult`.
+Nếu kết quả kiểm đếm thỏa mãn các quy tắc của decision policy, thì proposal được đánh dấu là `PROPOSAL_STATUS_ACCEPTED`, nếu không thì được đánh dấu là `PROPOSAL_STATUS_REJECTED`. Trong mọi trường hợp, không còn bỏ phiếu nào được phép nữa, và kết quả kiểm đếm được lưu vào state trong `FinalTallyResult` của proposal.
 
 #### Executing Proposals
 
-Proposals are executed only when the tallying is done, and the group account's
-decision policy allows the proposal to pass based on the tally outcome. They
-are marked by the status `PROPOSAL_STATUS_ACCEPTED`. Execution must happen
-before a duration of `MaxExecutionPeriod` (set by the chain developer) after
-each proposal's voting period end.
+Proposal chỉ được thực thi khi việc kiểm đếm hoàn tất và decision policy của tài khoản group cho phép proposal được thông qua dựa trên kết quả kiểm đếm. Chúng được đánh dấu bởi trạng thái `PROPOSAL_STATUS_ACCEPTED`. Việc thực thi phải diễn ra trước khoảng thời gian `MaxExecutionPeriod` (do nhà phát triển chuỗi đặt) sau khi kết thúc thời gian bỏ phiếu của mỗi proposal.
 
-Proposals will not be automatically executed by the chain in this current design,
-but rather a user must submit a `Msg/Exec` transaction to attempt to execute the
-proposal based on the current votes and decision policy. Any user (not only the
-group members) can execute proposals that have been accepted, and execution fees are
-paid by the proposal executor.
-It's also possible to try to execute a proposal immediately on creation or on
-new votes using the `Exec` field of `Msg/SubmitProposal` and `Msg/Vote` requests.
-In the former case, proposers signatures are considered as yes votes.
-In these cases, if the proposal can't be executed (i.e. it didn't pass the
-decision policy's rules), it will still be opened for new votes and
-could be tallied and executed later on.
+Proposal sẽ không được tự động thực thi bởi chuỗi trong thiết kế hiện tại này, mà người dùng phải gửi giao dịch `Msg/Exec` để thử thực thi proposal dựa trên phiếu hiện tại và decision policy. Bất kỳ người dùng nào (không chỉ thành viên group) đều có thể thực thi các proposal đã được chấp nhận, và phí thực thi do người thực thi proposal trả. Cũng có thể thử thực thi proposal ngay khi tạo hoặc khi có phiếu mới bằng trường `Exec` của request `Msg/SubmitProposal` và `Msg/Vote`. Trong trường hợp trước, chữ ký của proposer được coi là phiếu đồng ý. Trong các trường hợp này, nếu proposal không thể được thực thi (tức là không thỏa mãn quy tắc của decision policy), nó vẫn sẽ được mở cho phiếu mới và có thể được kiểm đếm và thực thi sau đó.
 
-A successful proposal execution will have its `ExecutorResult` marked as
-`PROPOSAL_EXECUTOR_RESULT_SUCCESS`. The proposal will be automatically pruned
-after execution. On the other hand, a failed proposal execution will be marked
-as `PROPOSAL_EXECUTOR_RESULT_FAILURE`. Such a proposal can be re-executed
-multiple times, until it expires after `MaxExecutionPeriod` after voting period
-end.
+Một proposal thực thi thành công sẽ có `ExecutorResult` được đánh dấu là `PROPOSAL_EXECUTOR_RESULT_SUCCESS`. Proposal sẽ được tự động prune sau khi thực thi. Mặt khác, proposal thực thi thất bại sẽ được đánh dấu là `PROPOSAL_EXECUTOR_RESULT_FAILURE`. Proposal như vậy có thể được thực thi lại nhiều lần, cho đến khi hết hạn sau `MaxExecutionPeriod` sau khi kết thúc thời gian bỏ phiếu.
 
 ### Pruning
 
-Proposals and votes are automatically pruned to avoid state bloat.
+Proposal và vote được tự động prune để tránh state phình to.
 
-Votes are pruned:
+Vote được prune:
 
-* either after a successful tally, i.e. a tally whose result passes the decision
-  policy's rules, which can be triggered by a `Msg/Exec` or a
-  `Msg/{SubmitProposal,Vote}` with the `Exec` field set,
-* or on `EndBlock` right after the proposal's voting period end. This applies to proposals with status `aborted` or `withdrawn` too.
+* hoặc sau khi kiểm đếm thành công, tức là kiểm đếm có kết quả thỏa mãn quy tắc của decision policy, có thể được kích hoạt bởi `Msg/Exec` hoặc `Msg/{SubmitProposal,Vote}` với trường `Exec` được đặt,
+* hoặc trên `EndBlock` ngay sau khi kết thúc thời gian bỏ phiếu của proposal. Điều này cũng áp dụng cho proposal có trạng thái `aborted` hoặc `withdrawn`.
 
-whichever happens first.
+cái nào xảy ra trước.
 
-Proposals are pruned:
+Proposal được prune:
 
-* on `EndBlock` whose proposal status is `withdrawn` or `aborted` on proposal's voting period end before tallying,
-* and either after a successful proposal execution,
-* or on `EndBlock` right after the proposal's `voting_period_end` +
-  `max_execution_period` (defined as an app-wide configuration) is passed,
+* trên `EndBlock` mà proposal có trạng thái `withdrawn` hoặc `aborted` khi kết thúc thời gian bỏ phiếu của proposal trước khi kiểm đếm,
+* và hoặc sau khi thực thi proposal thành công,
+* hoặc trên `EndBlock` ngay sau khi `voting_period_end` + `max_execution_period` (định nghĩa là cấu hình toàn ứng dụng) của proposal trôi qua,
 
-whichever happens first.
+cái nào xảy ra trước.
 
 ## State
 
-The `group` module uses the `orm` package which provides table storage with support for
-primary keys and secondary indexes. `orm` also defines `Sequence` which is a persistent unique key generator based on a counter that can be used along with `Table`s.
+Module `group` sử dụng package `orm` cung cấp lưu trữ bảng với hỗ trợ khóa chính và chỉ mục phụ. `orm` cũng định nghĩa `Sequence` là bộ tạo khóa duy nhất liên tục dựa trên bộ đếm có thể được sử dụng cùng với `Table`s.
 
-Here's the list of tables and associated sequences and indexes stored as part of the `group` module.
+Đây là danh sách các bảng và sequence cùng chỉ mục liên kết được lưu trữ như một phần của module `group`.
 
 ### Group Table
 
-The `groupTable` stores `GroupInfo`: `0x0 | BigEndian(GroupId) -> ProtocolBuffer(GroupInfo)`.
+`groupTable` lưu `GroupInfo`: `0x0 | BigEndian(GroupId) -> ProtocolBuffer(GroupInfo)`.
 
 #### groupSeq
 
-The value of `groupSeq` is incremented when creating a new group and corresponds to the new `GroupId`: `0x1 | 0x1 -> BigEndian`.
+Giá trị của `groupSeq` được tăng khi tạo group mới và tương ứng với `GroupId` mới: `0x1 | 0x1 -> BigEndian`.
 
-The second `0x1` corresponds to the ORM `sequenceStorageKey`.
+`0x1` thứ hai tương ứng với `sequenceStorageKey` của ORM.
 
 #### groupByAdminIndex
 
-`groupByAdminIndex` allows to retrieve groups by admin address:
+`groupByAdminIndex` cho phép truy xuất group theo địa chỉ admin:
 `0x2 | len([]byte(group.Admin)) | []byte(group.Admin) | BigEndian(GroupId) -> []byte()`.
 
 ### Group Member Table
 
-The `groupMemberTable` stores `GroupMember`s: `0x10 | BigEndian(GroupId) | []byte(member.Address) -> ProtocolBuffer(GroupMember)`.
+`groupMemberTable` lưu `GroupMember`s: `0x10 | BigEndian(GroupId) | []byte(member.Address) -> ProtocolBuffer(GroupMember)`.
 
-The `groupMemberTable` is a primary key table and its `PrimaryKey` is given by
-`BigEndian(GroupId) | []byte(member.Address)` which is used by the following indexes.
+`groupMemberTable` là bảng khóa chính và `PrimaryKey` của nó được cho bởi `BigEndian(GroupId) | []byte(member.Address)` được sử dụng bởi các chỉ mục sau.
 
 #### groupMemberByGroupIndex
 
-`groupMemberByGroupIndex` allows to retrieve group members by group id:
+`groupMemberByGroupIndex` cho phép truy xuất thành viên group theo group id:
 `0x11 | BigEndian(GroupId) | PrimaryKey -> []byte()`.
 
 #### groupMemberByMemberIndex
 
-`groupMemberByMemberIndex` allows to retrieve group members by member address:
+`groupMemberByMemberIndex` cho phép truy xuất thành viên group theo địa chỉ member:
 `0x12 | len([]byte(member.Address)) | []byte(member.Address) | PrimaryKey -> []byte()`.
 
 ### Group Policy Table
 
-The `groupPolicyTable` stores `GroupPolicyInfo`: `0x20 | len([]byte(Address)) | []byte(Address) -> ProtocolBuffer(GroupPolicyInfo)`.
+`groupPolicyTable` lưu `GroupPolicyInfo`: `0x20 | len([]byte(Address)) | []byte(Address) -> ProtocolBuffer(GroupPolicyInfo)`.
 
-The `groupPolicyTable` is a primary key table and its `PrimaryKey` is given by
-`len([]byte(Address)) | []byte(Address)` which is used by the following indexes.
+`groupPolicyTable` là bảng khóa chính và `PrimaryKey` của nó được cho bởi `len([]byte(Address)) | []byte(Address)` được sử dụng bởi các chỉ mục sau.
 
 #### groupPolicySeq
 
-The value of `groupPolicySeq` is incremented when creating a new group policy and is used to generate the new group policy account `Address`:
+Giá trị của `groupPolicySeq` được tăng khi tạo group policy mới và được sử dụng để tạo địa chỉ tài khoản group policy mới `Address`:
 `0x21 | 0x1 -> BigEndian`.
 
-The second `0x1` corresponds to the ORM `sequenceStorageKey`.
+`0x1` thứ hai tương ứng với `sequenceStorageKey` của ORM.
 
 #### groupPolicyByGroupIndex
 
-`groupPolicyByGroupIndex` allows to retrieve group policies by group id:
+`groupPolicyByGroupIndex` cho phép truy xuất group policy theo group id:
 `0x22 | BigEndian(GroupId) | PrimaryKey -> []byte()`.
 
 #### groupPolicyByAdminIndex
 
-`groupPolicyByAdminIndex` allows to retrieve group policies by admin address:
+`groupPolicyByAdminIndex` cho phép truy xuất group policy theo địa chỉ admin:
 `0x23 | len([]byte(Address)) | []byte(Address) | PrimaryKey -> []byte()`.
 
 ### Proposal Table
 
-The `proposalTable` stores `Proposal`s: `0x30 | BigEndian(ProposalId) -> ProtocolBuffer(Proposal)`.
+`proposalTable` lưu `Proposal`s: `0x30 | BigEndian(ProposalId) -> ProtocolBuffer(Proposal)`.
 
 #### proposalSeq
 
-The value of `proposalSeq` is incremented when creating a new proposal and corresponds to the new `ProposalId`: `0x31 | 0x1 -> BigEndian`.
+Giá trị của `proposalSeq` được tăng khi tạo proposal mới và tương ứng với `ProposalId` mới: `0x31 | 0x1 -> BigEndian`.
 
-The second `0x1` corresponds to the ORM `sequenceStorageKey`.
+`0x1` thứ hai tương ứng với `sequenceStorageKey` của ORM.
 
 #### proposalByGroupPolicyIndex
 
-`proposalByGroupPolicyIndex` allows to retrieve proposals by group policy account address:
+`proposalByGroupPolicyIndex` cho phép truy xuất proposal theo địa chỉ tài khoản group policy:
 `0x32 | len([]byte(account.Address)) | []byte(account.Address) | BigEndian(ProposalId) -> []byte()`.
 
 #### ProposalsByVotingPeriodEndIndex
 
-`proposalsByVotingPeriodEndIndex` allows to retrieve proposals sorted by chronological `voting_period_end`:
+`proposalsByVotingPeriodEndIndex` cho phép truy xuất proposal được sắp xếp theo `voting_period_end` theo thứ tự thời gian:
 `0x33 | sdk.FormatTimeBytes(proposal.VotingPeriodEnd) | BigEndian(ProposalId) -> []byte()`.
 
-This index is used when tallying the proposal votes at the end of the voting period, and for pruning proposals at `VotingPeriodEnd + MaxExecutionPeriod`.
+Chỉ mục này được sử dụng khi kiểm đếm phiếu proposal khi kết thúc thời gian bỏ phiếu, và để prune proposal tại `VotingPeriodEnd + MaxExecutionPeriod`.
 
 ### Vote Table
 
-The `voteTable` stores `Vote`s: `0x40 | BigEndian(ProposalId) | []byte(voter.Address) -> ProtocolBuffer(Vote)`.
+`voteTable` lưu `Vote`s: `0x40 | BigEndian(ProposalId) | []byte(voter.Address) -> ProtocolBuffer(Vote)`.
 
-The `voteTable` is a primary key table and its `PrimaryKey` is given by
-`BigEndian(ProposalId) | []byte(voter.Address)` which is used by the following indexes.
+`voteTable` là bảng khóa chính và `PrimaryKey` của nó được cho bởi `BigEndian(ProposalId) | []byte(voter.Address)` được sử dụng bởi các chỉ mục sau.
 
 #### voteByProposalIndex
 
-`voteByProposalIndex` allows to retrieve votes by proposal id:
+`voteByProposalIndex` cho phép truy xuất vote theo proposal id:
 `0x41 | BigEndian(ProposalId) | PrimaryKey -> []byte()`.
 
 #### voteByVoterIndex
 
-`voteByVoterIndex` allows to retrieve votes by voter address:
+`voteByVoterIndex` cho phép truy xuất vote theo địa chỉ voter:
 `0x42 | len([]byte(voter.Address)) | []byte(voter.Address) | PrimaryKey -> []byte()`.
 
 ## Msg Service
 
 ### Msg/CreateGroup
 
-A new group can be created with the `MsgCreateGroup`, which has an admin address, a list of members and some optional metadata.
+Một group mới có thể được tạo với `MsgCreateGroup`, có địa chỉ admin, danh sách thành viên và một số metadata tùy chọn.
 
-The metadata has a maximum length that is chosen by the app developer, and
-passed into the group keeper as a config.
+Metadata có độ dài tối đa do nhà phát triển ứng dụng chọn và được truyền vào group keeper dưới dạng config.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/group/v1/tx.proto#L67-L80
 ```
 
-It's expected to fail if
+Dự kiến sẽ thất bại nếu:
 
-* metadata length is greater than `MaxMetadataLen` config
-* members are not correctly set (e.g. wrong address format, duplicates, or with 0 weight).
+* độ dài metadata lớn hơn config `MaxMetadataLen`
+* thành viên không được thiết lập đúng (ví dụ: định dạng địa chỉ sai, trùng lặp, hoặc trọng số 0).
 
 ### Msg/UpdateGroupMembers
 
-Group members can be updated with the `UpdateGroupMembers`.
+Thành viên group có thể được cập nhật với `UpdateGroupMembers`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/group/v1/tx.proto#L88-L102
 ```
 
-In the list of `MemberUpdates`, an existing member can be removed by setting its weight to 0.
+Trong danh sách `MemberUpdates`, một thành viên hiện có có thể bị xóa bằng cách đặt trọng số của nó là 0.
 
-It's expected to fail if:
+Dự kiến sẽ thất bại nếu:
 
-* the signer is not the admin of the group.
-* for any one of the associated group policies, if its decision policy's `Validate()` method fails against the updated group.
+* người ký không phải là admin của group.
+* đối với bất kỳ group policy liên kết nào, nếu phương thức `Validate()` của decision policy của nó thất bại với group đã cập nhật.
 
 ### Msg/UpdateGroupAdmin
 
-The `UpdateGroupAdmin` can be used to update a group admin.
+`UpdateGroupAdmin` có thể được sử dụng để cập nhật admin của group.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/group/v1/tx.proto#L107-L120
 ```
 
-It's expected to fail if the signer is not the admin of the group.
+Dự kiến sẽ thất bại nếu người ký không phải là admin của group.
 
 ### Msg/UpdateGroupMetadata
 
-The `UpdateGroupMetadata` can be used to update a group metadata.
+`UpdateGroupMetadata` có thể được sử dụng để cập nhật metadata của group.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/group/v1/tx.proto#L125-L138
 ```
 
-It's expected to fail if:
+Dự kiến sẽ thất bại nếu:
 
-* new metadata length is greater than `MaxMetadataLen` config.
-* the signer is not the admin of the group.
+* độ dài metadata mới lớn hơn config `MaxMetadataLen`.
+* người ký không phải là admin của group.
 
 ### Msg/CreateGroupPolicy
 
-A new group policy can be created with the `MsgCreateGroupPolicy`, which has an admin address, a group id, a decision policy and some optional metadata.
+Một group policy mới có thể được tạo với `MsgCreateGroupPolicy`, có địa chỉ admin, group id, decision policy và một số metadata tùy chọn.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/group/v1/tx.proto#L147-L165
 ```
 
-It's expected to fail if:
+Dự kiến sẽ thất bại nếu:
 
-* the signer is not the admin of the group.
-* metadata length is greater than `MaxMetadataLen` config.
-* the decision policy's `Validate()` method doesn't pass against the group.
+* người ký không phải là admin của group.
+* độ dài metadata lớn hơn config `MaxMetadataLen`.
+* phương thức `Validate()` của decision policy không thỏa mãn với group.
 
 ### Msg/CreateGroupWithPolicy
 
-A new group with policy can be created with the `MsgCreateGroupWithPolicy`, which has an admin address, a list of members, a decision policy, a `group_policy_as_admin` field to optionally set group and group policy admin with group policy address and some optional metadata for group and group policy.
+Một group và policy mới có thể được tạo với `MsgCreateGroupWithPolicy`, có địa chỉ admin, danh sách thành viên, decision policy, trường `group_policy_as_admin` để tùy chọn đặt admin của group và group policy bằng địa chỉ group policy, và một số metadata tùy chọn cho group và group policy.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/group/v1/tx.proto#L191-L215
 ```
 
-It's expected to fail for the same reasons as `Msg/CreateGroup` and `Msg/CreateGroupPolicy`.
+Dự kiến sẽ thất bại vì các lý do tương tự như `Msg/CreateGroup` và `Msg/CreateGroupPolicy`.
 
 ### Msg/UpdateGroupPolicyAdmin
 
-The `UpdateGroupPolicyAdmin` can be used to update a group policy admin.
+`UpdateGroupPolicyAdmin` có thể được sử dụng để cập nhật admin của group policy.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/group/v1/tx.proto#L173-L186
 ```
 
-It's expected to fail if the signer is not the admin of the group policy.
+Dự kiến sẽ thất bại nếu người ký không phải là admin của group policy.
 
 ### Msg/UpdateGroupPolicyDecisionPolicy
 
-The `UpdateGroupPolicyDecisionPolicy` can be used to update a decision policy.
+`UpdateGroupPolicyDecisionPolicy` có thể được sử dụng để cập nhật decision policy.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/group/v1/tx.proto#L226-L241
 ```
 
-It's expected to fail if:
+Dự kiến sẽ thất bại nếu:
 
-* the signer is not the admin of the group policy.
-* the new decision policy's `Validate()` method doesn't pass against the group.
+* người ký không phải là admin của group policy.
+* phương thức `Validate()` của decision policy mới không thỏa mãn với group.
 
 ### Msg/UpdateGroupPolicyMetadata
 
-The `UpdateGroupPolicyMetadata` can be used to update a group policy metadata.
+`UpdateGroupPolicyMetadata` có thể được sử dụng để cập nhật metadata của group policy.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/group/v1/tx.proto#L246-L259
 ```
 
-It's expected to fail if:
+Dự kiến sẽ thất bại nếu:
 
-* new metadata length is greater than `MaxMetadataLen` config.
-* the signer is not the admin of the group.
+* độ dài metadata mới lớn hơn config `MaxMetadataLen`.
+* người ký không phải là admin của group.
 
 ### Msg/SubmitProposal
 
-A new proposal can be created with the `MsgSubmitProposal`, which has a group policy account address, a list of proposers addresses, a list of messages to execute if the proposal is accepted and some optional metadata.
-An optional `Exec` value can be provided to try to execute the proposal immediately after proposal creation. Proposers signatures are considered as yes votes in this case.
+Một proposal mới có thể được tạo với `MsgSubmitProposal`, có địa chỉ tài khoản group policy, danh sách địa chỉ proposer, danh sách message để thực thi nếu proposal được chấp nhận và một số metadata tùy chọn.
+Giá trị `Exec` tùy chọn có thể được cung cấp để thử thực thi proposal ngay sau khi tạo proposal. Chữ ký của proposer được coi là phiếu đồng ý trong trường hợp này.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/group/v1/tx.proto#L281-L315
 ```
 
-It's expected to fail if:
+Dự kiến sẽ thất bại nếu:
 
-* metadata, title, or summary length is greater than `MaxMetadataLen` config.
-* if any of the proposers is not a group member.
+* độ dài metadata, title hoặc summary lớn hơn config `MaxMetadataLen`.
+* nếu bất kỳ proposer nào không phải là thành viên group.
 
 ### Msg/WithdrawProposal
 
-A proposal can be withdrawn using `MsgWithdrawProposal` which has an `address` (can be either a proposer or the group policy admin) and a `proposal_id` (which has to be withdrawn).
+Một proposal có thể được rút bằng `MsgWithdrawProposal` có `address` (có thể là proposer hoặc admin của group policy) và `proposal_id` (proposal cần rút).
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/group/v1/tx.proto#L323-L333
 ```
 
-It's expected to fail if:
+Dự kiến sẽ thất bại nếu:
 
-* the signer is neither the group policy admin nor proposer of the proposal.
-* the proposal is already closed or aborted.
+* người ký không phải là admin của group policy cũng không phải proposer của proposal.
+* proposal đã đóng hoặc aborted.
 
 ### Msg/Vote
 
-A new vote can be created with the `MsgVote`, given a proposal id, a voter address, a choice (yes, no, veto or abstain) and some optional metadata.
-An optional `Exec` value can be provided to try to execute the proposal immediately after voting.
+Một vote mới có thể được tạo với `MsgVote`, cho proposal id, địa chỉ voter, lựa chọn (yes, no, veto hoặc abstain) và một số metadata tùy chọn.
+Giá trị `Exec` tùy chọn có thể được cung cấp để thử thực thi proposal ngay sau khi bỏ phiếu.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/group/v1/tx.proto#L338-L358
 ```
 
-It's expected to fail if:
+Dự kiến sẽ thất bại nếu:
 
-* metadata length is greater than `MaxMetadataLen` config.
-* the proposal is not in voting period anymore.
+* độ dài metadata lớn hơn config `MaxMetadataLen`.
+* proposal không còn trong thời gian bỏ phiếu.
 
 ### Msg/Exec
 
-A proposal can be executed with the `MsgExec`.
+Một proposal có thể được thực thi với `MsgExec`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/group/v1/tx.proto#L363-L373
 ```
 
-The messages that are part of this proposal won't be executed if:
+Các message là phần của proposal này sẽ không được thực thi nếu:
 
-* the proposal has not been accepted by the group policy.
-* the proposal has already been successfully executed.
+* proposal chưa được group policy chấp nhận.
+* proposal đã được thực thi thành công.
 
 ### Msg/LeaveGroup
 
-The `MsgLeaveGroup` allows group member to leave a group.
+`MsgLeaveGroup` cho phép thành viên group rời khỏi group.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/group/v1/tx.proto#L381-L391
 ```
 
-It's expected to fail if:
+Dự kiến sẽ thất bại nếu:
 
-* the group member is not part of the group.
-* for any one of the associated group policies, if its decision policy's `Validate()` method fails against the updated group.
+* thành viên group không phải là thành viên của group.
+* đối với bất kỳ group policy liên kết nào, nếu phương thức `Validate()` của decision policy của nó thất bại với group đã cập nhật.
 
 ## Events
 
-The group module emits the following events:
+Module group phát ra các event sau:
 
 ### EventCreateGroup
 
@@ -595,11 +509,11 @@ The group module emits the following events:
 
 ### CLI
 
-A user can query and interact with the `group` module using the CLI.
+Người dùng có thể truy vấn và tương tác với module `group` bằng CLI.
 
 #### Query
 
-The `query` commands allow users to query `group` state.
+Các lệnh `query` cho phép người dùng truy vấn state của `group`.
 
 ```bash
 simd query group --help
@@ -607,7 +521,7 @@ simd query group --help
 
 ##### group-info
 
-The `group-info` command allows users to query for group info by given group id.
+Lệnh `group-info` cho phép người dùng truy vấn thông tin group theo group id cho trước.
 
 ```bash
 simd query group group-info [id] [flags]
@@ -631,7 +545,7 @@ version: "1"
 
 ##### group-policy-info
 
-The `group-policy-info` command allows users to query for group policy info by account address of group policy .
+Lệnh `group-policy-info` cho phép người dùng truy vấn thông tin group policy theo địa chỉ tài khoản group policy.
 
 ```bash
 simd query group group-policy-info [group-policy-account] [flags]
@@ -661,7 +575,7 @@ version: "1"
 
 ##### group-members
 
-The `group-members` command allows users to query for group members by group id with pagination flags.
+Lệnh `group-members` cho phép người dùng truy vấn thành viên group theo group id với các cờ phân trang.
 
 ```bash
 simd query group group-members [id] [flags]
@@ -694,7 +608,7 @@ pagination:
 
 ##### groups-by-admin
 
-The `groups-by-admin` command allows users to query for groups by admin account address with pagination flags.
+Lệnh `groups-by-admin` cho phép người dùng truy vấn group theo địa chỉ tài khoản admin với các cờ phân trang.
 
 ```bash
 simd query group groups-by-admin [admin] [flags]
@@ -727,7 +641,7 @@ pagination:
 
 ##### group-policies-by-group
 
-The `group-policies-by-group` command allows users to query for group policies by group id with pagination flags.
+Lệnh `group-policies-by-group` cho phép người dùng truy vấn group policy theo group id với các cờ phân trang.
 
 ```bash
 simd query group group-policies-by-group [group-id] [flags]
@@ -772,7 +686,7 @@ pagination:
 
 ##### group-policies-by-admin
 
-The `group-policies-by-admin` command allows users to query for group policies by admin account address with pagination flags.
+Lệnh `group-policies-by-admin` cho phép người dùng truy vấn group policy theo địa chỉ tài khoản admin với các cờ phân trang.
 
 ```bash
 simd query group group-policies-by-admin [admin] [flags]
@@ -817,7 +731,7 @@ pagination:
 
 ##### proposal
 
-The `proposal` command allows users to query for proposal by id.
+Lệnh `proposal` cho phép người dùng truy vấn proposal theo id.
 
 ```bash
 simd query group proposal [id] [flags]
@@ -865,7 +779,7 @@ proposal:
 
 ##### proposals-by-group-policy
 
-The `proposals-by-group-policy` command allows users to query for proposals by account address of group policy with pagination flags.
+Lệnh `proposals-by-group-policy` cho phép người dùng truy vấn proposal theo địa chỉ tài khoản group policy với các cờ phân trang.
 
 ```bash
 simd query group proposals-by-group-policy [group-policy-account] [flags]
@@ -916,7 +830,7 @@ proposals:
 
 ##### vote
 
-The `vote` command allows users to query for vote by proposal id and voter account address.
+Lệnh `vote` cho phép người dùng truy vấn vote theo proposal id và địa chỉ tài khoản voter.
 
 ```bash
 simd query group vote [proposal-id] [voter] [flags]
@@ -941,7 +855,7 @@ vote:
 
 ##### votes-by-proposal
 
-The `votes-by-proposal` command allows users to query for votes by proposal id with pagination flags.
+Lệnh `votes-by-proposal` cho phép người dùng truy vấn vote theo proposal id với các cờ phân trang.
 
 ```bash
 simd query group votes-by-proposal [proposal-id] [flags]
@@ -969,7 +883,7 @@ votes:
 
 ##### votes-by-voter
 
-The `votes-by-voter` command allows users to query for votes by voter account address with pagination flags.
+Lệnh `votes-by-voter` cho phép người dùng truy vấn vote theo địa chỉ tài khoản voter với các cờ phân trang.
 
 ```bash
 simd query group votes-by-voter [voter] [flags]
@@ -997,7 +911,7 @@ votes:
 
 ### Transactions
 
-The `tx` commands allow users to interact with the `group` module.
+Các lệnh `tx` cho phép người dùng tương tác với module `group`.
 
 ```bash
 simd tx group --help
@@ -1005,8 +919,7 @@ simd tx group --help
 
 #### create-group
 
-The `create-group` command allows users to create a group which is an aggregation of member accounts with associated weights and
-an administrator account.
+Lệnh `create-group` cho phép người dùng tạo group là tập hợp các tài khoản thành viên với trọng số liên kết và tài khoản administrator.
 
 ```bash
 simd tx group create-group [admin] [metadata] [members-json-file]
@@ -1020,7 +933,7 @@ simd tx group create-group cosmos1.. "AQ==" members.json
 
 #### update-group-admin
 
-The `update-group-admin` command allows users to update a group's admin.
+Lệnh `update-group-admin` cho phép người dùng cập nhật admin của group.
 
 ```bash
 simd tx group update-group-admin [admin] [group-id] [new-admin] [flags]
@@ -1034,7 +947,7 @@ simd tx group update-group-admin cosmos1.. 1 cosmos1..
 
 #### update-group-members
 
-The `update-group-members` command allows users to update a group's members.
+Lệnh `update-group-members` cho phép người dùng cập nhật thành viên của group.
 
 ```bash
 simd tx group update-group-members [admin] [group-id] [members-json-file] [flags]
@@ -1048,7 +961,7 @@ simd tx group update-group-members cosmos1.. 1 members.json
 
 #### update-group-metadata
 
-The `update-group-metadata` command allows users to update a group's metadata.
+Lệnh `update-group-metadata` cho phép người dùng cập nhật metadata của group.
 
 ```bash
 simd tx group update-group-metadata [admin] [group-id] [metadata] [flags]
@@ -1062,7 +975,7 @@ simd tx group update-group-metadata cosmos1.. 1 "AQ=="
 
 #### create-group-policy
 
-The `create-group-policy` command allows users to create a group policy which is an account associated with a group and a decision policy.
+Lệnh `create-group-policy` cho phép người dùng tạo group policy là tài khoản liên kết với group và decision policy.
 
 ```bash
 simd tx group create-group-policy [admin] [group-id] [metadata] [decision-policy] [flags]
@@ -1076,7 +989,7 @@ simd tx group create-group-policy cosmos1.. 1 "AQ==" '{"@type":"/cosmos.group.v1
 
 #### create-group-with-policy
 
-The `create-group-with-policy` command allows users to create a group which is an aggregation of member accounts with associated weights and an administrator account with decision policy. If the `--group-policy-as-admin` flag is set to `true`, the group policy address becomes the group and group policy admin.
+Lệnh `create-group-with-policy` cho phép người dùng tạo group là tập hợp các tài khoản thành viên với trọng số liên kết và tài khoản administrator với decision policy. Nếu cờ `--group-policy-as-admin` được đặt là `true`, địa chỉ group policy trở thành admin của group và group policy.
 
 ```bash
 simd tx group create-group-with-policy [admin] [group-metadata] [group-policy-metadata] [members-json-file] [decision-policy] [flags]
@@ -1090,7 +1003,7 @@ simd tx group create-group-with-policy cosmos1.. "AQ==" "AQ==" members.json '{"@
 
 #### update-group-policy-admin
 
-The `update-group-policy-admin` command allows users to update a group policy admin.
+Lệnh `update-group-policy-admin` cho phép người dùng cập nhật admin của group policy.
 
 ```bash
 simd tx group update-group-policy-admin [admin] [group-policy-account] [new-admin] [flags]
@@ -1104,7 +1017,7 @@ simd tx group update-group-policy-admin cosmos1.. cosmos1.. cosmos1..
 
 #### update-group-policy-metadata
 
-The `update-group-policy-metadata` command allows users to update a group policy metadata.
+Lệnh `update-group-policy-metadata` cho phép người dùng cập nhật metadata của group policy.
 
 ```bash
 simd tx group update-group-policy-metadata [admin] [group-policy-account] [new-metadata] [flags]
@@ -1118,7 +1031,7 @@ simd tx group update-group-policy-metadata cosmos1.. cosmos1.. "AQ=="
 
 #### update-group-policy-decision-policy
 
-The `update-group-policy-decision-policy` command allows users to update a group policy's decision policy.
+Lệnh `update-group-policy-decision-policy` cho phép người dùng cập nhật decision policy của group policy.
 
 ```bash
 simd  tx group update-group-policy-decision-policy [admin] [group-policy-account] [decision-policy] [flags]
@@ -1132,7 +1045,7 @@ simd tx group update-group-policy-decision-policy cosmos1.. cosmos1.. '{"@type":
 
 #### submit-proposal
 
-The `submit-proposal` command allows users to submit a new proposal.
+Lệnh `submit-proposal` cho phép người dùng gửi proposal mới.
 
 ```bash
 simd tx group submit-proposal [group-policy-account] [proposer[,proposer]*] [msg_tx_json_file] [metadata] [flags]
@@ -1146,7 +1059,7 @@ simd tx group submit-proposal cosmos1.. cosmos1.. msg_tx.json "AQ=="
 
 #### withdraw-proposal
 
-The `withdraw-proposal` command allows users to withdraw a proposal.
+Lệnh `withdraw-proposal` cho phép người dùng rút proposal.
 
 ```bash
 simd tx group withdraw-proposal [proposal-id] [group-policy-admin-or-proposer]
@@ -1160,7 +1073,7 @@ simd tx group withdraw-proposal 1 cosmos1..
 
 #### vote
 
-The `vote` command allows users to vote on a proposal.
+Lệnh `vote` cho phép người dùng bỏ phiếu cho proposal.
 
 ```bash
 simd tx group vote proposal-id] [voter] [choice] [metadata] [flags]
@@ -1174,7 +1087,7 @@ simd tx group vote 1 cosmos1.. CHOICE_YES "AQ=="
 
 #### exec
 
-The `exec` command allows users to execute a proposal.
+Lệnh `exec` cho phép người dùng thực thi proposal.
 
 ```bash
 simd tx group exec [proposal-id] [flags]
@@ -1188,7 +1101,7 @@ simd tx group exec 1
 
 #### leave-group
 
-The `leave-group` command allows group member to leave the group.
+Lệnh `leave-group` cho phép thành viên group rời khỏi group.
 
 ```bash
 simd tx group leave-group [member-address] [group-id]
@@ -1202,11 +1115,11 @@ simd tx group leave-group cosmos1... 1
 
 ### gRPC
 
-A user can query the `group` module using gRPC endpoints.
+Người dùng có thể truy vấn module `group` bằng các endpoint gRPC.
 
 #### GroupInfo
 
-The `GroupInfo` endpoint allows users to query for group info by given group id.
+Endpoint `GroupInfo` cho phép người dùng truy vấn thông tin group theo group id cho trước.
 
 ```bash
 cosmos.group.v1.Query/GroupInfo
@@ -1235,7 +1148,7 @@ Example Output:
 
 #### GroupPolicyInfo
 
-The `GroupPolicyInfo` endpoint allows users to query for group policy info by account address of group policy.
+Endpoint `GroupPolicyInfo` cho phép người dùng truy vấn thông tin group policy theo địa chỉ tài khoản group policy.
 
 ```bash
 cosmos.group.v1.Query/GroupPolicyInfo
@@ -1264,7 +1177,7 @@ Example Output:
 
 #### GroupMembers
 
-The `GroupMembers` endpoint allows users to query for group members by group id with pagination flags.
+Endpoint `GroupMembers` cho phép người dùng truy vấn thành viên group theo group id với các cờ phân trang.
 
 ```bash
 cosmos.group.v1.Query/GroupMembers
@@ -1305,7 +1218,7 @@ Example Output:
 
 #### GroupsByAdmin
 
-The `GroupsByAdmin` endpoint allows users to query for groups by admin account address with pagination flags.
+Endpoint `GroupsByAdmin` cho phép người dùng truy vấn group theo địa chỉ tài khoản admin với các cờ phân trang.
 
 ```bash
 cosmos.group.v1.Query/GroupsByAdmin
@@ -1346,7 +1259,7 @@ Example Output:
 
 #### GroupPoliciesByGroup
 
-The `GroupPoliciesByGroup` endpoint allows users to query for group policies by group id with pagination flags.
+Endpoint `GroupPoliciesByGroup` cho phép người dùng truy vấn group policy theo group id với các cờ phân trang.
 
 ```bash
 cosmos.group.v1.Query/GroupPoliciesByGroup
@@ -1387,7 +1300,7 @@ Example Output:
 
 #### GroupPoliciesByAdmin
 
-The `GroupPoliciesByAdmin` endpoint allows users to query for group policies by admin account address with pagination flags.
+Endpoint `GroupPoliciesByAdmin` cho phép người dùng truy vấn group policy theo địa chỉ tài khoản admin với các cờ phân trang.
 
 ```bash
 cosmos.group.v1.Query/GroupPoliciesByAdmin
@@ -1428,7 +1341,7 @@ Example Output:
 
 #### Proposal
 
-The `Proposal` endpoint allows users to query for proposal by id.
+Endpoint `Proposal` cho phép người dùng truy vấn proposal theo id.
 
 ```bash
 cosmos.group.v1.Query/Proposal
@@ -1478,7 +1391,7 @@ Example Output:
 
 #### ProposalsByGroupPolicy
 
-The `ProposalsByGroupPolicy` endpoint allows users to query for proposals by account address of group policy with pagination flags.
+Endpoint `ProposalsByGroupPolicy` cho phép người dùng truy vấn proposal theo địa chỉ tài khoản group policy với các cờ phân trang.
 
 ```bash
 cosmos.group.v1.Query/ProposalsByGroupPolicy
@@ -1533,7 +1446,7 @@ Example Output:
 
 #### VoteByProposalVoter
 
-The `VoteByProposalVoter` endpoint allows users to query for vote by proposal id and voter account address.
+Endpoint `VoteByProposalVoter` cho phép người dùng truy vấn vote theo proposal id và địa chỉ tài khoản voter.
 
 ```bash
 cosmos.group.v1.Query/VoteByProposalVoter
@@ -1561,7 +1474,7 @@ Example Output:
 
 #### VotesByProposal
 
-The `VotesByProposal` endpoint allows users to query for votes by proposal id with pagination flags.
+Endpoint `VotesByProposal` cho phép người dùng truy vấn vote theo proposal id với các cờ phân trang.
 
 ```bash
 cosmos.group.v1.Query/VotesByProposal
@@ -1594,7 +1507,7 @@ Example Output:
 
 #### VotesByVoter
 
-The `VotesByVoter` endpoint allows users to query for votes by voter account address with pagination flags.
+Endpoint `VotesByVoter` cho phép người dùng truy vấn vote theo địa chỉ tài khoản voter với các cờ phân trang.
 
 ```bash
 cosmos.group.v1.Query/VotesByVoter
@@ -1627,11 +1540,11 @@ Example Output:
 
 ### REST
 
-A user can query the `group` module using REST endpoints.
+Người dùng có thể truy vấn module `group` bằng các endpoint REST.
 
 #### GroupInfo
 
-The `GroupInfo` endpoint allows users to query for group info by given group id.
+Endpoint `GroupInfo` cho phép người dùng truy vấn thông tin group theo group id cho trước.
 
 ```bash
 /cosmos/group/v1/group_info/{group_id}
@@ -1659,7 +1572,7 @@ Example Output:
 
 #### GroupPolicyInfo
 
-The `GroupPolicyInfo` endpoint allows users to query for group policy info by account address of group policy.
+Endpoint `GroupPolicyInfo` cho phép người dùng truy vấn thông tin group policy theo địa chỉ tài khoản group policy.
 
 ```bash
 /cosmos/group/v1/group_policy_info/{address}
@@ -1695,7 +1608,7 @@ Example Output:
 
 #### GroupMembers
 
-The `GroupMembers` endpoint allows users to query for group members by group id with pagination flags.
+Endpoint `GroupMembers` cho phép người dùng truy vấn thành viên group theo group id với các cờ phân trang.
 
 ```bash
 /cosmos/group/v1/group_members/{group_id}
@@ -1737,7 +1650,7 @@ Example Output:
 
 #### GroupsByAdmin
 
-The `GroupsByAdmin` endpoint allows users to query for groups by admin account address with pagination flags.
+Endpoint `GroupsByAdmin` cho phép người dùng truy vấn group theo địa chỉ tài khoản admin với các cờ phân trang.
 
 ```bash
 /cosmos/group/v1/groups_by_admin/{admin}
@@ -1778,7 +1691,7 @@ Example Output:
 
 #### GroupPoliciesByGroup
 
-The `GroupPoliciesByGroup` endpoint allows users to query for group policies by group id with pagination flags.
+Endpoint `GroupPoliciesByGroup` cho phép người dùng truy vấn group policy theo group id với các cờ phân trang.
 
 ```bash
 /cosmos/group/v1/group_policies_by_group/{group_id}
@@ -1835,7 +1748,7 @@ Example Output:
 
 #### GroupPoliciesByAdmin
 
-The `GroupPoliciesByAdmin` endpoint allows users to query for group policies by admin account address with pagination flags.
+Endpoint `GroupPoliciesByAdmin` cho phép người dùng truy vấn group policy theo địa chỉ tài khoản admin với các cờ phân trang.
 
 ```bash
 /cosmos/group/v1/group_policies_by_admin/{admin}
@@ -1891,7 +1804,7 @@ Example Output:
 
 #### Proposal
 
-The `Proposal` endpoint allows users to query for proposal by id.
+Endpoint `Proposal` cho phép người dùng truy vấn proposal theo id.
 
 ```bash
 /cosmos/group/v1/proposal/{proposal_id}
@@ -1951,7 +1864,7 @@ Example Output:
 
 #### ProposalsByGroupPolicy
 
-The `ProposalsByGroupPolicy` endpoint allows users to query for proposals by account address of group policy with pagination flags.
+Endpoint `ProposalsByGroupPolicy` cho phép người dùng truy vấn proposal theo địa chỉ tài khoản group policy với các cờ phân trang.
 
 ```bash
 /cosmos/group/v1/proposals_by_group_policy/{address}
@@ -2015,7 +1928,7 @@ Example Output:
 
 #### VoteByProposalVoter
 
-The `VoteByProposalVoter` endpoint allows users to query for vote by proposal id and voter account address.
+Endpoint `VoteByProposalVoter` cho phép người dùng truy vấn vote theo proposal id và địa chỉ tài khoản voter.
 
 ```bash
 /cosmos/group/v1/vote_by_proposal_voter/{proposal_id}/{voter}
@@ -2043,7 +1956,7 @@ Example Output:
 
 #### VotesByProposal
 
-The `VotesByProposal` endpoint allows users to query for votes by proposal id with pagination flags.
+Endpoint `VotesByProposal` cho phép người dùng truy vấn vote theo proposal id với các cờ phân trang.
 
 ```bash
 /cosmos/group/v1/votes_by_proposal/{proposal_id}
@@ -2077,7 +1990,7 @@ Example Output:
 
 #### VotesByVoter
 
-The `VotesByVoter` endpoint allows users to query for votes by voter account address with pagination flags.
+Endpoint `VotesByVoter` cho phép người dùng truy vấn vote theo địa chỉ tài khoản voter với các cờ phân trang.
 
 ```bash
 /cosmos/group/v1/votes_by_voter/{voter}
@@ -2111,11 +2024,11 @@ Example Output:
 
 ## Metadata
 
-The group module has four locations for metadata where users can provide further context about the on-chain actions they are taking. By default all metadata fields have a 255 character length field where metadata can be stored in json format, either on-chain or off-chain depending on the amount of data required. Here we provide a recommendation for the json structure and where the data should be stored. There are two important factors in making these recommendations. First, that the group and gov modules are consistent with one another, note the number of proposals made by all groups may be quite large. Second, that client applications such as block explorers and governance interfaces have confidence in the consistency of metadata structure across chains.
+Module group có bốn vị trí cho metadata nơi người dùng có thể cung cấp thêm ngữ cảnh về các hành động trên chuỗi mà họ đang thực hiện. Theo mặc định tất cả các trường metadata có giới hạn độ dài 255 ký tự nơi metadata có thể được lưu trữ ở định dạng json, có thể on-chain hoặc off-chain tùy thuộc vào lượng dữ liệu cần thiết. Ở đây chúng tôi cung cấp khuyến nghị cho cấu trúc json và nơi dữ liệu nên được lưu trữ. Có hai yếu tố quan trọng trong việc đưa ra các khuyến nghị này. Thứ nhất, module group và gov phải nhất quán với nhau, lưu ý số lượng proposal do tất cả group tạo có thể khá lớn. Thứ hai, các ứng dụng client như block explorer và giao diện governance có thể tin tưởng vào tính nhất quán của cấu trúc metadata trên các chuỗi.
 
 ### Proposal
 
-Location: off-chain as json object stored on IPFS (mirrors [gov proposal](../gov/README.md#metadata))
+Vị trí: off-chain dưới dạng đối tượng json lưu trên IPFS (tương tự [gov proposal](../gov/README.md#metadata))
 
 ```json
 {
@@ -2129,13 +2042,13 @@ Location: off-chain as json object stored on IPFS (mirrors [gov proposal](../gov
 ```
 
 :::note
-The `authors` field is an array of strings, this is to allow for multiple authors to be listed in the metadata.
-In v0.46, the `authors` field is a comma-separated string. Frontends are encouraged to support both formats for backwards compatibility.
+Trường `authors` là mảng chuỗi, điều này cho phép liệt kê nhiều tác giả trong metadata.
+Trong v0.46, trường `authors` là chuỗi phân tách bằng dấu phẩy. Frontend được khuyến khích hỗ trợ cả hai định dạng để tương thích ngược.
 :::
 
 ### Vote
 
-Location: on-chain as json within 255 character limit (mirrors [gov vote](../gov/README.md#metadata))
+Vị trí: on-chain dưới dạng json trong giới hạn 255 ký tự (tương tự [gov vote](../gov/README.md#metadata))
 
 ```json
 {
@@ -2145,7 +2058,7 @@ Location: on-chain as json within 255 character limit (mirrors [gov vote](../gov
 
 ### Group
 
-Location: off-chain as json object stored on IPFS
+Vị trí: off-chain dưới dạng đối tượng json lưu trên IPFS
 
 ```json
 {
@@ -2158,7 +2071,7 @@ Location: off-chain as json object stored on IPFS
 
 ### Decision policy
 
-Location: on-chain as json within 255 character limit
+Vị trí: on-chain dưới dạng json trong giới hạn 255 ký tự
 
 ```json
 {

@@ -1,30 +1,30 @@
-# ADR 034: Account Rekeying
+# ADR 034: Tái Khóa Tài Khoản (Account Rekeying)
 
-## Changelog
+## Nhật Ký Thay Đổi
 
-* 30-09-2020: Initial Draft
+* 30-09-2020: Bản nháp đầu tiên
 
-## Status
+## Trạng Thái
 
-PROPOSED
+ĐỀ XUẤT
 
-## Abstract
+## Tóm Tắt
 
-Account rekeying is a process that allows an account to replace its authentication pubkey with a new one.
+Tái khóa tài khoản là một quy trình cho phép tài khoản thay thế khóa công khai xác thực của nó bằng một khóa mới.
 
-## Context
+## Bối Cảnh
 
-Currently, in the Cosmos SDK, the address of an auth `BaseAccount` is based on the hash of the public key.  Once an account is created, the public key for the account is set in stone, and cannot be changed.  This can be a problem for users, as key rotation is a useful security practice, but is not possible currently.  Furthermore, as multisigs are a type of pubkey, once a multisig for an account is set, it cannot be updated.  This is problematic, as multisigs are often used by organizations or companies, who may need to change their set of multisig signers for internal reasons.
+Hiện tại, trong Cosmos SDK, địa chỉ của `BaseAccount` auth dựa trên hàm băm của khóa công khai. Một khi tài khoản được tạo, khóa công khai cho tài khoản đó được cố định và không thể thay đổi. Điều này có thể gây ra vấn đề cho người dùng, vì xoay khóa là một thực hành bảo mật hữu ích, nhưng hiện tại không thể thực hiện được. Hơn nữa, vì multisig là một loại pubkey, một khi multisig cho một tài khoản được đặt, nó không thể được cập nhật. Điều này gây ra vấn đề, vì multisig thường được sử dụng bởi các tổ chức hoặc công ty, những người có thể cần thay đổi tập hợp người ký multisig của họ vì lý do nội bộ.
 
-Transferring all the assets of an account to a new account with the updated pubkey is not sufficient, because some "engagements" of an account are not easily transferable.  For example, in staking, to transfer bonded Atoms, an account would have to unbond all delegations and wait the three-week unbonding period.  Even more significantly, for validator operators, ownership over a validator is not transferable at all, meaning that the operator key for a validator can never be updated, leading to poor operational security for validators.
+Việc chuyển tất cả tài sản của một tài khoản sang tài khoản mới với pubkey được cập nhật là không đủ, vì một số "cam kết" của tài khoản không dễ dàng chuyển được. Ví dụ, trong staking, để chuyển các Atom đã bond, một tài khoản sẽ phải unbond tất cả các delegation và chờ thời gian unbonding ba tuần. Thậm chí quan trọng hơn, đối với các operator validator, quyền sở hữu trên validator không thể chuyển nhượng được, có nghĩa là khóa operator cho validator không bao giờ có thể được cập nhật, dẫn đến bảo mật hoạt động kém cho các validator.
 
-## Decision
+## Quyết Định
 
-We propose the addition of a new feature to `x/auth` that allows accounts to update the public key associated with their account, while keeping the address the same.
+Chúng ta đề xuất thêm tính năng mới vào `x/auth` cho phép các tài khoản cập nhật khóa công khai liên kết với tài khoản của họ, trong khi giữ nguyên địa chỉ.
 
-This is possible because the Cosmos SDK `BaseAccount` stores the public key for an account in state, instead of making the assumption that the public key is included in the transaction (whether explicitly or implicitly through the signature) as in other blockchains such as Bitcoin and Ethereum.  Because the public key is stored on chain, it is okay for the public key to not hash to the address of an account, as the address is not pertinent to the signature checking process.
+Điều này có thể thực hiện được vì Cosmos SDK `BaseAccount` lưu trữ khóa công khai cho tài khoản trong trạng thái, thay vì giả định rằng khóa công khai được bao gồm trong giao dịch (dù rõ ràng hay ngầm thông qua chữ ký) như trong các blockchain khác như Bitcoin và Ethereum. Vì khóa công khai được lưu trữ on-chain, không cần khóa công khai phải là hàm băm của địa chỉ tài khoản, vì địa chỉ không liên quan đến quá trình kiểm tra chữ ký.
 
-To build this system, we design a new Msg type as follows:
+Để xây dựng hệ thống này, chúng ta thiết kế một kiểu `Msg` mới như sau:
 
 ```protobuf
 service Msg {
@@ -39,38 +39,38 @@ message MsgChangePubKey {
 message MsgChangePubKeyResponse {}
 ```
 
-The MsgChangePubKey transaction needs to be signed by the existing pubkey in state.
+Giao dịch `MsgChangePubKey` cần được ký bởi pubkey hiện tại trong trạng thái.
 
-Once approved, the handler for this message type, which takes in the AccountKeeper, will update the in-state pubkey for the account and replace it with the pubkey from the Msg.
+Sau khi được phê duyệt, handler cho kiểu message này, nhận AccountKeeper, sẽ cập nhật pubkey trong trạng thái cho tài khoản và thay thế nó bằng pubkey từ Msg.
 
-An account that has had its pubkey changed cannot be automatically pruned from state.  This is because if pruned, the original pubkey of the account would be needed to recreate the same address, but the owner of the address may not have the original pubkey anymore.  Currently, we do not automatically prune any accounts anyways, but we would like to keep this option open down the road (this is the purpose of account numbers).  To resolve this, we charge an additional gas fee for this operation to compensate for this externality (this bound gas amount is configured as a parameter `PubKeyChangeCost`). The bonus gas is charged inside the handler, using the `ConsumeGas` function.  Furthermore, in the future, we can allow accounts that have rekeyed manually prune themselves using a new Msg type such as `MsgDeleteAccount`.  Manually pruning accounts can give a gas refund as an incentive for performing the action.
+Một tài khoản đã được thay đổi pubkey của nó không thể tự động được dọn dẹp khỏi trạng thái. Điều này là vì nếu bị dọn dẹp, pubkey gốc của tài khoản sẽ cần thiết để tái tạo cùng một địa chỉ, nhưng chủ sở hữu địa chỉ có thể không còn pubkey gốc nữa. Hiện tại, chúng ta không tự động dọn dẹp bất kỳ tài khoản nào, nhưng chúng ta muốn giữ tùy chọn này mở trong tương lai (đây là mục đích của các số tài khoản). Để giải quyết điều này, chúng ta tính thêm phí gas cho thao tác này để bù đắp cho ngoại tác này (số gas ràng buộc này được cấu hình như tham số `PubKeyChangeCost`). Gas thưởng được tính bên trong handler, sử dụng hàm `ConsumeGas`. Hơn nữa, trong tương lai, chúng ta có thể cho phép các tài khoản đã tái khóa tự dọn dẹp thủ công bằng cách sử dụng kiểu `Msg` mới như `MsgDeleteAccount`. Việc dọn dẹp tài khoản thủ công có thể cung cấp hoàn trả gas như một khuyến khích để thực hiện hành động.
 
 ```go
 	amount := ak.GetParams(ctx).PubKeyChangeCost
 	ctx.GasMeter().ConsumeGas(amount, "pubkey change fee")
 ```
 
-Every time a key for an address is changed, we will store a log of this change in the state of the chain, thus creating a stack of all previous keys for an address and the time intervals for which they were active.  This allows dapps and clients to easily query past keys for an account which may be useful for features such as verifying timestamped off-chain signed messages.
+Mỗi khi khóa cho một địa chỉ được thay đổi, chúng ta sẽ lưu trữ nhật ký của thay đổi này trong trạng thái của chain, do đó tạo ra một ngăn xếp tất cả các khóa trước đó cho một địa chỉ và các khoảng thời gian chúng còn hoạt động. Điều này cho phép các dapp và client dễ dàng truy vấn các khóa cũ cho một tài khoản, có thể hữu ích cho các tính năng như xác minh các message đã ký off-chain có dấu thời gian.
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Will allow users and validator operators to employ better operational security practices with key rotation.
-* Will allow organizations or groups to easily change and add/remove multisig signers.
+* Sẽ cho phép người dùng và operator validator sử dụng các thực hành bảo mật hoạt động tốt hơn với xoay khóa.
+* Sẽ cho phép các tổ chức hoặc nhóm dễ dàng thay đổi và thêm/xóa người ký multisig.
 
-### Negative
+### Tiêu Cực
 
-Breaks the current assumed relationship between address and pubkey as H(pubkey) = address. This has a couple of consequences.
+Phá vỡ mối quan hệ giả định hiện tại giữa địa chỉ và pubkey là H(pubkey) = address. Điều này có một số hệ quả.
 
-* This makes wallets that support this feature more complicated. For example, if an address on-chain was updated, the corresponding key in the CLI wallet also needs to be updated.
-* Cannot automatically prune accounts with 0 balance that have had their pubkey changed.
+* Điều này làm cho các ví hỗ trợ tính năng này phức tạp hơn. Ví dụ, nếu một địa chỉ on-chain được cập nhật, khóa tương ứng trong ví CLI cũng cần được cập nhật.
+* Không thể tự động dọn dẹp các tài khoản có số dư 0 đã thay đổi pubkey của chúng.
 
-### Neutral
+### Trung Lập
 
-* While the purpose of this is intended to allow the owner of an account to update to a new pubkey they own, this could technically also be used to transfer ownership of an account to a new owner.  For example, this could be used to sell a staked position without unbonding or an account that has vesting tokens.  However, the friction of this is very high as this would essentially have to be done as a very specific OTC trade. Furthermore, additional constraints could be added to prevent accounts with Vesting tokens to use this feature.
-* Will require that PubKeys for an account are included in the genesis exports.
+* Mặc dù mục đích của điều này là cho phép chủ sở hữu tài khoản cập nhật lên pubkey mới mà họ sở hữu, điều này về mặt kỹ thuật cũng có thể được sử dụng để chuyển quyền sở hữu tài khoản cho chủ sở hữu mới. Ví dụ, điều này có thể được sử dụng để bán một vị trí staked mà không cần unbond hoặc một tài khoản có các token vesting. Tuy nhiên, ma sát của điều này là rất cao vì điều này về cơ bản phải được thực hiện như một giao dịch OTC rất cụ thể. Hơn nữa, có thể thêm các ràng buộc bổ sung để ngăn các tài khoản có token Vesting sử dụng tính năng này.
+* Sẽ yêu cầu rằng PubKeys cho một tài khoản được bao gồm trong các genesis export.
 
-## References
+## Tham Khảo
 
 * https://www.algorand.com/resources/blog/announcing-rekeying

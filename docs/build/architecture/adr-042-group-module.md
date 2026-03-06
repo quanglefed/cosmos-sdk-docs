@@ -1,44 +1,57 @@
-# ADR 042: Group Module
+# ADR 042: Module Group
 
 ## Changelog
 
-* 2020/04/09: Initial Draft
+* 2020/04/09: Bản nháp ban đầu
 
-## Status
+## Trạng thái
 
-Draft
+BẢN NHÁP
 
-## Abstract
+## Tóm tắt
 
-This ADR defines the `x/group` module which allows the creation and management of on-chain multi-signature accounts and enables voting for message execution based on configurable decision policies.
+ADR này định nghĩa module `x/group`, cho phép tạo và quản lý các tài khoản đa chữ
+ký (multi-signature) on-chain và cho phép bỏ phiếu để thực thi message dựa trên
+các chính sách ra quyết định có thể cấu hình.
 
-## Context
+## Bối cảnh
 
-The legacy amino multi-signature mechanism of the Cosmos SDK has certain limitations:
+Cơ chế multi-signature legacy amino của Cosmos SDK có một số hạn chế:
 
-* Key rotation is not possible, although this can be solved with [account rekeying](adr-034-account-rekeying.md).
-* Thresholds can't be changed.
-* UX is cumbersome for non-technical users ([#5661](https://github.com/cosmos/cosmos-sdk/issues/5661)).
-* It requires `legacy_amino` sign mode ([#8141](https://github.com/cosmos/cosmos-sdk/issues/8141)).
+* Không thể xoay khoá (key rotation), dù có thể giải quyết bằng [account rekeying](adr-034-account-rekeying.md).
+* Không thể thay đổi ngưỡng (threshold).
+* UX rườm rà cho người dùng không chuyên kỹ thuật ([#5661](https://github.com/cosmos/cosmos-sdk/issues/5661)).
+* Yêu cầu sign mode `legacy_amino` ([#8141](https://github.com/cosmos/cosmos-sdk/issues/8141)).
 
-While the group module is not meant to be a total replacement for the current multi-signature accounts, it provides a solution to the limitations described above, with a more flexible key management system where keys can be added, updated or removed, as well as configurable thresholds.
-It's meant to be used with other access control modules such as [`x/feegrant`](./adr-029-fee-grant-module.md) and [`x/authz`](adr-030-authz-module.md) to simplify key management for individuals and organizations.
+Dù module group không nhằm thay thế hoàn toàn các tài khoản multi-signature hiện
+tại, nó cung cấp lời giải cho các hạn chế nêu trên, với một hệ thống quản lý khoá
+linh hoạt hơn: khoá có thể được thêm, cập nhật hoặc xoá, đồng thời ngưỡng có thể
+cấu hình.
+Nó được kỳ vọng dùng cùng với các module kiểm soát truy cập khác như
+[`x/feegrant`](./adr-029-fee-grant-module.md) và [`x/authz`](adr-030-authz-module.md)
+để đơn giản hoá quản lý khoá cho cá nhân và tổ chức.
 
-The proof of concept of the group module can be found in https://github.com/cosmos/cosmos-sdk/tree/main/proto/cosmos/group/v1 and https://github.com/cosmos/cosmos-sdk/tree/main/x/group.
+Bản proof of concept của module group có thể xem tại
+https://github.com/cosmos/cosmos-sdk/tree/main/proto/cosmos/group/v1 và
+https://github.com/cosmos/cosmos-sdk/tree/main/x/group.
 
-## Decision
+## Quyết định
 
-We propose merging the `x/group` module with its supporting [ORM/Table Store package](https://github.com/cosmos/cosmos-sdk/tree/main/x/group/internal/orm) ([#7098](https://github.com/cosmos/cosmos-sdk/issues/7098)) into the Cosmos SDK and continuing development here. There will be a dedicated ADR for the ORM package.
+Chúng ta đề xuất gộp module `x/group` cùng với gói hỗ trợ
+[ORM/Table Store](https://github.com/cosmos/cosmos-sdk/tree/main/x/group/internal/orm)
+([#7098](https://github.com/cosmos/cosmos-sdk/issues/7098)) vào Cosmos SDK và tiếp
+tục phát triển ở đây. Sẽ có một ADR riêng cho gói ORM.
 
 ### Group
 
-A group is a composition of accounts with associated weights. It is not
-an account and doesn't have a balance. It doesn't in and of itself have any
-sort of voting or decision weight.
-Group members can create proposals and vote on them through group accounts using different decision policies.
+Một group là một tập hợp các tài khoản kèm theo trọng số (weight) tương ứng. Nó
+không phải là một tài khoản và không có số dư. Bản thân nó cũng không có bất kỳ
+trọng số bỏ phiếu hay ra quyết định nào.
+Thành viên group có thể tạo proposal và bỏ phiếu cho chúng thông qua các group
+account, dùng các decision policy khác nhau.
 
-It has an `admin` account which can manage members in the group, update the group
-metadata and set a new admin.
+Group có một tài khoản `admin` có thể quản lý thành viên trong group, cập nhật
+metadata của group và đặt admin mới.
 
 ```protobuf
 message GroupInfo {
@@ -90,17 +103,16 @@ message Member {
 
 ### Group Account
 
-A group account is an account associated with a group and a decision policy.
-A group account does have a balance.
+Group account là một tài khoản gắn với một group và một decision policy.
+Group account có số dư.
 
-Group accounts are abstracted from groups because a single group may have
-multiple decision policies for different types of actions. Managing group
-membership separately from decision policies results in the least overhead
-and keeps membership consistent across different policies. The pattern that
-is recommended is to have a single master group account for a given group,
-and then to create separate group accounts with different decision policies
-and delegate the desired permissions from the master account to
-those "sub-accounts" using the [`x/authz` module](adr-030-authz-module.md).
+Group account được tách khỏi group bởi vì một group đơn lẻ có thể có nhiều decision
+policy cho các loại hành động khác nhau. Quản lý membership tách biệt với decision
+policy giúp giảm overhead tối đa và giữ membership nhất quán giữa các policy khác
+nhau. Mẫu (pattern) được khuyến nghị là có một master group account duy nhất cho
+một group nhất định, sau đó tạo các group account riêng với decision policy khác
+nhau và uỷ quyền (delegate) các quyền mong muốn từ master account sang các
+“sub-account” đó bằng module [`x/authz`](adr-030-authz-module.md).
 
 ```protobuf
 message GroupAccountInfo {
@@ -126,24 +138,25 @@ message GroupAccountInfo {
 }
 ```
 
-Similarly to a group admin, a group account admin can update its metadata, decision policy or set a new group account admin.
+Tương tự group admin, group account admin có thể cập nhật metadata, decision policy,
+hoặc đặt group account admin mới.
 
-A group account can also be an admin or a member of a group.
-For instance, a group admin could be another group account which could "elects" the members or it could be the same group that elects itself.
+Một group account cũng có thể là admin hoặc thành viên của một group.
+Ví dụ: group admin có thể là một group account khác có thể “bầu chọn” thành viên,
+hoặc cũng có thể chính group đó tự bầu chính mình.
 
 ### Decision Policy
 
-A decision policy is the mechanism by which members of a group can vote on
-proposals.
+Decision policy là cơ chế để các thành viên của một group bỏ phiếu đối với proposal.
 
-All decision policies should have a minimum and maximum voting window.
-The minimum voting window is the minimum duration that must pass in order
-for a proposal to potentially pass, and it may be set to 0. The maximum voting
-window is the maximum time that a proposal may be voted on and executed if
-it reached enough support before it is closed.
-Both of these values must be less than a chain-wide max voting window parameter.
+Mọi decision policy nên có cửa sổ bỏ phiếu tối thiểu và tối đa.
+Cửa sổ tối thiểu là khoảng thời gian tối thiểu phải trôi qua để một proposal
+có thể “đậu” (pass), và có thể đặt bằng 0. Cửa sổ tối đa là thời gian tối đa mà
+một proposal có thể được bỏ phiếu và được thực thi nếu nó đạt đủ ủng hộ trước khi
+nó bị đóng.
+Cả hai giá trị này phải nhỏ hơn tham số cửa sổ bỏ phiếu tối đa toàn chain.
 
-We define the `DecisionPolicy` interface that all decision policies must implement:
+Chúng ta định nghĩa interface `DecisionPolicy` mà mọi decision policy phải triển khai:
 
 ```go
 type DecisionPolicy interface {
@@ -163,9 +176,9 @@ type DecisionPolicyResult struct {
 
 #### Threshold decision policy
 
-A threshold decision policy defines a minimum support votes (_yes_), based on a tally
-of voter weights, for a proposal to pass. For
-this decision policy, abstain and veto are treated as no support (_no_).
+Threshold decision policy định nghĩa mức tối thiểu của phiếu ủng hộ (_yes_), dựa
+trên tally trọng số phiếu bầu, để một proposal được thông qua. Với decision policy
+này, abstain và veto được xem như không ủng hộ (_no_).
 
 ```protobuf
 message ThresholdDecisionPolicy {
@@ -181,15 +194,17 @@ message ThresholdDecisionPolicy {
 
 ### Proposal
 
-Any member of a group can submit a proposal for a group account to decide upon.
-A proposal consists of a set of `sdk.Msg`s that will be executed if the proposal
-passes as well as any metadata associated with the proposal. These `sdk.Msg`s get validated as part of the `Msg/CreateProposal` request validation. They should also have their signer set as the group account.
+Bất kỳ thành viên nào của một group đều có thể gửi proposal để một group account
+quyết định. Một proposal gồm một tập các `sdk.Msg` sẽ được thực thi nếu proposal
+được thông qua, cùng với metadata gắn với proposal. Các `sdk.Msg` này được validate
+như một phần của validation cho request `Msg/CreateProposal`. Chúng cũng nên có
+signer được đặt là group account.
 
-Internally, a proposal also tracks:
+Nội bộ, một proposal cũng theo dõi:
 
-* its current `Status`: submitted, closed or aborted
-* its `Result`: unfinalized, accepted or rejected
-* its `VoteState` in the form of a `Tally`, which is calculated on new votes and when executing the proposal.
+* `Status` hiện tại: submitted, closed hoặc aborted
+* `Result`: unfinalized, accepted hoặc rejected
+* `VoteState` dưới dạng một `Tally`, được tính khi có phiếu mới và khi thực thi proposal
 
 ```protobuf
 // Tally represents the sum of weighted votes.
@@ -210,70 +225,86 @@ message Tally {
 }
 ```
 
-### Voting
+### Bỏ phiếu (Voting)
 
-Members of a group can vote on proposals. There are four choices to choose while voting - yes, no, abstain and veto. Not
-all decision policies will support them. Votes can contain some optional metadata.
-In the current implementation, the voting window begins as soon as a proposal
-is submitted.
+Thành viên group có thể bỏ phiếu cho proposal. Có bốn lựa chọn khi bỏ phiếu: yes,
+no, abstain và veto. Không phải decision policy nào cũng hỗ trợ tất cả lựa chọn.
+Phiếu bầu có thể chứa metadata tuỳ chọn.
+Trong triển khai hiện tại, cửa sổ bỏ phiếu bắt đầu ngay khi proposal được gửi.
 
-Voting internally updates the proposal `VoteState` as well as `Status` and `Result` if needed.
+Việc bỏ phiếu nội bộ sẽ cập nhật `VoteState` của proposal cũng như `Status` và
+`Result` nếu cần.
 
-### Executing Proposals
+### Thực thi proposal
 
-Proposals will not be automatically executed by the chain in this current design,
-but rather a user must submit a `Msg/Exec` transaction to attempt to execute the
-proposal based on the current votes and decision policy. A future upgrade could
-automate this and have the group account (or a fee granter) pay.
+Trong thiết kế hiện tại, proposal sẽ không được chain tự động thực thi; thay vào
+đó, người dùng phải gửi một giao dịch `Msg/Exec` để cố gắng thực thi proposal dựa
+trên các phiếu hiện tại và decision policy. Một nâng cấp tương lai có thể tự động
+hoá điều này và để group account (hoặc một fee granter) chi trả.
 
-#### Changing Group Membership
+#### Thay đổi membership của group
 
-In the current implementation, updating a group or a group account after submitting a proposal will make it invalid. It will simply fail if someone calls `Msg/Exec` and will eventually be garbage collected.
+Trong triển khai hiện tại, nếu cập nhật group hoặc group account sau khi đã gửi
+proposal thì proposal sẽ trở nên không hợp lệ. Nó sẽ đơn giản thất bại nếu ai đó
+gọi `Msg/Exec` và cuối cùng sẽ bị garbage collected.
 
-### Notes on current implementation
+### Ghi chú về triển khai hiện tại
 
-This section outlines the current implementation used in the proof of concept of the group module but this could be subject to changes and iterated on.
+Phần này phác thảo triển khai hiện tại dùng trong proof of concept của module
+group, nhưng có thể thay đổi và được lặp/điều chỉnh.
 
 #### ORM
 
-The [ORM package](https://github.com/cosmos/cosmos-sdk/discussions/9156) defines tables, sequences and secondary indexes which are used in the group module.
+[Gói ORM](https://github.com/cosmos/cosmos-sdk/discussions/9156) định nghĩa các
+table, sequence, và secondary index được dùng trong module group.
 
-Groups are stored in state as part of a `groupTable`, the `group_id` being an auto-increment integer. Group members are stored in a `groupMemberTable`.
+Group được lưu trong state như một phần của `groupTable`, trong đó `group_id` là
+một số nguyên tự tăng. Thành viên group được lưu trong `groupMemberTable`.
 
-Group accounts are stored in a `groupAccountTable`. The group account address is generated based on an auto-increment integer which is used to derive the group module `RootModuleKey` into a `DerivedModuleKey`, as stated in [ADR-033](adr-033-protobuf-inter-module-comm.md#modulekeys-and-moduleids). The group account is added as a new `ModuleAccount` through `x/auth`.
+Group account được lưu trong `groupAccountTable`. Địa chỉ group account được tạo
+dựa trên một số nguyên tự tăng, số này được dùng để suy dẫn (derive) `RootModuleKey`
+của module group thành `DerivedModuleKey`, như nêu trong [ADR-033](adr-033-protobuf-inter-module-comm.md#modulekeys-and-moduleids).
+Group account được thêm như một `ModuleAccount` mới thông qua `x/auth`.
 
-Proposals are stored as part of the `proposalTable` using the `Proposal` type. The `proposal_id` is an auto-increment integer.
+Proposal được lưu như một phần của `proposalTable` dùng kiểu `Proposal`. `proposal_id`
+là một số nguyên tự tăng.
 
-Votes are stored in the `voteTable`. The primary key is based on the vote's `proposal_id` and `voter` account address.
+Phiếu bầu được lưu trong `voteTable`. Primary key dựa trên `proposal_id` của phiếu
+và địa chỉ tài khoản `voter`.
 
-#### ADR-033 to route proposal messages
+#### Dùng ADR-033 để định tuyến message của proposal
 
-Inter-module communication introduced by [ADR-033](adr-033-protobuf-inter-module-comm.md) can be used to route a proposal's messages using the `DerivedModuleKey` corresponding to the proposal's group account.
+Giao tiếp liên module (inter-module communication) được giới thiệu bởi
+[ADR-033](adr-033-protobuf-inter-module-comm.md) có thể dùng để định tuyến
+message của proposal bằng `DerivedModuleKey` tương ứng với group account của proposal.
 
-## Consequences
+## Hệ quả
 
-### Positive
+### Tích cực
 
-* Improved UX for multi-signature accounts allowing key rotation and custom decision policies.
+* Cải thiện UX cho tài khoản multi-signature, cho phép xoay khoá và decision policy tuỳ biến.
 
-### Negative
+### Tiêu cực
 
-### Neutral
+### Trung tính
 
-* It uses ADR 033 so it will need to be implemented within the Cosmos SDK, but this doesn't imply necessarily any large refactoring of existing Cosmos SDK modules.
-* The current implementation of the group module uses the ORM package.
+* Nó dùng ADR 033 nên sẽ cần được triển khai trong Cosmos SDK, nhưng điều này
+  không nhất thiết kéo theo refactor lớn đối với các module Cosmos SDK hiện có.
+* Triển khai hiện tại của module group dùng gói ORM.
 
-## Further Discussions
+## Thảo luận thêm
 
-* Convergence of `/group` and `x/gov` as both support proposals and voting: https://github.com/cosmos/cosmos-sdk/discussions/9066
-* `x/group` possible future improvements:
-    * Execute proposals on submission (https://github.com/regen-network/regen-ledger/issues/288)
-    * Withdraw a proposal (https://github.com/regen-network/cosmos-modules/issues/41)
-    * Make `Tally` more flexible and support non-binary choices
+* Hướng hội tụ giữa `/group` và `x/gov` vì cả hai đều hỗ trợ proposal và bỏ phiếu:
+  https://github.com/cosmos/cosmos-sdk/discussions/9066
+* Các cải tiến tương lai có thể có cho `x/group`:
+  * Thực thi proposal ngay khi nộp (https://github.com/regen-network/regen-ledger/issues/288)
+  * Rút lại một proposal (https://github.com/regen-network/cosmos-modules/issues/41)
+  * Làm `Tally` linh hoạt hơn và hỗ trợ lựa chọn không nhị phân (non-binary)
 
-## References
+## Tham khảo
 
-* Initial specification:
-    * https://gist.github.com/aaronc/b60628017352df5983791cad30babe56#group-module
-    * [#5236](https://github.com/cosmos/cosmos-sdk/pull/5236)
-* Proposal to add `x/group` into the Cosmos SDK: [#7633](https://github.com/cosmos/cosmos-sdk/issues/7633)
+* Đặc tả ban đầu:
+  * https://gist.github.com/aaronc/b60628017352df5983791cad30babe56#group-module
+  * [#5236](https://github.com/cosmos/cosmos-sdk/pull/5236)
+* Đề xuất đưa `x/group` vào Cosmos SDK: [#7633](https://github.com/cosmos/cosmos-sdk/issues/7633)
+

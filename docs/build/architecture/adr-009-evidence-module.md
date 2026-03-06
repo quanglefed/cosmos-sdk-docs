@@ -1,55 +1,32 @@
-# ADR 009: Evidence Module
+# ADR 009: Module Bằng Chứng
 
 ## Changelog
 
-* 2019 July 31: Initial draft
-* 2019 October 24: Initial implementation
+* 31 tháng 7 năm 2019: Bản nháp đầu tiên
+* 24 tháng 10 năm 2019: Triển khai đầu tiên
 
-## Status
+## Trạng Thái
 
-Accepted
+Đã Chấp Nhận
 
-## Context
+## Bối Cảnh
 
-In order to support building highly secure, robust and interoperable blockchain
-applications, it is vital for the Cosmos SDK to expose a mechanism in which arbitrary
-evidence can be submitted, evaluated and verified resulting in some agreed upon
-penalty for any misbehavior committed by a validator, such as equivocation (double-voting),
-signing when unbonded, signing an incorrect state transition (in the future), etc.
-Furthermore, such a mechanism is paramount for any
-[IBC](https://github.com/cosmos/ics/blob/master/ibc/2_IBC_ARCHITECTURE.md) or
-cross-chain validation protocol implementation in order to support the ability
-for any misbehavior to be relayed back from a collateralized chain to a primary
-chain so that the equivocating validator(s) can be slashed.
+Để hỗ trợ xây dựng các ứng dụng blockchain có độ bảo mật cao, mạnh mẽ và có khả năng tương tác, điều quan trọng đối với Cosmos SDK là phải cung cấp một cơ chế trong đó bằng chứng tùy ý có thể được gửi, đánh giá và xác minh dẫn đến một hình phạt đã được thỏa thuận cho bất kỳ hành vi sai trái nào được thực hiện bởi validator, chẳng hạn như equivocation (bỏ phiếu kép), ký khi unbonded, ký một chuyển đổi trạng thái không đúng (trong tương lai), v.v. Hơn nữa, một cơ chế như vậy là tối quan trọng cho bất kỳ triển khai giao thức [IBC](https://github.com/cosmos/ics/blob/master/ibc/2_IBC_ARCHITECTURE.md) hoặc cross-chain validation nào để hỗ trợ khả năng cho bất kỳ hành vi sai trái nào được chuyển tiếp từ một chain có thế chấp về chain chính để validator vi phạm có thể bị slash.
 
-## Decision
+## Quyết Định
 
-We will implement an evidence module in the Cosmos SDK supporting the following
-functionality:
+Chúng ta sẽ triển khai một module evidence trong Cosmos SDK hỗ trợ chức năng sau:
 
-* Provide developers with the abstractions and interfaces necessary to define
-  custom evidence messages, message handlers, and methods to slash and penalize
-  accordingly for misbehavior.
-* Support the ability to route evidence messages to handlers in any module to
-  determine the validity of submitted misbehavior.
-* Support the ability, through governance, to modify slashing penalties of any
-  evidence type.
-* Querier implementation to support querying params, evidence types, params, and
-  all submitted valid misbehavior.
+* Cung cấp cho nhà phát triển các trừu tượng và interface cần thiết để định nghĩa các message evidence tùy chỉnh, message handler và các phương thức để slash và phạt phù hợp cho hành vi sai trái.
+* Hỗ trợ khả năng định tuyến evidence message đến handler trong bất kỳ module nào để xác định tính hợp lệ của hành vi sai trái được gửi.
+* Hỗ trợ khả năng, thông qua quản trị, để sửa đổi các hình phạt slashing của bất kỳ loại evidence nào.
+* Triển khai Querier để hỗ trợ truy vấn params, loại evidence, params và tất cả hành vi sai trái hợp lệ đã gửi.
 
-### Types
+### Kiểu Dữ Liệu
 
-First, we define the `Evidence` interface type. The `x/evidence` module may implement
-its own types that can be used by many chains (e.g. `CounterFactualEvidence`).
-In addition, other modules may implement their own `Evidence` types in a similar
-manner in which governance is extensible. It is important to note any concrete
-type implementing the `Evidence` interface may include arbitrary fields such as
-an infraction time. We want the `Evidence` type to remain as flexible as possible.
+Trước tiên, chúng ta định nghĩa kiểu interface `Evidence`. Module `x/evidence` có thể triển khai các kiểu riêng có thể được sử dụng bởi nhiều chain (ví dụ: `CounterFactualEvidence`). Ngoài ra, các module khác có thể triển khai các kiểu `Evidence` riêng theo cách tương tự như cách quản trị có thể mở rộng. Điều quan trọng cần lưu ý là bất kỳ kiểu cụ thể nào triển khai interface `Evidence` có thể bao gồm các trường tùy ý như thời gian vi phạm. Chúng ta muốn kiểu `Evidence` duy trì linh hoạt nhất có thể.
 
-When submitting evidence to the `x/evidence` module, the concrete type must provide
-the validator's consensus address, which should be known by the `x/slashing`
-module (assuming the infraction is valid), the height at which the infraction
-occurred and the validator's power at same height in which the infraction occurred.
+Khi gửi evidence đến module `x/evidence`, kiểu cụ thể phải cung cấp địa chỉ consensus của validator, nên được module `x/slashing` biết đến (giả sử vi phạm là hợp lệ), chiều cao mà vi phạm xảy ra và sức mạnh của validator tại cùng chiều cao mà vi phạm xảy ra.
 
 ```go
 type Evidence interface {
@@ -59,24 +36,23 @@ type Evidence interface {
   Hash() HexBytes
   ValidateBasic() error
 
-  // The consensus address of the malicious validator at time of infraction
+  // Địa chỉ consensus của validator độc hại tại thời điểm vi phạm
   GetConsensusAddress() ConsAddress
 
-  // Height at which the infraction occurred
+  // Chiều cao mà vi phạm xảy ra
   GetHeight() int64
 
-  // The total power of the malicious validator at time of infraction
+  // Tổng sức mạnh của validator độc hại tại thời điểm vi phạm
   GetValidatorPower() int64
 
-  // The total validator set power at time of infraction
+  // Tổng sức mạnh validator set tại thời điểm vi phạm
   GetTotalPower() int64
 }
 ```
 
-### Routing & Handling
+### Định Tuyến & Xử Lý
 
-Each `Evidence` type must map to a specific unique route and be registered with
-the `x/evidence` module. It accomplishes this through the `Router` implementation.
+Mỗi kiểu `Evidence` phải ánh xạ đến một route duy nhất cụ thể và được đăng ký với module `x/evidence`. Nó thực hiện điều này thông qua triển khai `Router`.
 
 ```go
 type Router interface {
@@ -87,25 +63,15 @@ type Router interface {
 }
 ```
 
-Upon successful routing through the `x/evidence` module, the `Evidence` type
-is passed through a `Handler`. This `Handler` is responsible for executing all
-corresponding business logic necessary for verifying the evidence as valid. In
-addition, the `Handler` may execute any necessary slashing and potential jailing.
-Since slashing fractions will typically result from some form of static functions,
-allow the `Handler` to do this provides the greatest flexibility. An example could
-be `k * evidence.GetValidatorPower()` where `k` is an on-chain parameter controlled
-by governance. The `Evidence` type should provide all the external information
-necessary in order for the `Handler` to make the necessary state transitions.
-If no error is returned, the `Evidence` is considered valid.
+Sau khi định tuyến thành công qua module `x/evidence`, kiểu `Evidence` được truyền qua một `Handler`. `Handler` này chịu trách nhiệm thực thi tất cả logic nghiệp vụ tương ứng cần thiết để xác minh evidence là hợp lệ. Ngoài ra, `Handler` có thể thực thi bất kỳ slashing và jailing tiềm năng nào cần thiết. Vì tỷ lệ slashing thường sẽ là kết quả của một số hàm tĩnh, cho phép `Handler` làm điều này cung cấp sự linh hoạt tối đa. Ví dụ có thể là `k * evidence.GetValidatorPower()` trong đó `k` là tham số on-chain được kiểm soát bởi quản trị. Kiểu `Evidence` nên cung cấp tất cả thông tin bên ngoài cần thiết để `Handler` thực hiện các chuyển đổi trạng thái cần thiết. Nếu không có lỗi nào được trả về, `Evidence` được coi là hợp lệ.
 
 ```go
 type Handler func(Context, Evidence) error
 ```
 
-### Submission
+### Gửi
 
-`Evidence` is submitted through a `MsgSubmitEvidence` message type which is internally
-handled by the `x/evidence` module's `SubmitEvidence`.
+`Evidence` được gửi qua kiểu message `MsgSubmitEvidence` được xử lý nội bộ bởi `SubmitEvidence` của module `x/evidence`.
 
 ```go
 type MsgSubmitEvidence struct {
@@ -117,7 +83,7 @@ func handleMsgSubmitEvidence(ctx Context, keeper Keeper, msg MsgSubmitEvidence) 
     return err.Result()
   }
 
-  // emit events...
+  // phát sự kiện...
 
   return Result{
     // ...
@@ -125,9 +91,7 @@ func handleMsgSubmitEvidence(ctx Context, keeper Keeper, msg MsgSubmitEvidence) 
 }
 ```
 
-The `x/evidence` module's keeper is responsible for matching the `Evidence` against
-the module's router and invoking the corresponding `Handler` which may include
-slashing and jailing the validator. Upon success, the submitted evidence is persisted.
+Keeper của module `x/evidence` chịu trách nhiệm khớp `Evidence` với router của module và gọi `Handler` tương ứng, có thể bao gồm slashing và jailing validator. Khi thành công, evidence đã gửi được lưu trữ.
 
 ```go
 func (k Keeper) SubmitEvidence(ctx Context, evidence Evidence) error {
@@ -143,11 +107,7 @@ func (k Keeper) SubmitEvidence(ctx Context, evidence Evidence) error {
 
 ### Genesis
 
-Finally, we need to represent the genesis state of the `x/evidence` module. The
-module only needs a list of all submitted valid infractions and any necessary params
-for which the module needs in order to handle submitted evidence. The `x/evidence`
-module will naturally define and route native evidence types for which it'll most
-likely need slashing penalty constants for.
+Cuối cùng, chúng ta cần biểu diễn trạng thái genesis của module `x/evidence`. Module chỉ cần một danh sách tất cả vi phạm hợp lệ đã gửi và bất kỳ params cần thiết nào mà module cần để xử lý evidence đã gửi. Module `x/evidence` sẽ tự nhiên định nghĩa và định tuyến các kiểu evidence gốc mà nhiều khả năng nó sẽ cần các hằng số hình phạt slashing.
 
 ```go
 type GenesisState struct {
@@ -156,27 +116,24 @@ type GenesisState struct {
 }
 ```
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Allows the state machine to process misbehavior submitted on-chain and penalize
-  validators based on agreed upon slashing parameters.
-* Allows evidence types to be defined and handled by any module. This further allows
-  slashing and jailing to be defined by more complex mechanisms.
-* Does not solely rely on Tendermint to submit evidence.
+* Cho phép state machine xử lý hành vi sai trái được gửi on-chain và phạt validator dựa trên các tham số slashing đã được thỏa thuận.
+* Cho phép các kiểu evidence được định nghĩa và xử lý bởi bất kỳ module nào. Điều này cho phép slashing và jailing được định nghĩa bởi các cơ chế phức tạp hơn.
+* Không chỉ phụ thuộc vào Tendermint để gửi evidence.
 
-### Negative
+### Tiêu Cực
 
-* No easy way to introduce new evidence types through governance on a live chain
-  due to the inability to introduce the new evidence type's corresponding handler
+* Không có cách dễ dàng để giới thiệu các kiểu evidence mới thông qua quản trị trên chain đang hoạt động do không thể giới thiệu handler tương ứng của kiểu evidence mới.
 
-### Neutral
+### Trung Lập
 
-* Should we persist infractions indefinitely? Or should we rather rely on events?
+* Chúng ta có nên lưu trữ vi phạm vô thời hạn không? Hay nên dựa vào các sự kiện?
 
-## References
+## Tài Liệu Tham Khảo
 
 * [ICS](https://github.com/cosmos/ics)
-* [IBC Architecture](https://github.com/cosmos/ics/blob/master/ibc/1_IBC_ARCHITECTURE.md)
-* [Tendermint Fork Accountability](https://github.com/tendermint/spec/blob/7b3138e69490f410768d9b1ffc7a17abc23ea397/spec/consensus/fork-accountability.md)
+* [Kiến Trúc IBC](https://github.com/cosmos/ics/blob/master/ibc/1_IBC_ARCHITECTURE.md)
+* [Trách Nhiệm Fork Tendermint](https://github.com/tendermint/spec/blob/7b3138e69490f410768d9b1ffc7a17abc23ea397/spec/consensus/fork-accountability.md)

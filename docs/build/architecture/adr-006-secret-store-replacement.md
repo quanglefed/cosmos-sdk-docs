@@ -1,54 +1,54 @@
-# ADR 006: Secret Store Replacement
+# ADR 006: Thay Thế Secret Store
 
 ## Changelog
 
-* July 29th, 2019: Initial draft
-* September 11th, 2019: Work has started
-* November 4th: Cosmos SDK changes merged in
-* November 18th: Gaia changes merged in
+* 29 tháng 7 năm 2019: Bản nháp đầu tiên
+* 11 tháng 9 năm 2019: Công việc đã bắt đầu
+* 4 tháng 11: Các thay đổi Cosmos SDK đã được merge
+* 18 tháng 11: Các thay đổi Gaia đã được merge
 
-## Context
+## Bối Cảnh
 
-Currently, a Cosmos SDK application's CLI directory stores key material and metadata in a plain text database in the user’s home directory.  Key material is encrypted by a passphrase, protected by bcrypt hashing algorithm. Metadata (e.g. addresses, public keys, key storage details) is available in plain text.
+Hiện tại, thư mục CLI của một ứng dụng Cosmos SDK lưu trữ tài liệu khóa và metadata trong một cơ sở dữ liệu văn bản thuần túy trong thư mục home của người dùng. Tài liệu khóa được mã hóa bằng passphrase, được bảo vệ bởi thuật toán hashing bcrypt. Metadata (ví dụ: địa chỉ, khóa công khai, chi tiết lưu trữ khóa) có sẵn ở dạng văn bản thuần túy.
 
-This is not desirable for a number of reasons. Perhaps the biggest reason is insufficient security protection of key material and metadata. Leaking the plain text allows an attacker to surveil what keys a given computer controls via a number of techniques, like compromised dependencies without any privilege execution. This could be followed by a more targeted attack on a particular user/computer.
+Điều này không mong muốn vì một số lý do. Lý do lớn nhất có lẽ là bảo vệ bảo mật không đủ cho tài liệu khóa và metadata. Rò rỉ văn bản thuần túy cho phép kẻ tấn công giám sát các khóa mà một máy tính nhất định kiểm soát thông qua nhiều kỹ thuật khác nhau, như các dependency bị xâm phạm mà không cần quyền thực thi đặc quyền. Điều này có thể dẫn đến một cuộc tấn công mục tiêu hơn vào một người dùng/máy tính cụ thể.
 
-All modern desktop computers OS (Ubuntu, Debian, MacOS, Windows) provide a built-in secret store that is designed to allow applications to store information that is isolated from all other applications and requires passphrase entry to access the data.
+Tất cả hệ điều hành máy tính để bàn hiện đại (Ubuntu, Debian, MacOS, Windows) đều cung cấp secret store tích hợp sẵn được thiết kế để cho phép các ứng dụng lưu trữ thông tin được cách ly với tất cả các ứng dụng khác và yêu cầu nhập passphrase để truy cập dữ liệu.
 
-We are seeking solution that provides a common abstraction layer to the many different backends and reasonable fallback for minimal platforms that don’t provide a native secret store.
+Chúng ta đang tìm kiếm giải pháp cung cấp lớp trừu tượng chung cho nhiều backend khác nhau và phương án dự phòng hợp lý cho các nền tảng tối giản không cung cấp secret store gốc.
 
-## Decision
+## Quyết Định
 
-We recommend replacing the current Keybase backend based on LevelDB with [Keyring](https://github.com/99designs/keyring) by 99 designs. This application is designed to provide a common abstraction and uniform interface between many secret stores and is used by AWS Vault application by 99-designs application.
+Chúng tôi khuyến nghị thay thế backend Keybase hiện tại dựa trên LevelDB bằng [Keyring](https://github.com/99designs/keyring) của 99 designs. Ứng dụng này được thiết kế để cung cấp lớp trừu tượng chung và giao diện thống nhất giữa nhiều secret store và được sử dụng bởi ứng dụng AWS Vault của 99-designs.
 
-This appears to fulfill the requirement of protecting both key material and metadata from rogue software on a user’s machine.
+Điều này có vẻ đáp ứng yêu cầu bảo vệ cả tài liệu khóa và metadata khỏi phần mềm độc hại trên máy của người dùng.
 
-## Status
+## Trạng Thái
 
-Accepted
+Đã Chấp Nhận
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-Increased safety for users.
+Tăng cường bảo mật cho người dùng.
 
-### Negative
+### Tiêu Cực
 
-Users must manually migrate.
+Người dùng phải migrate thủ công.
 
-Testing against all supported backends is difficult.
+Kiểm thử với tất cả các backend được hỗ trợ là khó khăn.
 
-Running tests locally on a Mac require numerous repetitive password entries.
+Chạy test cục bộ trên Mac yêu cầu nhiều lần nhập password lặp đi lặp lại.
 
-### Neutral
+### Trung Lập
 
-{neutral consequences}
+{hậu quả trung lập}
 
-## References
+## Tài Liệu Tham Khảo
 
-* #4754 Switch secret store to the keyring secret store (original PR by @poldsam) [__CLOSED__]
-* #5029 Add support for github.com/99designs/keyring-backed keybases [__MERGED__]
-* #5097 Add keys migrate command [__MERGED__]
-* #5180 Drop on-disk keybase in favor of keyring [_PENDING_REVIEW_]
-* cosmos/gaia#164 Drop on-disk keybase in favor of keyring (gaia's changes) [_PENDING_REVIEW_]
+* #4754 Chuyển secret store sang keyring secret store (PR gốc bởi @poldsam) [__CLOSED__]
+* #5029 Thêm hỗ trợ cho keybases được hỗ trợ bởi github.com/99designs/keyring [__MERGED__]
+* #5097 Thêm lệnh migrate keys [__MERGED__]
+* #5180 Bỏ on-disk keybase để dùng keyring [_PENDING_REVIEW_]
+* cosmos/gaia#164 Bỏ on-disk keybase để dùng keyring (thay đổi của gaia) [_PENDING_REVIEW_]

@@ -4,47 +4,46 @@ sidebar_position: 1
 
 # `x/evidence`
 
-* [Concepts](#concepts)
+* [Khái niệm](#khái-niệm)
 * [State](#state)
 * [Messages](#messages)
 * [Events](#events)
 * [Parameters](#parameters)
 * [BeginBlock](#beginblock)
 * [Client](#client)
-    * [CLI](#cli)
-    * [REST](#rest)
-    * [gRPC](#grpc)
+  * [CLI](#cli)
+  * [REST](#rest)
+  * [gRPC](#grpc)
 
-## Abstract
+## Tóm tắt
 
-`x/evidence` is an implementation of a Cosmos SDK module, per [ADR 009](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-009-evidence-module.md),
-that allows for the submission and handling of arbitrary evidence of misbehavior such
-as equivocation and counterfactual signing.
+`x/evidence` là một hiện thực module Cosmos SDK theo [ADR 009](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-009-evidence-module.md),
+cho phép gửi (submission) và xử lý các loại evidence tuỳ ý về hành vi sai trái
+(misbehavior) như equivocation và counterfactual signing.
 
-The evidence module differs from standard evidence handling which typically expects the
-underlying consensus engine, e.g. CometBFT, to automatically submit evidence when
-it is discovered by allowing clients and foreign chains to submit more complex evidence
-directly.
+Module evidence khác với cách xử lý evidence “chuẩn” vốn thường kỳ vọng consensus
+engine bên dưới (ví dụ CometBFT) tự động submit evidence khi nó được phát hiện,
+bằng việc cho phép client và các chain bên ngoài submit evidence phức tạp hơn trực tiếp.
 
-All concrete evidence types must implement the `Evidence` interface contract. Submitted
-`Evidence` is first routed through the evidence module's `Router` in which it attempts
-to find a corresponding registered `Handler` for that specific `Evidence` type.
-Each `Evidence` type must have a `Handler` registered with the evidence module's
-keeper in order for it to be successfully routed and executed.
+Mọi kiểu evidence cụ thể (concrete evidence type) phải hiện thực interface `Evidence`.
+`Evidence` được submit trước tiên sẽ được route qua `Router` của module evidence, nơi nó
+cố gắng tìm `Handler` tương ứng đã được đăng ký cho kiểu `Evidence` cụ thể đó.
+Mỗi kiểu `Evidence` phải có một `Handler` được đăng ký trong keeper của module evidence
+để có thể được route và thực thi thành công.
 
-Each corresponding handler must also fulfill the `Handler` interface contract. The
-`Handler` for a given `Evidence` type can perform any arbitrary state transitions
-such as slashing, jailing, and tombstoning.
+Mỗi handler tương ứng cũng phải thoả mãn “hợp đồng” interface `Handler`. `Handler` cho
+một kiểu `Evidence` có thể thực hiện bất kỳ chuyển đổi state nào như slashing, jailing,
+và tombstoning.
 
-## Concepts
+## Khái niệm
 
 ### Evidence
 
-Any concrete type of evidence submitted to the `x/evidence` module must fulfill the
-`Evidence` contract outlined below. Not all concrete types of evidence will fulfill
-this contract in the same way and some data may be entirely irrelevant to certain
-types of evidence. An additional `ValidatorEvidence`, which extends `Evidence`,
-has also been created to define a contract for evidence against malicious validators.
+Bất kỳ kiểu evidence cụ thể nào được submit vào module `x/evidence` phải thoả mãn
+hợp đồng `Evidence` dưới đây. Không phải mọi kiểu evidence đều thoả mãn hợp đồng này
+theo cùng một cách và một số dữ liệu có thể hoàn toàn không liên quan với một số kiểu
+evidence nhất định. Một interface bổ sung `ValidatorEvidence` (mở rộng `Evidence`) cũng
+được tạo để định nghĩa hợp đồng cho evidence chống lại validator độc hại.
 
 ```go
 // Evidence defines the contract which concrete evidence types of misbehavior
@@ -77,13 +76,12 @@ type ValidatorEvidence interface {
 }
 ```
 
-### Registration & Handling
+### Đăng ký & xử lý
 
-The `x/evidence` module must first know about all types of evidence it is expected
-to handle. This is accomplished by registering the `Route` method in the `Evidence`
-contract with what is known as a `Router` (defined below). The `Router` accepts
-`Evidence` and attempts to find the corresponding `Handler` for the `Evidence`
-via the `Route` method.
+Module `x/evidence` trước hết cần “biết” tất cả loại evidence mà nó dự kiến sẽ xử lý.
+Điều này được thực hiện bằng cách đăng ký phương thức `Route` trong hợp đồng `Evidence`
+với một `Router` (định nghĩa bên dưới). `Router` nhận `Evidence` và cố gắng tìm `Handler`
+tương ứng cho `Evidence` thông qua phương thức `Route`.
 
 ```go
 type Router interface {
@@ -95,12 +93,11 @@ type Router interface {
 }
 ```
 
-The `Handler` (defined below) is responsible for executing the entirety of the
-business logic for handling `Evidence`. This typically includes validating the
-evidence, both stateless checks via `ValidateBasic` and stateful checks via any
-keepers provided to the `Handler`. In addition, the `Handler` may also perform
-capabilities such as slashing and jailing a validator. All `Evidence` handled
-by the `Handler` should be persisted.
+`Handler` (định nghĩa bên dưới) chịu trách nhiệm thực thi toàn bộ logic nghiệp vụ
+để xử lý `Evidence`. Thông thường bao gồm validate evidence, cả kiểm tra stateless
+qua `ValidateBasic` và kiểm tra stateful qua các keeper cung cấp cho `Handler`.
+Ngoài ra, `Handler` có thể thực hiện các hành vi như slashing và jailing validator.
+Mọi `Evidence` được xử lý bởi `Handler` nên được persist.
 
 ```go
 // Handler defines an agnostic Evidence handler. The handler is responsible
@@ -110,11 +107,10 @@ by the `Handler` should be persisted.
 type Handler func(context.Context, Evidence) error
 ```
 
-
 ## State
 
-Currently the `x/evidence` module only stores valid submitted `Evidence` in state.
-The evidence state is also stored and exported in the `x/evidence` module's `GenesisState`.
+Hiện tại module `x/evidence` chỉ lưu `Evidence` hợp lệ đã được submit vào state.
+Evidence state cũng được lưu và export trong `GenesisState` của module `x/evidence`.
 
 ```protobuf
 // GenesisState defines the evidence module's genesis state.
@@ -125,14 +121,13 @@ message GenesisState {
 
 ```
 
-All `Evidence` is retrieved and stored via a prefix `KVStore` using prefix `0x00` (`KeyPrefixEvidence`).
-
+Tất cả `Evidence` được lấy và lưu thông qua một prefix `KVStore` với prefix `0x00` (`KeyPrefixEvidence`).
 
 ## Messages
 
 ### MsgSubmitEvidence
 
-Evidence is submitted through a `MsgSubmitEvidence` message:
+Evidence được submit thông qua message `MsgSubmitEvidence`:
 
 ```protobuf
 // MsgSubmitEvidence represents a message that supports submitting arbitrary
@@ -143,12 +138,10 @@ message MsgSubmitEvidence {
 }
 ```
 
-Note, the `Evidence` of a `MsgSubmitEvidence` message must have a corresponding
-`Handler` registered with the `x/evidence` module's `Router` in order to be processed
-and routed correctly.
+Lưu ý: `Evidence` của message `MsgSubmitEvidence` phải có `Handler` tương ứng đã được đăng ký
+trong `Router` của module `x/evidence` để được xử lý và route đúng.
 
-Given the `Evidence` is registered with a corresponding `Handler`, it is processed
-as follows:
+Khi `Evidence` đã được đăng ký với `Handler` tương ứng, nó được xử lý như sau:
 
 ```go
 func SubmitEvidence(ctx Context, evidence Evidence) error {
@@ -176,14 +169,13 @@ func SubmitEvidence(ctx Context, evidence Evidence) error {
 }
 ```
 
-First, there must not already exist valid submitted `Evidence` of the exact same
-type. Secondly, the `Evidence` is routed to the `Handler` and executed. Finally,
-if there is no error in handling the `Evidence`, an event is emitted and it is persisted to state.
-
+Trước hết, không được tồn tại `Evidence` hợp lệ đã submit trùng hoàn toàn (cùng hash).
+Tiếp theo, `Evidence` được route tới `Handler` và thực thi. Cuối cùng, nếu không có lỗi
+khi xử lý `Evidence`, một event được phát ra và `Evidence` được persist vào state.
 
 ## Events
 
-The `x/evidence` module emits the following events:
+Module `x/evidence` phát ra các event sau:
 
 ### Handlers
 
@@ -196,69 +188,68 @@ The `x/evidence` module emits the following events:
 | message         | sender        | {senderAddress} |
 | message         | action        | submit_evidence |
 
-
 ## Parameters
 
-The evidence module does not contain any parameters.
-
+Module evidence không có tham số.
 
 ## BeginBlock
 
-### Evidence Handling
+### Xử lý evidence
 
-CometBFT blocks can include
-[Evidence](https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md#evidence) that indicates if a validator committed malicious behavior. The relevant information is forwarded to the application as ABCI Evidence in `abci.RequestBeginBlock` so that the validator can be punished accordingly.
+Block CometBFT có thể bao gồm [Evidence](https://github.com/cometbft/cometbft/blob/main/spec/abci/abci%2B%2B_basic_concepts.md#evidence)
+cho biết một validator đã thực hiện hành vi độc hại. Thông tin liên quan được chuyển tới ứng dụng
+dưới dạng ABCI Evidence trong `abci.RequestBeginBlock` để validator có thể bị trừng phạt tương ứng.
 
 #### Equivocation
 
-The Cosmos SDK handles two types of evidence inside the ABCI `BeginBlock`:
+Cosmos SDK xử lý hai loại evidence trong ABCI `BeginBlock`:
 
 * `DuplicateVoteEvidence`,
 * `LightClientAttackEvidence`.
 
-The evidence module handles these two evidence types the same way. First, the Cosmos SDK converts the CometBFT concrete evidence type to an SDK `Evidence` interface using `Equivocation` as the concrete type.
+Module evidence xử lý hai loại evidence này theo cùng một cách. Trước hết, Cosmos SDK chuyển đổi
+kiểu evidence cụ thể của CometBFT sang interface `Evidence` của SDK bằng `Equivocation` làm kiểu cụ thể.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/evidence/v1beta1/evidence.proto#L12-L32
 ```
 
-For some `Equivocation` submitted in `block` to be valid, it must satisfy:
+Để một `Equivocation` được submit trong `block` là hợp lệ, nó phải thoả:
 
 `Evidence.Timestamp >= block.Timestamp - MaxEvidenceAge`
 
-Where:
+Trong đó:
 
-* `Evidence.Timestamp` is the timestamp in the block at height `Evidence.Height`
-* `block.Timestamp` is the current block timestamp.
+* `Evidence.Timestamp` là timestamp trong block tại height `Evidence.Height`
+* `block.Timestamp` là timestamp của block hiện tại
 
-If valid `Equivocation` evidence is included in a block, the validator's stake is
-reduced (slashed) by `SlashFractionDoubleSign` as defined by the `x/slashing` module
-of what their stake was when the infraction occurred, rather than when the evidence was discovered.
-We want to "follow the stake", i.e., the stake that contributed to the infraction
-should be slashed, even if it has since been redelegated or started unbonding.
+Nếu evidence `Equivocation` hợp lệ được đưa vào block, stake của validator sẽ bị giảm (slashed)
+bởi `SlashFractionDoubleSign` (định nghĩa bởi module `x/slashing`) dựa trên stake của họ tại thời
+điểm infraction xảy ra, thay vì tại thời điểm evidence được phát hiện. Ta muốn “follow the stake”,
+tức là stake đã góp phần tạo ra infraction phải bị slash, ngay cả khi stake đó đã bị redelegate
+hoặc bắt đầu unbonding.
 
-In addition, the validator is permanently jailed and tombstoned to make it impossible for that
-validator to ever re-enter the validator set.
+Ngoài ra, validator sẽ bị jail vĩnh viễn và tombstoned để không thể tái gia nhập validator set.
 
-The `Equivocation` evidence is handled as follows:
+Evidence `Equivocation` được xử lý như sau:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/x/evidence/keeper/infraction.go#L26-L140
 ```
 
-**Note:** The slashing, jailing, and tombstoning calls are delegated through the `x/slashing` module
-that emits informative events and finally delegates calls to the `x/staking` module. See documentation
-on slashing and jailing in [State Transitions](../staking/README.md#state-transitions).
+**Lưu ý:** Các lời gọi slashing, jailing và tombstoning được uỷ quyền qua module `x/slashing`,
+module này phát ra các event mang tính thông tin và cuối cùng uỷ quyền tiếp các lời gọi tới module `x/staking`.
+Xem tài liệu về slashing và jailing trong [State Transitions](../staking/README.md#state-transitions).
 
 ## Client
 
 ### CLI
 
-A user can query and interact with the `evidence` module using the CLI.
+Người dùng có thể truy vấn và tương tác với module `evidence` bằng CLI.
 
 #### Query
 
-The `query` commands allows users to query `evidence` state.
+Các lệnh `query` cho phép truy vấn state của `evidence`.
 
 ```bash
 simd query evidence --help
@@ -266,23 +257,23 @@ simd query evidence --help
 
 #### evidence
 
-The `evidence` command allows users to list all evidence or evidence by hash.
+Lệnh `evidence` cho phép liệt kê tất cả evidence hoặc evidence theo hash.
 
-Usage:
+Cách dùng:
 
 ```bash
 simd query evidence [flags]
 ```
 
-To query evidence by hash
+Truy vấn evidence theo hash.
 
-Example:
+Ví dụ:
 
 ```bash
 simd query evidence evidence "DF0C23E8634E480F84B9D5674A7CDC9816466DEC28A3358F73260F68D28D7660"
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 evidence:
@@ -292,15 +283,15 @@ evidence:
   time: "2021-10-20T16:08:38.194017624Z"
 ```
 
-To get all evidence
+Lấy tất cả evidence.
 
-Example:
+Ví dụ:
 
 ```bash
 simd query evidence list
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 evidence:
@@ -315,23 +306,23 @@ pagination:
 
 ### REST
 
-A user can query the `evidence` module using REST endpoints.
+Người dùng có thể truy vấn module `evidence` qua các endpoint REST.
 
 #### Evidence
 
-Get evidence by hash
+Lấy evidence theo hash:
 
 ```bash
 /cosmos/evidence/v1beta1/evidence/{hash}
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 curl -X GET "http://localhost:1317/cosmos/evidence/v1beta1/evidence/DF0C23E8634E480F84B9D5674A7CDC9816466DEC28A3358F73260F68D28D7660"
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 {
@@ -344,21 +335,21 @@ Example Output:
 }
 ```
 
-#### All evidence
+#### Tất cả evidence
 
-Get all evidence
+Lấy tất cả evidence:
 
 ```bash
 /cosmos/evidence/v1beta1/evidence
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 curl -X GET "http://localhost:1317/cosmos/evidence/v1beta1/evidence"
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 {
@@ -378,23 +369,23 @@ Example Output:
 
 ### gRPC
 
-A user can query the `evidence` module using gRPC endpoints.
+Người dùng có thể truy vấn module `evidence` qua các endpoint gRPC.
 
 #### Evidence
 
-Get evidence by hash
+Lấy evidence theo hash:
 
 ```bash
 cosmos.evidence.v1beta1.Query/Evidence
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 grpcurl -plaintext -d '{"evidence_hash":"DF0C23E8634E480F84B9D5674A7CDC9816466DEC28A3358F73260F68D28D7660"}' localhost:9090 cosmos.evidence.v1beta1.Query/Evidence
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 {
@@ -407,21 +398,21 @@ Example Output:
 }
 ```
 
-#### All evidence
+#### Tất cả evidence
 
-Get all evidence
+Lấy tất cả evidence:
 
 ```bash
 cosmos.evidence.v1beta1.Query/AllEvidence
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 grpcurl -plaintext localhost:9090 cosmos.evidence.v1beta1.Query/AllEvidence
 ```
 
-Example Output:
+Ví dụ output:
 
 ```bash
 {
@@ -438,3 +429,4 @@ Example Output:
   }
 }
 ```
+

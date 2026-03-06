@@ -4,47 +4,61 @@ sidebar_position: 1
 
 # `x/auth/vesting`
 
+* [Giới thiệu và yêu cầu](#giới-thiệu-và-yêu-cầu)
+* [Lưu ý](#lưu-ý)
+* [Các loại Vesting Account](#các-loại-vesting-account)
+  * [BaseVestingAccount](#basevestingaccount)
+  * [ContinuousVestingAccount](#continuousvestingaccount)
+  * [DelayedVestingAccount](#delayedvestingaccount)
+  * [Period](#period)
+  * [PeriodicVestingAccount](#periodicvestingaccount)
+  * [PermanentLockedAccount](#permanentlockedaccount)
+* [Đặc tả Vesting Account](#đặc-tả-vesting-account)
+  * [Xác định lượng đang vesting & đã vested](#xác-định-lượng-đang-vesting--đã-vested)
+  * [Periodic Vesting Account](#periodic-vesting-account)
+  * [Chuyển/Gửi](#chuyểngửi)
+  * [Uỷ quyền stake (Delegating)](#uỷ-quyền-stake-delegating)
+  * [Huỷ uỷ quyền (Undelegating)](#huỷ-uỷ-quyền-undelegating)
+* [Keeper & Handler](#keeper--handler)
+* [Khởi tạo Genesis](#khởi-tạo-genesis)
+* [Ví dụ](#ví-dụ)
+  * [Đơn giản](#đơn-giản)
+  * [Slashing](#slashing)
+  * [Periodic vesting](#periodic-vesting)
+* [Thuật ngữ](#thuật-ngữ)
 
-* [Intro and Requirements](#intro-and-requirements)
-* [Note](#note)
-* [Vesting Account Types](#vesting-account-types)
-    * [BaseVestingAccount](#basevestingaccount)
-    * [ContinuousVestingAccount](#continuousvestingaccount)
-    * [DelayedVestingAccount](#delayedvestingaccount)
-    * [Period](#period)
-    * [PeriodicVestingAccount](#periodicvestingaccount)
-    * [PermanentLockedAccount](#permanentlockedaccount)
-* [Vesting Account Specification](#vesting-account-specification)
-    * [Determining Vesting & Vested Amounts](#determining-vesting--vested-amounts)
-    * [Periodic Vesting Accounts](#periodic-vesting-accounts)
-    * [Transferring/Sending](#transferringsending)
-    * [Delegating](#delegating)
-    * [Undelegating](#undelegating)
-* [Keepers & Handlers](#keepers--handlers)
-* [Genesis Initialization](#genesis-initialization)
-* [Examples](#examples)
-    * [Simple](#simple)
-    * [Slashing](#slashing)
-    * [Periodic Vesting](#periodic-vesting)
-* [Glossary](#glossary)
+## Giới thiệu và yêu cầu
 
-## Intro and Requirements
+Đặc tả này định nghĩa hiện thực vesting account được dùng bởi Cosmos Hub. Yêu cầu
+đối với vesting account là: nó được khởi tạo trong genesis với số dư ban đầu `X`
+và thời điểm vesting kết thúc `ET`. Một vesting account có thể được khởi tạo thêm
+với thời điểm bắt đầu vesting `ST` và số lượng kỳ vesting `P`. Nếu có thời điểm bắt
+đầu vesting, kỳ vesting sẽ không bắt đầu cho tới khi chạm `ST`. Nếu có các kỳ vesting,
+việc vesting diễn ra theo số kỳ được chỉ định.
 
-This specification defines the vesting account implementation that is used by the Cosmos Hub. The requirements for this vesting account is that it should be initialized during genesis with a starting balance `X` and a vesting end time `ET`. A vesting account may be initialized with a vesting start time `ST` and a number of vesting periods `P`. If a vesting start time is included, the vesting period does not begin until start time is reached. If vesting periods are included, the vesting occurs over the specified number of periods.
+Với mọi vesting account, chủ sở hữu vesting account có thể delegate và undelegate
+với validator; tuy nhiên họ không thể chuyển coin sang tài khoản khác cho tới khi
+coin đó đã vested. Đặc tả này cho phép bốn kiểu vesting khác nhau:
 
-For all vesting accounts, the owner of the vesting account is able to delegate and undelegate from validators, however they cannot transfer coins to another account until those coins are vested. This specification allows for four different kinds of vesting:
+* Delayed vesting: toàn bộ coin sẽ vested khi đạt `ET`.
+* Continuous vesting: coin bắt đầu vest tại `ST` và vest tuyến tính theo thời gian cho tới `ET`.
+* Periodic vesting: coin bắt đầu vest tại `ST` và vest theo chu kỳ dựa trên số kỳ và lượng vest mỗi kỳ.
+  Số kỳ, độ dài mỗi kỳ và lượng mỗi kỳ đều có thể cấu hình. Periodic vesting account khác continuous
+  vesting account ở chỗ coin có thể được mở khoá theo các “đợt” (tranche) so le. Ví dụ: periodic vesting
+  account có thể dùng cho lịch vesting theo quý, theo năm, hoặc bất kỳ hàm nào của token theo thời gian.
+* Permanent locked vesting: coin bị khoá vĩnh viễn. Coin trong tài khoản này vẫn có thể dùng để delegate
+  và bỏ phiếu governance ngay cả khi bị khoá.
 
-* Delayed vesting, where all coins are vested once `ET` is reached.
-* Continuous vesting, where coins begin to vest at `ST` and vest linearly with respect to time until `ET` is reached
-* Periodic vesting, where coins begin to vest at `ST` and vest periodically according to number of periods and the vesting amount per period. The number of periods, length per period, and amount per period are configurable. A periodic vesting account is distinguished from a continuous vesting account in that coins can be released in staggered tranches. For example, a periodic vesting account could be used for vesting arrangements where coins are released quarterly, yearly, or over any other function of tokens over time.
-* Permanent locked vesting, where coins are locked forever. Coins in this account can still be used for delegating and for governance votes even while locked.
+## Lưu ý
 
-## Note
+Vesting account có thể được khởi tạo với cả coin vesting và coin không vesting.
+Coin không vesting sẽ có thể chuyển ngay lập tức. Các tài khoản DelayedVesting,
+ContinuousVesting, PeriodicVesting và PermanentVesting có thể được tạo bằng các
+message thông thường sau genesis. Các loại vesting account khác phải được tạo ở
+genesis hoặc là một phần của nâng cấp mạng thủ công. Đặc tả hiện tại chỉ cho phép
+vesting _vô điều kiện_ (tức là không có khả năng đạt `ET` nhưng coin lại không vest).
 
-Vesting accounts can be initialized with some vesting and non-vesting coins. The non-vesting coins would be immediately transferable. DelayedVesting ContinuousVesting, PeriodicVesting and PermanentVesting accounts can be created with normal messages after genesis. Other types of vesting accounts must be created at genesis, or as part of a manual network upgrade. The current specification only allows for _unconditional_ vesting (ie. there is no possibility of reaching `ET` and
-having coins fail to vest).
-
-## Vesting Account Types
+## Các loại Vesting Account
 
 ```go
 // VestingAccount defines an interface that any vesting account type must
@@ -106,7 +120,9 @@ type Periods []Period
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/vesting/v1beta1/vesting.proto#L71-L81
 ```
 
-In order to facilitate less ad-hoc type checking and assertions and to support flexibility in account balance usage, the existing `x/bank` `ViewKeeper` interface is updated to contain the following:
+Để giảm việc type checking/assertion mang tính ad-hoc và hỗ trợ tính linh hoạt
+trong việc sử dụng số dư tài khoản, interface `x/bank` `ViewKeeper` hiện có được
+cập nhật để chứa các hàm sau:
 
 ```go
 type ViewKeeper interface {
@@ -126,35 +142,34 @@ type ViewKeeper interface {
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/proto/cosmos/vesting/v1beta1/vesting.proto#L83-L94
 ```
 
-## Vesting Account Specification
+## Đặc tả Vesting Account
 
-Given a vesting account, we define the following in the proceeding operations:
+Với một vesting account, ta định nghĩa các ký hiệu sau trong các thao tác tiếp theo:
 
-* `OV`: The original vesting coin amount. It is a constant value.
-* `V`: The number of `OV` coins that are still _vesting_. It is derived by
-`OV`, `StartTime` and `EndTime`. This value is computed on demand and not on a per-block basis.
-* `V'`: The number of `OV` coins that are _vested_ (unlocked). This value is computed on demand and not a per-block basis.
-* `DV`: The number of delegated _vesting_ coins. It is a variable value. It is stored and modified directly in the vesting account.
-* `DF`: The number of delegated _vested_ (unlocked) coins. It is a variable value. It is stored and modified directly in the vesting account.
-* `BC`: The number of `OV` coins less any coins that are transferred
-(which can be negative or delegated). It is considered to be balance of the embedded base account. It is stored and modified directly in the vesting account.
+* `OV`: Lượng coin vesting ban đầu (original vesting). Đây là hằng số.
+* `V`: Số coin `OV` vẫn _đang vesting_. Nó được suy ra từ `OV`, `StartTime` và `EndTime`.
+  Giá trị này được tính khi cần (on demand) chứ không phải theo từng block.
+* `V'`: Số coin `OV` đã _vested_ (mở khoá). Giá trị này được tính khi cần chứ không theo từng block.
+* `DV`: Số coin _vesting_ đã được delegate. Đây là giá trị biến và được lưu/sửa trực tiếp trong vesting account.
+* `DF`: Số coin _vested_ (mở khoá) đã được delegate. Đây là giá trị biến và được lưu/sửa trực tiếp trong vesting account.
+* `BC`: Số coin `OV` trừ đi các coin đã chuyển (có thể âm hoặc đã delegate). Đây được xem như số dư của base account nhúng.
+  Nó được lưu/sửa trực tiếp trong vesting account.
 
-### Determining Vesting & Vested Amounts
+### Xác định lượng đang vesting & đã vested
 
-It is important to note that these values are computed on demand and not on a mandatory per-block basis (e.g. `BeginBlocker` or `EndBlocker`).
+Cần lưu ý rằng các giá trị này được tính khi cần và không bắt buộc tính theo từng block
+(ví dụ trong `BeginBlocker` hay `EndBlocker`).
 
-#### Continuously Vesting Accounts
+#### Continuous vesting account
 
-To determine the amount of coins that are vested for a given block time `T`, the
-following is performed:
+Để xác định lượng coin đã vested tại thời điểm block `T`, thực hiện:
 
-1. Compute `X := T - StartTime`
-2. Compute `Y := EndTime - StartTime`
-3. Compute `V' := OV * (X / Y)`
-4. Compute `V := OV - V'`
+1. Tính `X := T - StartTime`
+2. Tính `Y := EndTime - StartTime`
+3. Tính `V' := OV * (X / Y)`
+4. Tính `V := OV - V'`
 
-Thus, the total amount of _vested_ coins is `V'` and the remaining amount, `V`,
-is _vesting_.
+Vì vậy tổng lượng coin _đã vested_ là `V'` và lượng còn lại `V` là _đang vesting_.
 
 ```go
 func (cva ContinuousVestingAccount) GetVestedCoins(t Time) Coins {
@@ -178,21 +193,23 @@ func (cva ContinuousVestingAccount) GetVestingCoins(t Time) Coins {
 }
 ```
 
-### Periodic Vesting Accounts
+### Periodic vesting account
 
-Periodic vesting accounts require calculating the coins released during each period for a given block time `T`. Note that multiple periods could have passed when calling `GetVestedCoins`, so we must iterate over each period until the end of that period is after `T`.
+Periodic vesting account yêu cầu tính lượng coin được mở khoá trong mỗi kỳ tại thời
+điểm block `T`. Lưu ý có thể nhiều kỳ đã trôi qua khi gọi `GetVestedCoins`, nên ta
+phải lặp qua từng kỳ cho tới khi kết thúc kỳ đó nằm sau `T`.
 
-1. Set `CT := StartTime`
-2. Set `V' := 0`
+1. Đặt `CT := StartTime`
+2. Đặt `V' := 0`
 
-For each Period P:
+Với mỗi kỳ P:
 
-  1. Compute `X := T - CT`
-  2. IF `X >= P.Length`
-      1. Compute `V' += P.Amount`
-      2. Compute `CT += P.Length`
-      3. ELSE break
-  3. Compute `V := OV - V'`
+  1. Tính `X := T - CT`
+  2. NẾU `X >= P.Length`
+      1. Tính `V' += P.Amount`
+      2. Tính `CT += P.Length`
+      3. NGƯỢC LẠI: dừng
+  3. Tính `V := OV - V'`
 
 ```go
 func (pva PeriodicVestingAccount) GetVestedCoins(t Time) Coins {
@@ -217,9 +234,11 @@ func (pva PeriodicVestingAccount) GetVestingCoins(t Time) Coins {
 }
 ```
 
-#### Delayed/Discrete Vesting Accounts
+#### Delayed/Discrete vesting account
 
-Delayed vesting accounts are easier to reason about as they only have the full amount vesting up until a certain time, then all the coins become vested (unlocked). This does not include any unlocked coins the account may have initially.
+Delayed vesting account dễ suy luận hơn vì nó chỉ giữ toàn bộ lượng coin ở trạng
+thái vesting cho tới một thời điểm nhất định, rồi toàn bộ coin trở thành vested
+(mở khoá). Điều này không bao gồm các coin mở khoá sẵn mà tài khoản có thể đã có ban đầu.
 
 ```go
 func (dva DelayedVestingAccount) GetVestedCoins(t Time) Coins {
@@ -235,13 +254,17 @@ func (dva DelayedVestingAccount) GetVestingCoins(t Time) Coins {
 }
 ```
 
-### Transferring/Sending
+### Chuyển/Gửi
 
-At any given time, a vesting account may transfer: `min((BC + DV) - V, BC)`.
+Tại bất kỳ thời điểm nào, một vesting account có thể chuyển: `min((BC + DV) - V, BC)`.
 
-In other words, a vesting account may transfer the minimum of the base account balance and the base account balance plus the number of currently delegated vesting coins less the number of coins vested so far.
+Nói cách khác, vesting account có thể chuyển giá trị nhỏ hơn giữa số dư base account
+và số dư base account cộng số coin vesting hiện đang delegate trừ số coin đã vested
+cho tới thời điểm đó.
 
-However, given that account balances are tracked via the `x/bank` module and that we want to avoid loading the entire account balance, we can instead determine the locked balance, which can be defined as `max(V - DV, 0)`, and infer the spendable balance from that.
+Tuy nhiên, vì số dư tài khoản được theo dõi qua module `x/bank` và ta muốn tránh
+phải tải toàn bộ số dư, ta có thể thay vào đó xác định số dư bị khoá (locked balance),
+có thể định nghĩa là `max(V - DV, 0)`, và suy ra số dư có thể chi tiêu (spendable) từ đó.
 
 ```go
 func (va VestingAccount) LockedCoins(t Time) Coins {
@@ -249,7 +272,8 @@ func (va VestingAccount) LockedCoins(t Time) Coins {
 }
 ```
 
-The `x/bank` `ViewKeeper` can then provide APIs to determine locked and spendable coins for any account:
+`x/bank` `ViewKeeper` sau đó có thể cung cấp API để xác định coin bị khoá và coin
+có thể chi tiêu cho bất kỳ tài khoản nào:
 
 ```go
 func (k Keeper) LockedCoins(ctx Context, addr AccAddress) Coins {
@@ -265,9 +289,10 @@ func (k Keeper) LockedCoins(ctx Context, addr AccAddress) Coins {
 }
 ```
 
-#### Keepers/Handlers
+#### Keeper/Handler
 
-The corresponding `x/bank` keeper should appropriately handle sending coins based on if the account is a vesting account or not.
+Keeper của `x/bank` tương ứng nên xử lý việc gửi coin một cách phù hợp tuỳ theo
+tài khoản có phải vesting account hay không.
 
 ```go
 func (k Keeper) SendCoins(ctx Context, from Account, to Account, amount Coins) {
@@ -285,15 +310,15 @@ func (k Keeper) SendCoins(ctx Context, from Account, to Account, amount Coins) {
 }
 ```
 
-### Delegating
+### Uỷ quyền stake (Delegating)
 
-For a vesting account attempting to delegate `D` coins, the following is performed:
+Với một vesting account muốn delegate `D` coin, thực hiện:
 
-1. Verify `BC >= D > 0`
-2. Compute `X := min(max(V - DV, 0), D)` (portion of `D` that is vesting)
-3. Compute `Y := D - X` (portion of `D` that is free)
-4. Set `DV += X`
-5. Set `DF += Y`
+1. Xác minh `BC >= D > 0`
+2. Tính `X := min(max(V - DV, 0), D)` (phần của `D` là coin vesting)
+3. Tính `Y := D - X` (phần của `D` là coin free)
+4. Đặt `DV += X`
+5. Đặt `DF += Y`
 
 ```go
 func (va VestingAccount) TrackDelegation(t Time, balance Coins, amount Coins) {
@@ -306,9 +331,10 @@ func (va VestingAccount) TrackDelegation(t Time, balance Coins, amount Coins) {
 }
 ```
 
-**Note** `TrackDelegation` only modifies the `DelegatedVesting` and `DelegatedFree` fields, so upstream callers MUST modify the `Coins` field by subtracting `amount`.
+**Lưu ý** `TrackDelegation` chỉ sửa các field `DelegatedVesting` và `DelegatedFree`,
+nên caller phía trên BẮT BUỘC phải sửa field `Coins` bằng cách trừ `amount`.
 
-#### Keepers/Handlers
+#### Keeper/Handler
 
 ```go
 func DelegateCoins(t Time, from Account, amount Coins) {
@@ -322,17 +348,18 @@ func DelegateCoins(t Time, from Account, amount Coins) {
 }
 ```
 
-### Undelegating
+### Huỷ uỷ quyền (Undelegating)
 
-For a vesting account attempting to undelegate `D` coins, the following is performed:
+Với một vesting account muốn undelegate `D` coin, thực hiện:
 
-> NOTE: `DV < D` and `(DV + DF) < D` may be possible due to quirks in the rounding of delegation/undelegation logic.
+> LƯU Ý: `DV < D` và `(DV + DF) < D` có thể xảy ra do đặc điểm “lạ” của việc làm tròn
+> trong logic delegate/undelegate.
 
-1. Verify `D > 0`
-2. Compute `X := min(DF, D)` (portion of `D` that should become free, prioritizing free coins)
-3. Compute `Y := min(DV, D - X)` (portion of `D` that should remain vesting)
-4. Set `DF -= X`
-5. Set `DV -= Y`
+1. Xác minh `D > 0`
+2. Tính `X := min(DF, D)` (phần của `D` nên trở thành free, ưu tiên free coin)
+3. Tính `Y := min(DV, D - X)` (phần của `D` nên vẫn là vesting)
+4. Đặt `DF -= X`
+5. Đặt `DV -= Y`
 
 ```go
 func (cva ContinuousVestingAccount) TrackUndelegation(amount Coins) {
@@ -344,13 +371,18 @@ func (cva ContinuousVestingAccount) TrackUndelegation(amount Coins) {
 }
 ```
 
-**Note** `TrackUnDelegation` only modifies the `DelegatedVesting` and `DelegatedFree` fields, so upstream callers MUST modify the `Coins` field by adding `amount`.
+**Lưu ý** `TrackUnDelegation` chỉ sửa các field `DelegatedVesting` và `DelegatedFree`,
+nên caller phía trên BẮT BUỘC phải sửa field `Coins` bằng cách cộng `amount`.
 
-**Note**: If a delegation is slashed, the continuous vesting account ends up with an excess `DV` amount, even after all its coins have vested. This is because undelegating free coins are prioritized.
+**Lưu ý**: Nếu một delegation bị slashed, continuous vesting account có thể kết
+thúc với lượng `DV` dư thừa, ngay cả sau khi tất cả coin đã vested. Nguyên nhân là
+do ưu tiên undelegate free coin.
 
-**Note**: The undelegation (bond refund) amount may exceed the delegated vesting (bond) amount due to the way undelegation truncates the bond refund, which can increase the validator's exchange rate (tokens/shares) slightly if the undelegated tokens are non-integral.
+**Lưu ý**: Lượng undelegation (bond refund) có thể lớn hơn lượng delegated vesting
+(bond) do cách undelegation truncate bond refund, có thể làm tăng nhẹ exchange rate
+(tokens/shares) của validator nếu token undelegate không nguyên.
 
-#### Keepers/Handlers
+#### Keeper/Handler
 
 ```go
 func UndelegateCoins(to Account, amount Coins) {
@@ -366,17 +398,26 @@ func UndelegateCoins(to Account, amount Coins) {
 }
 ```
 
-## Keepers & Handlers
+## Keeper & Handler
 
-The `VestingAccount` implementations reside in `x/auth`. However, any keeper in a module (e.g. staking in `x/staking`) wishing to potentially utilize any vesting coins, must call explicit methods on the `x/bank` keeper (e.g. `DelegateCoins`) opposed to `SendCoins` and `SubtractCoins`.
+Các hiện thực `VestingAccount` nằm trong `x/auth`. Tuy nhiên, bất kỳ keeper nào
+trong module (ví dụ staking trong `x/staking`) muốn có thể sử dụng vesting coin
+phải gọi các phương thức rõ ràng trên `x/bank` keeper (ví dụ `DelegateCoins`) thay
+vì `SendCoins` và `SubtractCoins`.
 
-In addition, the vesting account should also be able to spend any coins it receives from other users. Thus, the bank module's `MsgSend` handler should error if a vesting account is trying to send an amount that exceeds their unlocked coin amount.
+Ngoài ra, vesting account cũng nên có thể chi tiêu bất kỳ coin nào nó nhận từ người
+dùng khác. Vì vậy, handler `MsgSend` của module bank nên trả lỗi nếu vesting account
+đang cố gửi một lượng vượt quá lượng coin đã mở khoá của họ.
 
-See the above specification for full implementation details.
+Xem đặc tả bên trên để biết chi tiết triển khai đầy đủ.
 
-## Genesis Initialization
+## Khởi tạo Genesis
 
-To initialize both vesting and non-vesting accounts, the `GenesisAccount` struct includes new fields: `Vesting`, `StartTime`, and `EndTime`. Accounts meant to be of type `BaseAccount` or any non-vesting type have `Vesting = false`. The genesis initialization logic (e.g. `initFromGenesisState`) must parse and return the correct accounts accordingly based off of these fields.
+Để khởi tạo cả vesting lẫn non-vesting account, struct `GenesisAccount` có thêm
+các field mới: `Vesting`, `StartTime`, và `EndTime`. Các tài khoản dự kiến là
+`BaseAccount` hoặc bất kỳ loại non-vesting nào có `Vesting = false`. Logic khởi tạo
+genesis (ví dụ `initFromGenesisState`) phải parse và trả về đúng loại tài khoản
+tương ứng dựa trên các field này.
 
 ```go
 type GenesisAccount struct {
@@ -408,11 +449,11 @@ func ToAccount(gacc GenesisAccount) Account {
 }
 ```
 
-## Examples
+## Ví dụ
 
-### Simple
+### Đơn giản
 
-Given a continuous vesting account with 10 vesting coins.
+Cho một continuous vesting account với 10 coin vesting.
 
 ```text
 OV = 10
@@ -423,41 +464,41 @@ V = 10
 V' = 0
 ```
 
-1. Immediately receives 1 coin
+1. Ngay lập tức nhận thêm 1 coin
 
     ```text
     BC = 11
     ```
 
-2. Time passes, 2 coins vest
+2. Thời gian trôi qua, 2 coin vest
 
     ```text
     V = 8
     V' = 2
     ```
 
-3. Delegates 4 coins to validator A
+3. Delegate 4 coin cho validator A
 
     ```text
     DV = 4
     BC = 7
     ```
 
-4. Sends 3 coins
+4. Gửi 3 coin
 
     ```text
     BC = 4
     ```
 
-5. More time passes, 2 more coins vest
+5. Thời gian trôi qua tiếp, 2 coin nữa vest
 
     ```text
     V = 6
     V' = 4
     ```
 
-6. Sends 2 coins. At this point the account cannot send anymore until further
-coins vest or it receives additional coins. It can still however, delegate.
+6. Gửi 2 coin. Tại thời điểm này tài khoản không thể gửi thêm cho tới khi vest
+thêm coin hoặc nhận thêm coin. Tuy nhiên nó vẫn có thể delegate.
 
     ```text
     BC = 2
@@ -465,40 +506,39 @@ coins vest or it receives additional coins. It can still however, delegate.
 
 ### Slashing
 
-Same initial starting conditions as the simple example.
+Cùng điều kiện ban đầu như ví dụ đơn giản.
 
-1. Time passes, 5 coins vest
+1. Thời gian trôi qua, 5 coin vest
 
     ```text
     V = 5
     V' = 5
     ```
 
-2. Delegate 5 coins to validator A
+2. Delegate 5 coin cho validator A
 
     ```text
     DV = 5
     BC = 5
     ```
 
-3. Delegate 5 coins to validator B
+3. Delegate 5 coin cho validator B
 
     ```text
     DF = 5
     BC = 0
     ```
 
-4. Validator A gets slashed by 50%, making the delegation to A now worth 2.5 coins
-5. Undelegate from validator A (2.5 coins)
+4. Validator A bị slashed 50%, làm delegation tới A chỉ còn tương đương 2.5 coin
+5. Undelegate khỏi validator A (2.5 coin)
 
     ```text
     DF = 5 - 2.5 = 2.5
     BC = 0 + 2.5 = 2.5
     ```
 
-6. Undelegate from validator B (5 coins). The account at this point can only
-send 2.5 coins unless it receives more coins or until more coins vest.
-It can still however, delegate.
+6. Undelegate khỏi validator B (5 coin). Tại điểm này tài khoản chỉ có thể gửi
+2.5 coin trừ khi nhận thêm coin hoặc chờ vest thêm. Tuy nhiên nó vẫn có thể delegate.
 
     ```text
     DV = 5 - 2.5 = 2.5
@@ -506,12 +546,12 @@ It can still however, delegate.
     BC = 2.5 + 5 = 7.5
     ```
 
-    Notice how we have an excess amount of `DV`.
+    Lưu ý rằng ta có một lượng `DV` dư thừa.
 
-### Periodic Vesting
+### Periodic vesting
 
-A vesting account is created where 100 tokens will be released over 1 year, with
-1/4 of tokens vesting each quarter. The vesting schedule would be as follows:
+Một vesting account được tạo sao cho 100 token sẽ được mở khoá trong 1 năm, với
+1/4 token vest mỗi quý. Lịch vesting sẽ như sau:
 
 ```yaml
 Periods:
@@ -530,60 +570,52 @@ V = 100
 V' = 0
 ```
 
-1. Immediately receives 1 coin
+1. Ngay lập tức nhận thêm 1 coin
 
     ```text
     BC = 101
     ```
 
-2. Vesting period 1 passes, 25 coins vest
+2. Kỳ vesting 1 kết thúc, 25 coin vest
 
     ```text
     V = 75
     V' = 25
     ```
 
-3. During vesting period 2, 5 coins are transferred and 5 coins are delegated
+3. Trong kỳ vesting 2, chuyển 5 coin và delegate 5 coin
 
     ```text
     DV = 5
     BC = 91
     ```
 
-4. Vesting period 2 passes, 25 coins vest
+4. Kỳ vesting 2 kết thúc, 25 coin vest
 
     ```text
     V = 50
     V' = 50
     ```
 
-## Glossary
+## Thuật ngữ
 
-* OriginalVesting: The amount of coins (per denomination) that are initially
-part of a vesting account. These coins are set at genesis.
-* StartTime: The BFT time at which a vesting account starts to vest.
-* EndTime: The BFT time at which a vesting account is fully vested.
-* DelegatedFree: The tracked amount of coins (per denomination) that are
-delegated from a vesting account that have been fully vested at time of delegation.
-* DelegatedVesting: The tracked amount of coins (per denomination) that are
-delegated from a vesting account that were vesting at time of delegation.
-* ContinuousVestingAccount: A vesting account implementation that vests coins
-linearly over time.
-* DelayedVestingAccount: A vesting account implementation that only fully vests
-all coins at a given time.
-* PeriodicVestingAccount: A vesting account implementation that vests coins
-according to a custom vesting schedule.
-* PermanentLockedAccount: It does not ever release coins, locking them indefinitely.
-Coins in this account can still be used for delegating and for governance votes even while locked.
-
+* OriginalVesting: Lượng coin (theo mệnh giá) ban đầu thuộc về vesting account. Các coin này được thiết lập tại genesis.
+* StartTime: Thời điểm BFT mà tại đó vesting account bắt đầu vest.
+* EndTime: Thời điểm BFT mà tại đó vesting account vest hoàn toàn.
+* DelegatedFree: Lượng coin (theo mệnh giá) được theo dõi đã delegate từ vesting account và đã vested hoàn toàn tại thời điểm delegate.
+* DelegatedVesting: Lượng coin (theo mệnh giá) được theo dõi đã delegate từ vesting account và đang vesting tại thời điểm delegate.
+* ContinuousVestingAccount: Hiện thực vesting account vest tuyến tính theo thời gian.
+* DelayedVestingAccount: Hiện thực vesting account chỉ vest hoàn toàn toàn bộ coin tại một thời điểm nhất định.
+* PeriodicVestingAccount: Hiện thực vesting account vest theo một lịch vesting tuỳ biến.
+* PermanentLockedAccount: Không bao giờ mở khoá coin, khoá vô thời hạn. Coin trong tài khoản này vẫn có thể dùng để delegate và bỏ phiếu governance ngay cả khi bị khoá.
 
 ## CLI
 
-A user can query and interact with the `vesting` module using the CLI.
+Người dùng có thể truy vấn và tương tác với module `vesting` qua CLI.
 
 ### Transactions
 
-The `tx` commands allow users to interact with the `vesting` module.
+Các lệnh `tx` cho phép người dùng tương tác với module `vesting`.
 
 ```bash
 simd tx vesting --help
@@ -591,13 +623,16 @@ simd tx vesting --help
 
 #### create-periodic-vesting-account
 
-The `create-periodic-vesting-account` command creates a new vesting account funded with an allocation of tokens, where a sequence of coins and period length in seconds. Periods are sequential, in that the duration of a period only starts at the end of the previous period. The duration of the first period starts upon account creation.
+Lệnh `create-periodic-vesting-account` tạo một vesting account mới được cấp vốn
+với một phân bổ token, trong đó có một chuỗi coin và độ dài kỳ (giây). Các kỳ là
+tuần tự: thời lượng của một kỳ chỉ bắt đầu sau khi kỳ trước kết thúc. Thời lượng
+kỳ đầu tiên bắt đầu khi tài khoản được tạo.
 
 ```bash
 simd tx vesting create-periodic-vesting-account [to_address] [periods_json_file] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 simd tx vesting create-periodic-vesting-account cosmos1.. periods.json
@@ -605,14 +640,19 @@ simd tx vesting create-periodic-vesting-account cosmos1.. periods.json
 
 #### create-vesting-account
 
-The `create-vesting-account` command creates a new vesting account funded with an allocation of tokens. The account can either be a delayed or continuous vesting account, which is determined by the '--delayed' flag. All vesting accounts created will have their start time set by the committed block's time. The end_time must be provided as a UNIX epoch timestamp.
+Lệnh `create-vesting-account` tạo một vesting account mới được cấp vốn với một
+phân bổ token. Tài khoản có thể là delayed hoặc continuous vesting account, được
+xác định bởi cờ `--delayed`. Tất cả vesting account được tạo sẽ có start time
+đặt theo thời gian của block đã commit. `end_time` phải được cung cấp dưới dạng
+UNIX epoch timestamp.
 
 ```bash
 simd tx vesting create-vesting-account [to_address] [amount] [end_time] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```bash
 simd tx vesting create-vesting-account cosmos1.. 100stake 2592000
 ```
+

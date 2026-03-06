@@ -4,22 +4,17 @@ sidebar_position: 1
 
 # `x/bank`
 
-## Abstract
+## Tóm tắt
 
-This document specifies the bank module of the Cosmos SDK.
+Tài liệu này mô tả module bank của Cosmos SDK.
 
-The bank module is responsible for handling multi-asset coin transfers between
-accounts and tracking special-case pseudo-transfers which must work differently
-with particular kinds of accounts (notably delegating/undelegating for vesting
-accounts). It exposes several interfaces with varying capabilities for secure
-interaction with other modules which must alter user balances.
+Module bank chịu trách nhiệm xử lý chuyển coin đa tài sản giữa các tài khoản và theo dõi các pseudo-transfer đặc biệt phải hoạt động khác với một số loại tài khoản cụ thể (đáng chú ý là delegate/undelegate cho tài khoản vesting). Module này cung cấp nhiều interface với các khả năng khác nhau để tương tác an toàn với các module khác cần thay đổi số dư người dùng.
 
-In addition, the bank module tracks and provides query support for the total
-supply of all assets used in the application.
+Ngoài ra, module bank theo dõi và cung cấp hỗ trợ truy vấn cho tổng nguồn cung của tất cả tài sản được sử dụng trong ứng dụng.
 
-This module is used in the Cosmos Hub.
+Module này được sử dụng trong Cosmos Hub.
 
-## Contents
+## Nội dung
 
 * [Supply](#supply)
     * [Total Supply](#total-supply)
@@ -43,32 +38,21 @@ This module is used in the Cosmos Hub.
 
 ## Supply
 
-The `supply` functionality:
+Chức năng `supply`:
 
-* passively tracks the total supply of coins within a chain,
-* provides a pattern for modules to hold/interact with `Coins`, and
-* introduces the invariant check to verify a chain's total supply.
+* theo dõi thụ động tổng nguồn cung coin trong một chain,
+* cung cấp mẫu cho các module để giữ/tương tác với `Coins`, và
+* giới thiệu kiểm tra invariant để xác minh tổng nguồn cung của chain.
 
 ### Total Supply
 
-The total `Supply` of the network is equal to the sum of all coins from the
-account. The total supply is updated every time a `Coin` is minted (eg: as part
-of the inflation mechanism) or burned (eg: due to slashing or if a governance
-proposal is vetoed).
+Tổng `Supply` của mạng bằng tổng tất cả coin từ tài khoản. Tổng nguồn cung được cập nhật mỗi khi một `Coin` được mint (ví dụ: như một phần của cơ chế lạm phát) hoặc burn (ví dụ: do slashing hoặc nếu một đề xuất governance bị phủ quyết).
 
 ## Module Accounts
 
-The supply functionality introduces a new type of `auth.Account` which can be used by
-modules to allocate tokens and in special cases mint or burn tokens. At a base
-level these module accounts are capable of sending/receiving tokens to and from
-`auth.Account`s and other module accounts. This design replaces previous
-alternative designs where, to hold tokens, modules would burn the incoming
-tokens from the sender account, and then track those tokens internally. Later,
-in order to send tokens, the module would need to effectively mint tokens
-within a destination account. The new design removes duplicate logic between
-modules to perform this accounting.
+Chức năng supply giới thiệu một loại tài khoản `auth.Account` mới mà các module có thể sử dụng để phân bổ token và trong các trường hợp đặc biệt mint hoặc burn token. Ở cấp độ cơ bản, các module account này có khả năng gửi/nhận token đến và từ các `auth.Account` và module account khác. Thiết kế này thay thế các thiết kế thay thế trước đây, nơi để giữ token, các module sẽ burn token đến từ tài khoản người gửi, sau đó theo dõi các token đó nội bộ. Sau đó, để gửi token, module sẽ cần mint token hiệu quả trong tài khoản đích. Thiết kế mới loại bỏ logic trùng lặp giữa các module để thực hiện kế toán này.
 
-The `ModuleAccount` interface is defined as follows:
+Interface `ModuleAccount` được định nghĩa như sau:
 
 ```go
 type ModuleAccount interface {
@@ -80,43 +64,35 @@ type ModuleAccount interface {
 }
 ```
 
-> **WARNING!**
-> Any module or message handler that allows either direct or indirect sending of funds must explicitly guarantee those funds cannot be sent to module accounts (unless allowed).
+> **CẢNH BÁO!**
+> Bất kỳ module hoặc message handler nào cho phép gửi trực tiếp hoặc gián tiếp quỹ phải đảm bảo rõ ràng rằng các quỹ đó không thể được gửi đến module accounts (trừ khi được phép).
 
-The supply `Keeper` also introduces new wrapper functions for the auth `Keeper`
-and the bank `Keeper` that are related to `ModuleAccount`s in order to be able
-to:
+Supply `Keeper` cũng giới thiệu các hàm wrapper mới cho auth `Keeper` và bank `Keeper` liên quan đến `ModuleAccount`s để có thể:
 
-* Get and set `ModuleAccount`s by providing the `Name`.
-* Send coins from and to other `ModuleAccount`s or standard `Account`s
-  (`BaseAccount` or `VestingAccount`) by passing only the `Name`.
-* `Mint` or `Burn` coins for a `ModuleAccount` (restricted to its permissions).
+* Lấy và đặt `ModuleAccount`s bằng cách cung cấp `Name`.
+* Gửi coin từ và đến các `ModuleAccount` khác hoặc `Account` chuẩn (`BaseAccount` hoặc `VestingAccount`) bằng cách chỉ truyền `Name`.
+* `Mint` hoặc `Burn` coin cho một `ModuleAccount` (bị giới hạn theo quyền của nó).
 
 ### Permissions
 
-Each `ModuleAccount` has a different set of permissions that provide different
-object capabilities to perform certain actions. Permissions need to be
-registered upon the creation of the supply `Keeper` so that every time a
-`ModuleAccount` calls the allowed functions, the `Keeper` can lookup the
-permissions to that specific account and perform or not perform the action.
+Mỗi `ModuleAccount` có một tập quyền khác nhau cung cấp các object capability khác nhau để thực hiện các hành động nhất định. Các quyền cần được đăng ký khi tạo supply `Keeper` để mỗi khi `ModuleAccount` gọi các hàm được phép, `Keeper` có thể tra cứu quyền cho tài khoản cụ thể đó và thực hiện hoặc không thực hiện hành động.
 
-The available permissions are:
+Các quyền có sẵn:
 
-* `Minter`: allows for a module to mint a specific amount of coins.
-* `Burner`: allows for a module to burn a specific amount of coins.
-* `Staking`: allows for a module to delegate and undelegate a specific amount of coins.
+* `Minter`: cho phép module mint một lượng coin cụ thể.
+* `Burner`: cho phép module burn một lượng coin cụ thể.
+* `Staking`: cho phép module delegate và undelegate một lượng coin cụ thể.
 
 ## State
 
-The `x/bank` module keeps state of the following primary objects:
+Module `x/bank` lưu trữ state của các đối tượng chính sau:
 
-1. Account balances
-2. Denomination metadata
-3. The total supply of all balances
-4. Information on which denominations are allowed to be sent.
+1. Số dư tài khoản
+2. Metadata denomination
+3. Tổng nguồn cung của tất cả số dư
+4. Thông tin về các denomination nào được phép gửi.
 
-In addition, the `x/bank` module keeps the following indexes to manage the
-aforementioned state:
+Ngoài ra, module `x/bank` duy trì các index sau để quản lý state nói trên:
 
 * Supply Index: `0x0 | byte(denom) -> byte(amount)`
 * Denom Metadata Index: `0x1 | byte(denom) -> ProtocolBuffer(Metadata)`
@@ -125,8 +101,7 @@ aforementioned state:
 
 ## Params
 
-The bank module stores it's params in state with the prefix of `0x05`,
-it can be updated with governance or the address with authority.
+Module bank lưu params trong state với prefix `0x05`, có thể được cập nhật thông qua governance hoặc địa chỉ có quyền.
 
 * Params: `0x05 | ProtocolBuffer(Params)`
 
@@ -136,31 +111,23 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/bank/v1beta1/
 
 ## Keepers
 
-The bank module provides these exported keeper interfaces that can be
-passed to other modules that read or update account balances. Modules
-should use the least-permissive interface that provides the functionality they
-require.
+Module bank cung cấp các keeper interface đã export sau có thể được truyền cho các module khác đọc hoặc cập nhật số dư tài khoản. Các module nên sử dụng interface có quyền ít nhất cung cấp chức năng cần thiết.
 
-Best practices dictate careful review of `bank` module code to ensure that
-permissions are limited in the way that you expect.
+Các best practice đòi hỏi xem xét kỹ mã module `bank` để đảm bảo rằng quyền được giới hạn theo cách bạn mong đợi.
 
 ### Denied Addresses
 
-The `x/bank` module accepts a map of addresses that are considered blocklisted
-from directly and explicitly receiving funds through means such as `MsgSend` and
-`MsgMultiSend` and direct API calls like `SendCoinsFromModuleToAccount`.
+Module `x/bank` chấp nhận một map các địa chỉ được coi là blocklisted khỏi việc nhận quỹ trực tiếp và rõ ràng thông qua các phương thức như `MsgSend` và `MsgMultiSend` và các API call trực tiếp như `SendCoinsFromModuleToAccount`.
 
-Typically, these addresses are module accounts. If these addresses receive funds
-outside the expected rules of the state machine, invariants are likely to be
-broken and could result in a halted network.
+Thông thường, các địa chỉ này là module accounts. Nếu các địa chỉ này nhận quỹ ngoài các quy tắc đã định của state machine, các invariant có thể bị vi phạm và có thể dẫn đến mạng bị dừng.
 
-By providing the `x/bank` module with a blocklisted set of addresses, an error occurs for the operation if a user or client attempts to directly or indirectly send funds to a blocklisted account, for example, by using [IBC](https://ibc.cosmos.network).
+Bằng cách cung cấp cho module `x/bank` một tập địa chỉ blocklisted, một lỗi sẽ xảy ra cho thao tác nếu người dùng hoặc client cố gắng gửi quỹ trực tiếp hoặc gián tiếp đến tài khoản blocklisted, ví dụ bằng cách sử dụng [IBC](https://ibc.cosmos.network).
 
 ### Common Types
 
 #### Input
 
-An input of a multiparty transfer
+Đầu vào của chuyển đa bên
 
 ```protobuf
 // Input models transaction input.
@@ -172,7 +139,7 @@ message Input {
 
 #### Output
 
-An output of a multiparty transfer.
+Đầu ra của chuyển đa bên.
 
 ```protobuf
 // Output models transaction outputs.
@@ -184,9 +151,9 @@ message Output {
 
 ### BaseKeeper
 
-The base keeper provides full-permission access: the ability to arbitrary modify any account's balance and mint or burn coins.
+Base keeper cung cấp quyền truy cập đầy đủ: khả năng sửa đổi tùy ý số dư bất kỳ tài khoản nào và mint hoặc burn coin.
 
-Restricted permission to mint per module could be achieved by using baseKeeper with `WithMintCoinsRestriction` to give specific restrictions to mint (e.g. only minting certain denom).
+Quyền mint bị giới hạn theo từng module có thể đạt được bằng cách sử dụng baseKeeper với `WithMintCoinsRestriction` để đặt các giới hạn cụ thể cho mint (ví dụ: chỉ mint một số denom nhất định).
 
 ```go
 // Keeper defines a module interface that facilitates the transfer of coins
@@ -227,8 +194,7 @@ type Keeper interface {
 
 ### SendKeeper
 
-The send keeper provides access to account balances and the ability to transfer coins between
-accounts. The send keeper does not alter the total supply (mint or burn coins).
+Send keeper cung cấp quyền truy cập số dư tài khoản và khả năng chuyển coin giữa các tài khoản. Send keeper không thay đổi tổng nguồn cung (mint hoặc burn coin).
 
 ```go
 // SendKeeper defines a module interface that facilitates the transfer of coins
@@ -262,30 +228,24 @@ type SendKeeper interface {
 
 #### Send Restrictions
 
-The `SendKeeper` applies a `SendRestrictionFn` before each transfer of funds.
+`SendKeeper` áp dụng `SendRestrictionFn` trước mỗi lần chuyển quỹ.
 
 ```golang
 // A SendRestrictionFn can restrict sends and/or provide a new receiver address.
 type SendRestrictionFn func(ctx context.Context, fromAddr, toAddr sdk.AccAddress, amt sdk.Coins) (newToAddr sdk.AccAddress, err error)
 ```
 
-After the `SendKeeper` (or `BaseKeeper`) has been created, send restrictions can be added to it using the `AppendSendRestriction` or `PrependSendRestriction` functions.
-Both functions compose the provided restriction with any previously provided restrictions.
-`AppendSendRestriction` adds the provided restriction to be run after any previously provided send restrictions.
-`PrependSendRestriction` adds the restriction to be run before any previously provided send restrictions.
-The composition will short-circuit when an error is encountered. I.e. if the first one returns an error, the second is not run.
+Sau khi `SendKeeper` (hoặc `BaseKeeper`) được tạo, các send restriction có thể được thêm vào bằng các hàm `AppendSendRestriction` hoặc `PrependSendRestriction`. Cả hai hàm đều kết hợp restriction được cung cấp với bất kỳ restriction đã cung cấp trước đó. `AppendSendRestriction` thêm restriction được cung cấp để chạy sau bất kỳ send restriction đã cung cấp trước đó. `PrependSendRestriction` thêm restriction để chạy trước bất kỳ send restriction đã cung cấp trước đó. Việc kết hợp sẽ short-circuit khi gặp lỗi. Tức là nếu cái đầu tiên trả về lỗi, cái thứ hai sẽ không được chạy.
 
-During `SendCoins`, the send restriction is applied before coins are removed from the from address and adding them to the to address.
-During `InputOutputCoins`, the send restriction is applied after the input coins are removed and once for each output before the funds are added.
+Trong `SendCoins`, send restriction được áp dụng trước khi coin được loại bỏ khỏi địa chỉ from và thêm vào địa chỉ to. Trong `InputOutputCoins`, send restriction được áp dụng sau khi input coins được loại bỏ và một lần cho mỗi output trước khi quỹ được thêm vào.
 
-A send restriction function should make use of a custom value in the context to allow bypassing that specific restriction.
+Một hàm send restriction nên sử dụng một giá trị tùy chỉnh trong context để cho phép bỏ qua restriction cụ thể đó.
 
-Send Restrictions are not placed on `ModuleToAccount` or `ModuleToModule` transfers. This is done due to modules needing to move funds to user accounts and other module accounts. This is a design decision to allow for more flexibility in the state machine. The state machine should be able to move funds between module accounts and user accounts without restrictions.
+Send Restrictions không được đặt trên các chuyển `ModuleToAccount` hoặc `ModuleToModule`. Điều này được thực hiện do các module cần di chuyển quỹ đến tài khoản người dùng và các module account khác. Đây là quyết định thiết kế để cho phép linh hoạt hơn trong state machine. State machine phải có khả năng di chuyển quỹ giữa module accounts và tài khoản người dùng mà không có restriction.
 
-Secondly this limitation would limit the usage of the state machine even for itself. users would not be able to receive rewards, not be able to move funds between module accounts. In the case that a user sends funds from a user account to the community pool and then a governance proposal is used to get those tokens into the users account this would fall under the discretion of the app chain developer to what they would like to do here. We can not make strong assumptions here.
-Thirdly, this issue could lead into a chain halt if a token is disabled and the token is moved in the begin/endblock. This is the last reason we see the current change and more damaging then beneficial for users.
+Thứ hai, giới hạn này sẽ hạn chế việc sử dụng state machine ngay cả đối với chính nó. Người dùng sẽ không thể nhận phần thưởng, không thể di chuyển quỹ giữa các module accounts. Trong trường hợp người dùng gửi quỹ từ tài khoản người dùng đến community pool và sau đó một đề xuất governance được sử dụng để đưa các token đó vào tài khoản người dùng, điều này sẽ thuộc quyền quyết định của nhà phát triển app chain về những gì họ muốn làm ở đây. Chúng ta không thể đưa ra giả định mạnh ở đây. Thứ ba, vấn đề này có thể dẫn đến chain halt nếu một token bị vô hiệu hóa và token được di chuyển trong begin/endblock. Đây là lý do cuối cùng chúng ta thấy thay đổi hiện tại và gây hại nhiều hơn có lợi cho người dùng.
 
-For example, in your module's keeper package, you'd define the send restriction function:
+Ví dụ, trong package keeper của module, bạn định nghĩa hàm send restriction:
 
 ```golang
 var _ banktypes.SendRestrictionFn = Keeper{}.SendRestrictionFn
@@ -301,7 +261,7 @@ func (k Keeper) SendRestrictionFn(ctx context.Context, fromAddr, toAddr sdk.AccA
 }
 ```
 
-The bank keeper should be provided to your keeper's constructor so the send restriction can be added to it:
+Bank keeper nên được cung cấp cho constructor của keeper để send restriction có thể được thêm vào:
 
 ```golang
 func NewKeeper(cdc codec.BinaryCodec, storeKey storetypes.StoreKey, bankKeeper mymodule.BankKeeper) Keeper {
@@ -311,7 +271,7 @@ func NewKeeper(cdc codec.BinaryCodec, storeKey storetypes.StoreKey, bankKeeper m
 }
 ```
 
-Then, in the `mymodule` package, define the context helpers:
+Sau đó, trong package `mymodule`, định nghĩa các context helper:
 
 ```golang
 const bypassKey = "bypass-mymodule-restriction"
@@ -337,7 +297,7 @@ func HasBypass(ctx context.Context) bool {
 }
 ```
 
-Now, anywhere where you want to use `SendCoins` or `InputOutputCoins`, but you don't want your send restriction applied:
+Bây giờ, bất cứ nơi nào bạn muốn sử dụng `SendCoins` hoặc `InputOutputCoins`, nhưng bạn không muốn send restriction của bạn được áp dụng:
 
 ```golang
 func (k Keeper) DoThing(ctx context.Context, fromAddr, toAddr sdk.AccAddress, amt sdk.Coins) error {
@@ -347,7 +307,7 @@ func (k Keeper) DoThing(ctx context.Context, fromAddr, toAddr sdk.AccAddress, am
 
 ### ViewKeeper
 
-The view keeper provides read-only access to account balances. The view keeper does not have balance alteration functionality. All balance lookups are `O(1)`.
+View keeper cung cấp quyền truy cập chỉ đọc vào số dư tài khoản. View keeper không có chức năng thay đổi số dư. Tất cả tra cứu số dư đều là `O(1)`.
 
 ```go
 // ViewKeeper defines a module interface that facilitates read only access to
@@ -372,62 +332,62 @@ type ViewKeeper interface {
 
 ### MsgSend
 
-Send coins from one address to another.
+Gửi coin từ một địa chỉ đến địa chỉ khác.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/bank/v1beta1/tx.proto#L38-L53
 ```
 
-The message will fail under the following conditions:
+Message sẽ thất bại trong các điều kiện sau:
 
-* The coins do not have sending enabled
-* The `to` address is restricted
+* Coin không có gửi được bật
+* Địa chỉ `to` bị hạn chế
 
 ### MsgMultiSend
 
-Send coins from one sender and to a series of different address. If any of the receiving addresses do not correspond to an existing account, a new account is created.
+Gửi coin từ một người gửi đến một loạt địa chỉ khác nhau. Nếu bất kỳ địa chỉ nhận nào không tương ứng với tài khoản hiện có, một tài khoản mới sẽ được tạo.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/bank/v1beta1/tx.proto#L58-L69
 ```
 
-The message will fail under the following conditions:
+Message sẽ thất bại trong các điều kiện sau:
 
-* Any of the coins do not have sending enabled
-* Any of the `to` addresses are restricted
-* Any of the coins are locked
-* The inputs and outputs do not correctly correspond to one another
+* Bất kỳ coin nào không có gửi được bật
+* Bất kỳ địa chỉ `to` nào bị hạn chế
+* Bất kỳ coin nào bị khóa
+* Input và output không tương ứng chính xác với nhau
 
 ### MsgUpdateParams
 
-The `bank` module params can be updated through `MsgUpdateParams`, which can be done using governance proposal. The signer will always be the `gov` module account address. 
+Params của module `bank` có thể được cập nhật thông qua `MsgUpdateParams`, có thể thực hiện bằng đề xuất governance. Người ký sẽ luôn là địa chỉ module account `gov`.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/bank/v1beta1/tx.proto#L74-L88
 ```
 
-The message handling can fail if:
+Xử lý message có thể thất bại nếu:
 
-* signer is not the gov module account address.
+* người ký không phải là địa chỉ module account gov.
 
 ### MsgSetSendEnabled
 
-Used with the x/gov module to set create/edit SendEnabled entries.
+Sử dụng với module x/gov để tạo/chỉnh sửa các mục SendEnabled.
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/bank/v1beta1/tx.proto#L96-L117
 ```
 
-The message will fail under the following conditions:
+Message sẽ thất bại trong các điều kiện sau:
 
-* The authority is not a bech32 address.
-* The authority is not x/gov module's address.
-* There are multiple SendEnabled entries with the same Denom.
-* One or more SendEnabled entries has an invalid Denom.
+* Authority không phải là địa chỉ bech32.
+* Authority không phải là địa chỉ module x/gov.
+* Có nhiều mục SendEnabled với cùng Denom.
+* Một hoặc nhiều mục SendEnabled có Denom không hợp lệ.
 
 ## Events
 
-The bank module emits the following events:
+Module bank phát ra các event sau:
 
 ### Message Events
 
@@ -453,7 +413,7 @@ The bank module emits the following events:
 
 ### Keeper Events
 
-In addition to message events, the bank keeper will produce events when the following methods are called (or any method which ends up calling them)
+Ngoài message events, bank keeper sẽ tạo events khi các phương thức sau được gọi (hoặc bất kỳ phương thức nào cuối cùng gọi chúng)
 
 #### MintCoins
 
@@ -573,29 +533,26 @@ In addition to message events, the bank keeper will produce events when the foll
 
 ## Parameters
 
-The bank module contains the following parameters
+Module bank chứa các tham số sau
 
 ### SendEnabled
 
-The SendEnabled parameter is now deprecated and not to be use. It is replaced
-with state store records.
+Tham số SendEnabled hiện đã deprecated và không được sử dụng. Nó được thay thế bằng các bản ghi state store.
 
 
 ### DefaultSendEnabled
 
-The default send enabled value controls send transfer capability for all
-coin denominations unless specifically included in the array of `SendEnabled`
-parameters.
+Giá trị default send enabled kiểm soát khả năng chuyển gửi cho tất cả các denomination coin trừ khi được bao gồm cụ thể trong mảng tham số `SendEnabled`.
 
 ## Client
 
 ### CLI
 
-A user can query and interact with the `bank` module using the CLI.
+Người dùng có thể truy vấn và tương tác với module `bank` bằng CLI.
 
 #### Query
 
-The `query` commands allow users to query `bank` state.
+Các lệnh `query` cho phép người dùng truy vấn state `bank`.
 
 ```shell
 simd query bank --help
@@ -603,19 +560,19 @@ simd query bank --help
 
 ##### balances
 
-The `balances` command allows users to query account balances by address.
+Lệnh `balances` cho phép người dùng truy vấn số dư tài khoản theo địa chỉ.
 
 ```shell
 simd query bank balances [address] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query bank balances cosmos1..
 ```
 
-Example Output:
+Kết quả mẫu:
 
 ```yml
 balances:
@@ -628,19 +585,19 @@ pagination:
 
 ##### denom-metadata
 
-The `denom-metadata` command allows users to query metadata for coin denominations. A user can query metadata for a single denomination using the `--denom` flag or all denominations without it.
+Lệnh `denom-metadata` cho phép người dùng truy vấn metadata cho các denomination coin. Người dùng có thể truy vấn metadata cho một denomination bằng cờ `--denom` hoặc tất cả denominations mà không có nó.
 
 ```shell
 simd query bank denom-metadata [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query bank denom-metadata --denom stake
 ```
 
-Example Output:
+Kết quả mẫu:
 
 ```yml
 metadata:
@@ -657,19 +614,19 @@ metadata:
 
 ##### total
 
-The `total` command allows users to query the total supply of coins. A user can query the total supply for a single coin using the `--denom` flag or all coins without it.
+Lệnh `total` cho phép người dùng truy vấn tổng nguồn cung coin. Người dùng có thể truy vấn tổng nguồn cung cho một coin bằng cờ `--denom` hoặc tất cả coin mà không có nó.
 
 ```shell
 simd query bank total [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query bank total --denom stake
 ```
 
-Example Output:
+Kết quả mẫu:
 
 ```yml
 amount: "10000000000"
@@ -678,19 +635,19 @@ denom: stake
 
 ##### send-enabled
 
-The `send-enabled` command allows users to query for all or some SendEnabled entries.
+Lệnh `send-enabled` cho phép người dùng truy vấn tất cả hoặc một số mục SendEnabled.
 
 ```shell
 simd query bank send-enabled [denom1 ...] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd query bank send-enabled
 ```
 
-Example output:
+Kết quả mẫu:
 
 ```yml
 send_enabled:
@@ -704,7 +661,7 @@ pagination:
 
 #### Transactions
 
-The `tx` commands allow users to interact with the `bank` module.
+Các lệnh `tx` cho phép người dùng tương tác với module `bank`.
 
 ```shell
 simd tx bank --help
@@ -712,13 +669,13 @@ simd tx bank --help
 
 ##### send
 
-The `send` command allows users to send funds from one account to another.
+Lệnh `send` cho phép người dùng gửi quỹ từ tài khoản này đến tài khoản khác.
 
 ```shell
 simd tx bank send [from_key_or_address] [to_address] [amount] [flags]
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 simd tx bank send cosmos1.. cosmos1.. 100stake
@@ -726,17 +683,17 @@ simd tx bank send cosmos1.. cosmos1.. 100stake
 
 ## gRPC
 
-A user can query the `bank` module using gRPC endpoints.
+Người dùng có thể truy vấn module `bank` bằng các endpoint gRPC.
 
 ### Balance
 
-The `Balance` endpoint allows users to query account balance by address for a given denomination.
+Endpoint `Balance` cho phép người dùng truy vấn số dư tài khoản theo địa chỉ cho một denomination cụ thể.
 
 ```shell
 cosmos.bank.v1beta1.Query/Balance
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -745,7 +702,7 @@ grpcurl -plaintext \
     cosmos.bank.v1beta1.Query/Balance
 ```
 
-Example Output:
+Kết quả mẫu:
 
 ```json
 {
@@ -758,13 +715,13 @@ Example Output:
 
 ### AllBalances
 
-The `AllBalances` endpoint allows users to query account balance by address for all denominations.
+Endpoint `AllBalances` cho phép người dùng truy vấn số dư tài khoản theo địa chỉ cho tất cả các denomination.
 
 ```shell
 cosmos.bank.v1beta1.Query/AllBalances
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -773,7 +730,7 @@ grpcurl -plaintext \
     cosmos.bank.v1beta1.Query/AllBalances
 ```
 
-Example Output:
+Kết quả mẫu:
 
 ```json
 {
@@ -791,13 +748,13 @@ Example Output:
 
 ### DenomMetadata
 
-The `DenomMetadata` endpoint allows users to query metadata for a single coin denomination.
+Endpoint `DenomMetadata` cho phép người dùng truy vấn metadata cho một denomination coin.
 
 ```shell
 cosmos.bank.v1beta1.Query/DenomMetadata
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -806,7 +763,7 @@ grpcurl -plaintext \
     cosmos.bank.v1beta1.Query/DenomMetadata
 ```
 
-Example Output:
+Kết quả mẫu:
 
 ```json
 {
@@ -830,13 +787,13 @@ Example Output:
 
 ### DenomsMetadata
 
-The `DenomsMetadata` endpoint allows users to query metadata for all coin denominations.
+Endpoint `DenomsMetadata` cho phép người dùng truy vấn metadata cho tất cả các denomination coin.
 
 ```shell
 cosmos.bank.v1beta1.Query/DenomsMetadata
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -844,7 +801,7 @@ grpcurl -plaintext \
     cosmos.bank.v1beta1.Query/DenomsMetadata
 ```
 
-Example Output:
+Kết quả mẫu:
 
 ```json
 {
@@ -873,13 +830,13 @@ Example Output:
 
 ### DenomOwners
 
-The `DenomOwners` endpoint allows users to query metadata for a single coin denomination.
+Endpoint `DenomOwners` cho phép người dùng truy vấn metadata cho một denomination coin.
 
 ```shell
 cosmos.bank.v1beta1.Query/DenomOwners
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -888,7 +845,7 @@ grpcurl -plaintext \
     cosmos.bank.v1beta1.Query/DenomOwners
 ```
 
-Example Output:
+Kết quả mẫu:
 
 ```json
 {
@@ -916,13 +873,13 @@ Example Output:
 
 ### TotalSupply
 
-The `TotalSupply` endpoint allows users to query the total supply of all coins.
+Endpoint `TotalSupply` cho phép người dùng truy vấn tổng nguồn cung của tất cả coin.
 
 ```shell
 cosmos.bank.v1beta1.Query/TotalSupply
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -930,7 +887,7 @@ grpcurl -plaintext \
     cosmos.bank.v1beta1.Query/TotalSupply
 ```
 
-Example Output:
+Kết quả mẫu:
 
 ```json
 {
@@ -948,13 +905,13 @@ Example Output:
 
 ### SupplyOf
 
-The `SupplyOf` endpoint allows users to query the total supply of a single coin.
+Endpoint `SupplyOf` cho phép người dùng truy vấn tổng nguồn cung của một coin.
 
 ```shell
 cosmos.bank.v1beta1.Query/SupplyOf
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -963,7 +920,7 @@ grpcurl -plaintext \
     cosmos.bank.v1beta1.Query/SupplyOf
 ```
 
-Example Output:
+Kết quả mẫu:
 
 ```json
 {
@@ -976,13 +933,13 @@ Example Output:
 
 ### Params
 
-The `Params` endpoint allows users to query the parameters of the `bank` module.
+Endpoint `Params` cho phép người dùng truy vấn các tham số của module `bank`.
 
 ```shell
 cosmos.bank.v1beta1.Query/Params
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -990,7 +947,7 @@ grpcurl -plaintext \
     cosmos.bank.v1beta1.Query/Params
 ```
 
-Example Output:
+Kết quả mẫu:
 
 ```json
 {
@@ -1002,15 +959,15 @@ Example Output:
 
 ### SendEnabled
 
-The `SendEnabled` endpoints allows users to query the SendEnabled entries of the `bank` module.
+Các endpoint `SendEnabled` cho phép người dùng truy vấn các mục SendEnabled của module `bank`.
 
-Any denominations NOT returned, use the `Params.DefaultSendEnabled` value.
+Bất kỳ denomination nào KHÔNG được trả về, sử dụng giá trị `Params.DefaultSendEnabled`.
 
 ```shell
 cosmos.bank.v1beta1.Query/SendEnabled
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -1018,7 +975,7 @@ grpcurl -plaintext \
     cosmos.bank.v1beta1.Query/SendEnabled
 ```
 
-Example Output:
+Kết quả mẫu:
 
 ```json
 {

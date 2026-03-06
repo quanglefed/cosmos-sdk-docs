@@ -1,263 +1,167 @@
-# ADR 023: Protocol Buffer Naming and Versioning Conventions
+# ADR 023: Quy Ước Đặt Tên và Phiên Bản Protocol Buffer
 
-## Changelog
+## Nhật Ký Thay Đổi
 
-* 2020 April 27: Initial Draft
-* 2020 August 5: Update guidelines
+* 27 tháng 4 năm 2020: Bản nháp đầu tiên
+* 5 tháng 8 năm 2020: Cập nhật hướng dẫn
 
-## Status
+## Trạng Thái
 
-Accepted
+Đã Chấp Nhận
 
-## Context
+## Bối Cảnh
 
-Protocol Buffers provide a basic [style guide](https://developers.google.com/protocol-buffers/docs/style)
-and [Buf](https://buf.build/docs/style-guide) builds upon that. To the
-extent possible, we want to follow industry accepted guidelines and wisdom for
-the effective usage of protobuf, deviating from those only when there is clear
-rationale for our use case.
+Protocol Buffers cung cấp một [hướng dẫn phong cách](https://developers.google.com/protocol-buffers/docs/style) cơ bản và [Buf](https://buf.build/docs/style-guide) xây dựng dựa trên đó. Trong phạm vi có thể, chúng ta muốn tuân theo các hướng dẫn và kinh nghiệm được chấp nhận trong ngành để sử dụng protobuf hiệu quả, chỉ lệch ra ngoài những điều đó khi có lý do rõ ràng cho trường hợp sử dụng của chúng ta.
 
-### Adoption of `Any`
+### Áp Dụng `Any`
 
-The adoption of `google.protobuf.Any` as the recommended approach for encoding
-interface types (as opposed to `oneof`) makes package naming a central part
-of the encoding as fully-qualified message names now appear in encoded
-messages.
+Việc áp dụng `google.protobuf.Any` như cách tiếp cận được khuyến nghị để mã hóa các kiểu interface (thay vì `oneof`) làm cho việc đặt tên gói trở thành phần trung tâm của mã hóa vì các tên message đầy đủ bây giờ xuất hiện trong các message được mã hóa.
 
-### Current Directory Organization
+### Tổ Chức Thư Mục Hiện Tại
 
-Thus far we have mostly followed [Buf's](https://buf.build) [DEFAULT](https://buf.build/docs/lint-checkers#default)
-recommendations, with the minor deviation of disabling [`PACKAGE_DIRECTORY_MATCH`](https://buf.build/docs/lint-checkers#file_layout)
-which although being convenient for developing code comes with the warning
-from Buf that:
+Cho đến nay chúng ta chủ yếu tuân theo các khuyến nghị [DEFAULT](https://buf.build/docs/lint-checkers#default) của [Buf](https://buf.build), với sự lệch nhỏ là tắt [`PACKAGE_DIRECTORY_MATCH`](https://buf.build/docs/lint-checkers#file_layout) mặc dù thuận tiện cho việc phát triển code nhưng đi kèm với cảnh báo từ Buf rằng:
 
-> you will have a very bad time with many Protobuf plugins across various languages if you do not do this
+> bạn sẽ gặp rất nhiều khó khăn với nhiều plugin Protobuf trên nhiều ngôn ngữ khác nhau nếu bạn không làm điều này
 
-### Adoption of gRPC Queries
+### Áp Dụng Truy Vấn gRPC
 
-In [ADR 021](adr-021-protobuf-query-encoding.md), gRPC was adopted for Protobuf
-native queries. The full gRPC service path thus becomes a key part of ABCI query
-path. In the future, gRPC queries may be allowed from within persistent scripts
-by technologies such as CosmWasm and these query routes would be stored within
-script binaries.
+Trong [ADR 021](adr-021-protobuf-query-encoding.md), gRPC được áp dụng cho các truy vấn gốc Protobuf. Đường dẫn service gRPC đầy đủ do đó trở thành phần quan trọng của đường dẫn truy vấn ABCI. Trong tương lai, các truy vấn gRPC có thể được cho phép từ bên trong các script liên tục bởi các công nghệ như CosmWasm và các route truy vấn này sẽ được lưu trữ trong các tệp nhị phân script.
 
-## Decision
+## Quyết Định
 
-The goal of this ADR is to provide thoughtful naming conventions that:
+Mục tiêu của ADR này là cung cấp các quy ước đặt tên có suy nghĩ kỹ lưỡng để:
 
-* encourage a good user experience for when users interact directly with
-.proto files and fully-qualified protobuf names
-* balance conciseness against the possibility of either over-optimizing (making
-names too short and cryptic) or under-optimizing (just accepting bloated names
-with lots of redundant information)
+* Khuyến khích trải nghiệm người dùng tốt khi người dùng tương tác trực tiếp với các file .proto và các tên protobuf đầy đủ
+* Cân bằng sự ngắn gọn so với khả năng tối ưu hóa quá mức (làm cho tên quá ngắn và khó hiểu) hoặc tối ưu hóa quá ít (chỉ chấp nhận các tên cồng kềnh với nhiều thông tin dư thừa)
 
-These guidelines are meant to act as a style guide for both the Cosmos SDK and
-third-party modules.
+Các hướng dẫn này nhằm mục đích hoạt động như một hướng dẫn phong cách cho cả Cosmos SDK và các module của bên thứ ba.
 
-As a starting point, we should adopt all of the [DEFAULT](https://buf.build/docs/lint-checkers#default)
-checkers in [Buf's](https://buf.build) including [`PACKAGE_DIRECTORY_MATCH`](https://buf.build/docs/lint-checkers#file_layout),
-except:
+Là điểm khởi đầu, chúng ta nên áp dụng tất cả các trình kiểm tra [DEFAULT](https://buf.build/docs/lint-checkers#default) trong [Buf](https://buf.build) bao gồm [`PACKAGE_DIRECTORY_MATCH`](https://buf.build/docs/lint-checkers#file_layout), ngoại trừ:
 
 * [PACKAGE_VERSION_SUFFIX](https://buf.build/docs/lint-checkers#package_version_suffix)
 * [SERVICE_SUFFIX](https://buf.build/docs/lint-checkers#service_suffix)
 
-Further guidelines to be described below.
+Các hướng dẫn bổ sung sẽ được mô tả bên dưới.
 
-### Principles
+### Nguyên Tắc
 
-#### Concise and Descriptive Names
+#### Tên Ngắn Gọn và Mô Tả
 
-Names should be descriptive enough to convey their meaning and distinguish
-them from other names.
+Tên nên đủ mô tả để truyền đạt ý nghĩa của chúng và phân biệt chúng với các tên khác.
 
-Given that we are using fully-qualified names within
-`google.protobuf.Any` as well as within gRPC query routes, we should aim to
-keep names concise, without going overboard. The general rule of thumb should
-be if a shorter name would convey more or else the same thing, pick the shorter
-name.
+Vì chúng ta đang sử dụng tên đầy đủ bên trong `google.protobuf.Any` cũng như trong các route truy vấn gRPC, chúng ta nên hướng tới việc giữ tên ngắn gọn mà không quá đà. Quy tắc chung nên là nếu một tên ngắn hơn truyền đạt nhiều hoặc ít hơn cùng một thứ, hãy chọn tên ngắn hơn.
 
-For instance, `cosmos.bank.MsgSend` (19 bytes) conveys roughly the same information
-as `cosmos_sdk.x.bank.v1.MsgSend` (28 bytes) but is more concise.
+Ví dụ, `cosmos.bank.MsgSend` (19 byte) truyền đạt thông tin tương tự như `cosmos_sdk.x.bank.v1.MsgSend` (28 byte) nhưng ngắn gọn hơn.
 
-Such conciseness makes names both more pleasant to work with and take up less
-space within transactions and on the wire.
+Sự ngắn gọn như vậy làm cho tên dễ làm việc hơn và chiếm ít không gian hơn trong các giao dịch và trên đường truyền.
 
-We should also resist the temptation to over-optimize, by making names
-cryptically short with abbreviations. For instance, we shouldn't try to
-reduce `cosmos.bank.MsgSend` to `csm.bk.MSnd` just to save a few bytes.
+Chúng ta cũng nên tránh cám dỗ tối ưu hóa quá mức, bằng cách tạo ra các tên bí ẩn ngắn với các chữ viết tắt. Ví dụ, chúng ta không nên cố gắng rút gọn `cosmos.bank.MsgSend` thành `csm.bk.MSnd` chỉ để tiết kiệm một vài byte.
 
-The goal is to make names **_concise but not cryptic_**.
+Mục tiêu là làm cho tên **_ngắn gọn nhưng không khó hiểu_**.
 
-#### Names are for Clients First
+#### Tên Phục Vụ Client Trước Tiên
 
-Package and type names should be chosen for the benefit of users, not
-necessarily because of legacy concerns related to the go code-base.
+Tên gói và kiểu nên được chọn vì lợi ích của người dùng, không nhất thiết vì các lo ngại về di sản liên quan đến cơ sở code go.
 
-#### Plan for Longevity
+#### Lên Kế Hoạch Cho Sự Bền Lâu
 
-In the interests of long-term support, we should plan on the names we do
-choose to be in usage for a long time, so now is the opportunity to make
-the best choices for the future.
+Vì lợi ích của hỗ trợ dài hạn, chúng ta nên lên kế hoạch cho các tên mà chúng ta chọn được sử dụng trong một thời gian dài, vì vậy bây giờ là cơ hội để đưa ra các lựa chọn tốt nhất cho tương lai.
 
-### Versioning
+### Phiên Bản
 
-#### Guidelines on Stable Package Versions
+#### Hướng Dẫn về Phiên Bản Gói Ổn Định
 
-In general, schema evolution is the way to update protobuf schemas. That means that new fields,
-messages, and RPC methods are _added_ to existing schemas and old fields, messages and RPC methods
-are maintained as long as possible.
+Nói chung, sự phát triển schema là cách cập nhật các schema protobuf. Điều đó có nghĩa là các trường, message và phương thức RPC mới được _thêm_ vào các schema hiện có và các trường, message và phương thức RPC cũ được duy trì càng lâu càng tốt.
 
-Breaking things is often unacceptable in a blockchain scenario. For instance, immutable smart contracts
-may depend on certain data schemas on the host chain. If the host chain breaks those schemas, the smart
-contract may be irreparably broken. Even when things can be fixed (for instance in client software),
-this often comes at a high cost.
+Việc phá vỡ mọi thứ thường không thể chấp nhận trong một kịch bản blockchain. Ví dụ, các hợp đồng thông minh bất biến có thể phụ thuộc vào một số schema dữ liệu nhất định trên chain host. Nếu chain host phá vỡ các schema đó, hợp đồng thông minh có thể bị hỏng không thể khắc phục. Ngay cả khi mọi thứ có thể được sửa chữa (ví dụ trong phần mềm client), điều này thường đi kèm với chi phí cao.
 
-Instead of breaking things, we should make every effort to evolve schemas rather than just breaking them.
-[Buf](https://buf.build) breaking change detection should be used on all stable (non-alpha or beta) packages
-to prevent such breakage.
+Thay vì phá vỡ mọi thứ, chúng ta nên nỗ lực tối đa để phát triển các schema thay vì chỉ phá vỡ chúng. Phát hiện thay đổi phá vỡ của [Buf](https://buf.build) nên được sử dụng trên tất cả các gói ổn định (không phải alpha hoặc beta) để ngăn chặn sự phá vỡ như vậy.
 
-With that in mind, different stable versions (i.e. `v1` or `v2`) of a package should more or less be considered
-different packages and this should be a last resort approach for upgrading protobuf schemas. Scenarios where creating
-a `v2` may make sense are:
+Với điều đó, các phiên bản ổn định khác nhau (tức là `v1` hoặc `v2`) của một gói nên được coi là các gói khác nhau và đây nên là cách tiếp cận cuối cùng để nâng cấp schema protobuf. Các kịch bản mà việc tạo `v2` có thể có ý nghĩa là:
 
-* we want to create a new module with similar functionality to an existing module and adding `v2` is the most natural
-way to do this. In that case, there are really just two different, but similar modules with different APIs.
-* we want to add a new revamped API for an existing module and it's just too cumbersome to add it to the existing package,
-so putting it in `v2` is cleaner for users. In this case, care should be made to not deprecate support for
-`v1` if it is actively used in immutable smart contracts.
+* Chúng ta muốn tạo một module mới với chức năng tương tự như module hiện có và việc thêm `v2` là cách tự nhiên nhất để làm điều này. Trong trường hợp đó, thực sự chỉ có hai module khác nhau nhưng tương tự với các API khác nhau.
+* Chúng ta muốn thêm một API mới được cải tiến cho một module hiện có và việc thêm nó vào gói hiện có quá cồng kềnh, vì vậy việc đặt nó trong `v2` sẽ gọn gàng hơn cho người dùng. Trong trường hợp này, cần chú ý không xóa hỗ trợ cho `v1` nếu nó đang được sử dụng tích cực trong các hợp đồng thông minh bất biến.
 
-#### Guidelines on unstable (alpha and beta) package versions
+#### Hướng Dẫn về Phiên Bản Gói Không Ổn Định (alpha và beta)
 
-The following guidelines are recommended for marking packages as alpha or beta:
+Các hướng dẫn sau được khuyến nghị để đánh dấu các gói là alpha hoặc beta:
 
-* marking something as `alpha` or `beta` should be a last resort and just putting something in the
-stable package (i.e. `v1` or `v2`) should be preferred
-* a package _should_ be marked as `alpha` _if and only if_ there are active discussions to remove
-or significantly alter the package in the near future
-* a package _should_ be marked as `beta` _if and only if_ there is an active discussion to
-significantly refactor/rework the functionality in the near future but do not remove it
-* modules _can and should_ have types in both stable (i.e. `v1` or `v2`) and unstable (`alpha` or `beta`) packages.
+* Đánh dấu thứ gì đó là `alpha` hoặc `beta` nên là biện pháp cuối cùng và chỉ đưa thứ gì đó vào gói ổn định (tức là `v1` hoặc `v2`) nên được ưu tiên hơn
+* Một gói _nên_ được đánh dấu là `alpha` _chỉ khi_ có các cuộc thảo luận tích cực về việc xóa hoặc thay đổi đáng kể gói đó trong tương lai gần
+* Một gói _nên_ được đánh dấu là `beta` _chỉ khi_ có cuộc thảo luận tích cực về việc tái cấu trúc/làm lại đáng kể chức năng trong tương lai gần nhưng không xóa nó
+* Các module _có thể và nên_ có các kiểu trong cả gói ổn định (tức là `v1` hoặc `v2`) và không ổn định (`alpha` hoặc `beta`).
 
-_`alpha` and `beta` should not be used to avoid responsibility for maintaining compatibility._
-Whenever code is released into the wild, especially on a blockchain, there is a high cost to changing things. In some
-cases, for instance with immutable smart contracts, a breaking change may be impossible to fix.
+_`alpha` và `beta` không nên được sử dụng để tránh trách nhiệm duy trì khả năng tương thích._ Bất cứ khi nào code được phát hành ra thế giới, đặc biệt là trên blockchain, có chi phí cao khi thay đổi mọi thứ. Trong một số trường hợp, ví dụ với các hợp đồng thông minh bất biến, một thay đổi phá vỡ có thể không thể sửa chữa.
 
-When marking something as `alpha` or `beta`, maintainers should ask the following questions:
+Khi đánh dấu thứ gì đó là `alpha` hoặc `beta`, những người bảo trì nên đặt câu hỏi sau:
 
-* what is the cost of asking others to change their code vs the benefit of us maintaining the optionality to change it?
-* what is the plan for moving this to `v1` and how will that affect users?
+* chi phí yêu cầu người khác thay đổi code của họ so với lợi ích của chúng ta trong việc duy trì khả năng thay đổi nó là gì?
+* kế hoạch chuyển điều này sang `v1` là gì và điều đó sẽ ảnh hưởng đến người dùng như thế nào?
 
-`alpha` or `beta` should really be used to communicate "changes are planned".
+`alpha` hoặc `beta` thực sự nên được sử dụng để truyền đạt "các thay đổi đang được lên kế hoạch".
 
-As a case study, gRPC reflection is in the package `grpc.reflection.v1alpha`. It hasn't been changed since
-2017 and it is now used in other widely used software like gRPCurl. Some folks probably use it in production services
-and so if they actually went and changed the package to `grpc.reflection.v1`, some software would break and
-they probably don't want to do that... So now the `v1alpha` package is more or less the de-facto `v1`. Let's not do that.
+Như một nghiên cứu trường hợp, gRPC reflection nằm trong gói `grpc.reflection.v1alpha`. Nó chưa được thay đổi kể từ năm 2017 và hiện được sử dụng trong các phần mềm được sử dụng rộng rãi khác như gRPCurl. Một số người có lẽ sử dụng nó trong các dịch vụ sản xuất và vì vậy nếu họ thực sự đi và thay đổi gói thành `grpc.reflection.v1`, một số phần mềm sẽ bị hỏng và họ có lẽ không muốn làm điều đó... Vì vậy bây giờ gói `v1alpha` ít nhiều là `v1` thực tế. Chúng ta đừng làm vậy.
 
-The following are guidelines for working with non-stable packages:
+Sau đây là hướng dẫn để làm việc với các gói không ổn định:
 
-* [Buf's recommended version suffix](https://buf.build/docs/lint-checkers#package_version_suffix)
-(ex. `v1alpha1`) _should_ be used for non-stable packages
-* non-stable packages should generally be excluded from breaking change detection
-* immutable smart contract modules (i.e. CosmWasm) _should_ block smart contracts/persistent
-scripts from interacting with `alpha`/`beta` packages
+* [Hậu tố phiên bản được khuyến nghị của Buf](https://buf.build/docs/lint-checkers#package_version_suffix) (vd: `v1alpha1`) _nên_ được sử dụng cho các gói không ổn định
+* Các gói không ổn định thường nên được loại trừ khỏi phát hiện thay đổi phá vỡ
+* Các module hợp đồng thông minh bất biến (tức là CosmWasm) _nên_ chặn các hợp đồng thông minh/script liên tục khỏi việc tương tác với các gói `alpha`/`beta`
 
-#### Omit v1 suffix
+#### Bỏ Hậu Tố v1
 
-Instead of using [Buf's recommended version suffix](https://buf.build/docs/lint-checkers#package_version_suffix),
-we can omit `v1` for packages that don't actually have a second version. This
-allows for more concise names for common use cases like `cosmos.bank.Send`.
-Packages that do have a second or third version can indicate that with `.v2`
-or `.v3`.
+Thay vì sử dụng [hậu tố phiên bản được khuyến nghị của Buf](https://buf.build/docs/lint-checkers#package_version_suffix), chúng ta có thể bỏ `v1` cho các gói thực sự không có phiên bản thứ hai. Điều này cho phép các tên ngắn gọn hơn cho các trường hợp sử dụng phổ biến như `cosmos.bank.Send`. Các gói có phiên bản thứ hai hoặc thứ ba có thể chỉ ra điều đó bằng `.v2` hoặc `.v3`.
 
-### Package Naming
+### Đặt Tên Gói
 
-#### Adopt a short, unique top-level package name
+#### Áp Dụng Tên Gói Cấp Cao Ngắn và Duy Nhất
 
-Top-level packages should adopt a short name that is known not to collide with
-other names in common usage within the Cosmos ecosystem. In the near future, a
-registry should be created to reserve and index top-level package names used
-within the Cosmos ecosystem. Because the Cosmos SDK is intended to provide
-the top-level types for the Cosmos project, the top-level package name `cosmos`
-is recommended for usage within the Cosmos SDK instead of the longer `cosmos_sdk`.
-[ICS](https://github.com/cosmos/ics) specifications could consider a
-short top-level package like `ics23` based upon the standard number.
+Các gói cấp cao nên áp dụng một tên ngắn được biết là không trùng với các tên khác trong việc sử dụng phổ biến trong hệ sinh thái Cosmos. Trong tương lai gần, một registry nên được tạo ra để đặt trước và lập chỉ mục các tên gói cấp cao được sử dụng trong hệ sinh thái Cosmos. Vì Cosmos SDK dự định cung cấp các kiểu cấp cao nhất cho dự án Cosmos, tên gói cấp cao `cosmos` được khuyến nghị sử dụng trong Cosmos SDK thay vì `cosmos_sdk` dài hơn. Các đặc tả [ICS](https://github.com/cosmos/ics) có thể xem xét một gói cấp cao ngắn như `ics23` dựa trên số tiêu chuẩn.
 
-#### Limit sub-package depth
+#### Giới Hạn Độ Sâu Sub-Package
 
-Sub-package depth should be increased with caution. Generally a single
-sub-package is needed for a module or a library. Even though `x` or `modules`
-is used in source code to denote modules, this is often unnecessary for .proto
-files as modules are the primary thing sub-packages are used for. Only items which
-are known to be used infrequently should have deep sub-package depths.
+Độ sâu sub-package nên được tăng lên một cách thận trọng. Nói chung, một sub-package đơn là đủ cho một module hoặc một thư viện. Mặc dù `x` hoặc `modules` được sử dụng trong code nguồn để biểu thị các module, điều này thường không cần thiết cho các file .proto vì các module là thứ chủ yếu mà sub-package được sử dụng cho. Chỉ những mục được biết là hiếm khi sử dụng mới nên có độ sâu sub-package sâu.
 
-For the Cosmos SDK, it is recommended that we simply write `cosmos.bank`,
-`cosmos.gov`, etc. rather than `cosmos.x.bank`. In practice, most non-module
-types can go straight in the `cosmos` package or we can introduce a
-`cosmos.base` package if needed. Note that this naming _will not_ change
-go package names, i.e. the `cosmos.bank` protobuf package will still live in
-`x/bank`.
+Với Cosmos SDK, khuyến nghị rằng chúng ta chỉ đơn giản viết `cosmos.bank`, `cosmos.gov`, v.v. thay vì `cosmos.x.bank`. Trong thực tế, hầu hết các kiểu không phải module có thể đi thẳng vào gói `cosmos` hoặc chúng ta có thể giới thiệu gói `cosmos.base` nếu cần. Lưu ý rằng việc đặt tên này _sẽ không_ thay đổi tên gói go, tức là gói protobuf `cosmos.bank` vẫn sẽ nằm trong `x/bank`.
 
-### Message Naming
+### Đặt Tên Message
 
-Message type names should be as concise as possible without losing clarity. `sdk.Msg`
-types which are used in transactions will retain the `Msg` prefix as that provides
-helpful context.
+Tên kiểu message nên ngắn gọn nhất có thể mà không mất đi sự rõ ràng. Các kiểu `sdk.Msg` được sử dụng trong các giao dịch sẽ giữ nguyên tiền tố `Msg` vì nó cung cấp ngữ cảnh hữu ích.
 
-### Service and RPC Naming
+### Đặt Tên Service và RPC
 
-[ADR 021](adr-021-protobuf-query-encoding.md) specifies that modules should
-implement a gRPC query service. We should consider the principle of conciseness
-for query service and RPC names as these may be called from persistent script
-modules such as CosmWasm. Also, users may use these query paths from tools like
-[gRPCurl](https://github.com/fullstorydev/grpcurl). As an example, we can shorten
-`/cosmos_sdk.x.bank.v1.QueryService/QueryBalance` to
-`/cosmos.bank.Query/Balance` without losing much useful information.
+[ADR 021](adr-021-protobuf-query-encoding.md) chỉ định rằng các module nên triển khai một query service gRPC. Chúng ta nên xem xét nguyên tắc ngắn gọn cho tên query service và RPC vì chúng có thể được gọi từ các module script liên tục như CosmWasm. Ngoài ra, người dùng có thể sử dụng các đường dẫn truy vấn này từ các công cụ như [gRPCurl](https://github.com/fullstorydev/grpcurl). Ví dụ, chúng ta có thể rút ngắn `/cosmos_sdk.x.bank.v1.QueryService/QueryBalance` thành `/cosmos.bank.Query/Balance` mà không mất nhiều thông tin hữu ích.
 
-RPC request and response types _should_ follow the `ServiceNameMethodNameRequest`/
-`ServiceNameMethodNameResponse` naming convention. i.e. for an RPC method named `Balance`
-on the `Query` service, the request and response types would be `QueryBalanceRequest`
-and `QueryBalanceResponse`. This will be more self-explanatory than `BalanceRequest`
-and `BalanceResponse`.
+Các kiểu yêu cầu và phản hồi RPC _nên_ tuân theo quy ước đặt tên `ServiceNameMethodNameRequest`/`ServiceNameMethodNameResponse`. Tức là với một phương thức RPC có tên `Balance` trên service `Query`, các kiểu yêu cầu và phản hồi sẽ là `QueryBalanceRequest` và `QueryBalanceResponse`. Điều này sẽ tự giải thích hơn là `BalanceRequest` và `BalanceResponse`.
 
-#### Use just `Query` for the query service
+#### Chỉ Dùng `Query` cho Query Service
 
-Instead of [Buf's default service suffix recommendation](https://github.com/cosmos/cosmos-sdk/pull/6033),
-we should simply use the shorter `Query` for query services.
+Thay vì [khuyến nghị hậu tố service mặc định của Buf](https://github.com/cosmos/cosmos-sdk/pull/6033), chúng ta nên đơn giản sử dụng `Query` ngắn hơn cho các query service.
 
-For other types of gRPC services, we should consider sticking with Buf's
-default recommendation.
+Với các kiểu service gRPC khác, chúng ta nên xem xét tuân theo khuyến nghị mặc định của Buf.
 
-#### Omit `Get` and `Query` from query service RPC names
+#### Bỏ `Get` và `Query` khỏi Tên RPC của Query Service
 
-`Get` and `Query` should be omitted from `Query` service names because they are
-redundant in the fully-qualified name. For instance, `/cosmos.bank.Query/QueryBalance`
-just says `Query` twice without any new information.
+`Get` và `Query` nên được bỏ khỏi tên service `Query` vì chúng là dư thừa trong tên đầy đủ. Ví dụ, `/cosmos.bank.Query/QueryBalance` chỉ nói `Query` hai lần mà không có thông tin mới.
 
-## Future Improvements
+## Cải Tiến Tương Lai
 
-A registry of top-level package names should be created to coordinate naming
-across the ecosystem, prevent collisions, and also help developers discover
-useful schemas. A simple starting point would be a git repository with
-community-based governance.
+Một registry tên gói cấp cao nên được tạo ra để phối hợp việc đặt tên trên toàn bộ hệ sinh thái, ngăn chặn xung đột, và cũng giúp các nhà phát triển khám phá các schema hữu ích. Một điểm khởi đầu đơn giản sẽ là một kho git với quản trị dựa trên cộng đồng.
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* names will be more concise and easier to read and type
-* all transactions using `Any` will be at shorter (`_sdk.x` and `.v1` will be removed)
-* `.proto` file imports will be more standard (without `"third_party/proto"` in
-the path)
-* code generation will be easier for clients because .proto files will be
-in a single `proto/` directory which can be copied rather than scattered
-throughout the Cosmos SDK
+* Tên sẽ ngắn gọn hơn và dễ đọc và gõ hơn
+* Tất cả các giao dịch sử dụng `Any` sẽ ngắn hơn (`_sdk.x` và `.v1` sẽ bị xóa)
+* Các lần import file `.proto` sẽ chuẩn hơn (không có `"third_party/proto"` trong đường dẫn)
+* Việc tạo code sẽ dễ dàng hơn cho các client vì các file .proto sẽ nằm trong một thư mục `proto/` duy nhất có thể được sao chép thay vì rải rác khắp Cosmos SDK
 
-### Negative
+### Tiêu Cực
 
-### Neutral
+### Trung Lập
 
-* `.proto`  files will need to be reorganized and refactored
-* some modules may need to be marked as alpha or beta
+* Các file `.proto` sẽ cần được tổ chức lại và tái cấu trúc
+* Một số module có thể cần được đánh dấu là alpha hoặc beta
 
-## References
+## Tham Khảo

@@ -1,52 +1,39 @@
-# ADR 030: Authorization Module
+# ADR 030: Module Authorization (Authz)
 
-## Changelog
+## Nhật Ký Thay Đổi
 
-* 2019-11-06: Initial Draft
-* 2020-10-12: Updated Draft
-* 2020-11-13: Accepted
-* 2020-05-06: proto API updates, use `sdk.Msg` instead of `sdk.ServiceMsg` (the latter concept was removed from Cosmos SDK)
-* 2022-04-20: Updated the `SendAuthorization` proto docs to clarify the `SpendLimit` is a required field. (Generic authorization can be used with bank msg type url to create limit less bank authorization)
+* 06/11/2019: Bản nháp đầu tiên
+* 12/10/2020: Cập nhật bản nháp
+* 13/11/2020: Đã chấp nhận
+* 06/05/2020: Cập nhật API proto, sử dụng `sdk.Msg` thay vì `sdk.ServiceMsg` (khái niệm sau đã bị xóa khỏi Cosmos SDK)
+* 20/04/2022: Cập nhật tài liệu proto `SendAuthorization` để làm rõ `SpendLimit` là trường bắt buộc.
 
-## Status
+## Trạng Thái
 
-Accepted
+Đã Chấp Nhận
 
-## Abstract
+## Tóm Tắt
 
-This ADR defines the `x/authz` module which allows accounts to grant authorizations to perform actions
-on behalf of that account to other accounts.
+ADR này định nghĩa module `x/authz` cho phép các tài khoản cấp ủy quyền để thực hiện các hành động thay mặt cho tài khoản đó cho các tài khoản khác.
 
-## Context
+## Bối Cảnh
 
-The concrete use cases which motivated this module include:
+Các trường hợp sử dụng cụ thể thúc đẩy module này bao gồm:
 
-* the desire to delegate the ability to vote on proposals to other accounts besides the account which one has
-delegated stake
-* "sub-keys" functionality, as originally proposed in [\#4480](https://github.com/cosmos/cosmos-sdk/issues/4480) which
-is a term used to describe the functionality provided by this module together with
-the `fee_grant` module from [ADR 029](./adr-029-fee-grant-module.md) and the [group module](https://github.com/cosmos/cosmos-sdk/tree/main/x/group).
+* Mong muốn ủy quyền khả năng bỏ phiếu về đề xuất cho các tài khoản khác ngoài tài khoản mà mình đã ủy thác stake
+* Chức năng "sub-keys", như được đề xuất ban đầu trong [\#4480](https://github.com/cosmos/cosmos-sdk/issues/4480) là thuật ngữ mô tả chức năng được cung cấp bởi module này cùng với module `fee_grant` từ [ADR 029](./adr-029-fee-grant-module.md) và [group module](https://github.com/cosmos/cosmos-sdk/tree/main/x/group).
 
-The "sub-keys" functionality roughly refers to the ability for one account to grant some subset of its capabilities to
-other accounts with possibly less robust, but easier to use security measures. For instance, a master account representing
-an organization could grant the ability to spend small amounts of the organization's funds to individual employee accounts.
-Or an individual (or group) with a multisig wallet could grant the ability to vote on proposals to any one of the member
-keys.
+Chức năng "sub-keys" đại khái đề cập đến khả năng cho một tài khoản cấp một tập con khả năng của nó cho các tài khoản khác với các biện pháp bảo mật có thể kém mạnh mẽ hơn nhưng dễ sử dụng hơn. Ví dụ, một tài khoản master đại diện cho một tổ chức có thể cấp khả năng chi tiêu một số tiền nhỏ từ quỹ của tổ chức cho các tài khoản nhân viên cá nhân. Hoặc một cá nhân (hoặc nhóm) với ví multisig có thể cấp khả năng bỏ phiếu về đề xuất cho bất kỳ một trong các khóa thành viên nào.
 
-The current implementation is based on work done by the [Gaian's team at Hackatom Berlin 2019](https://github.com/cosmos-gaians/cosmos-sdk/tree/hackatom/x/delegation).
+Triển khai hiện tại dựa trên công việc được thực hiện bởi [nhóm Gaian tại Hackatom Berlin 2019](https://github.com/cosmos-gaians/cosmos-sdk/tree/hackatom/x/delegation).
 
-## Decision
+## Quyết Định
 
-We will create a module named `authz` which provides functionality for
-granting arbitrary privileges from one account (the _granter_) to another account (the _grantee_). Authorizations
-must be granted for a particular `Msg` service methods one by one using an implementation
-of `Authorization` interface.
+Chúng ta sẽ tạo một module có tên `authz` cung cấp chức năng cấp quyền tùy ý từ một tài khoản (_granter_) cho tài khoản khác (_grantee_). Các ủy quyền phải được cấp cho từng phương thức `Msg` service cụ thể một, sử dụng một triển khai của interface `Authorization`.
 
-### Types
+### Các Kiểu Dữ Liệu
 
-Authorizations determine exactly what privileges are granted. They are extensible
-and can be defined for any `Msg` service method even outside of the module where
-the `Msg` method is defined. `Authorization`s reference `Msg`s using their TypeURL.
+Các ủy quyền xác định chính xác quyền gì được cấp. Chúng có thể mở rộng và có thể được định nghĩa cho bất kỳ phương thức `Msg` service nào ngay cả bên ngoài module nơi phương thức `Msg` được định nghĩa. `Authorization` tham chiếu `Msg` sử dụng TypeURL của chúng.
 
 #### Authorization
 
@@ -54,41 +41,39 @@ the `Msg` method is defined. `Authorization`s reference `Msg`s using their TypeU
 type Authorization interface {
 	proto.Message
 
-	// MsgTypeURL returns the fully-qualified Msg TypeURL (as described in ADR 020),
-	// which will process and accept or reject a request.
+	// MsgTypeURL trả về TypeURL Msg đầy đủ (như được mô tả trong ADR 020),
+	// sẽ xử lý và chấp nhận hoặc từ chối yêu cầu.
 	MsgTypeURL() string
 
-	// Accept determines whether this grant permits the provided sdk.Msg to be performed, and if
-	// so provides an upgraded authorization instance.
+	// Accept xác định liệu khoản cấp này có cho phép sdk.Msg được cung cấp thực hiện hay không, và nếu
+	// có, cung cấp một thể hiện ủy quyền được nâng cấp.
 	Accept(ctx sdk.Context, msg sdk.Msg) (AcceptResponse, error)
 
-	// ValidateBasic does a simple validation check that
-	// doesn't require access to any other information.
+	// ValidateBasic thực hiện kiểm tra xác nhận đơn giản không
+	// cần truy cập vào bất kỳ thông tin nào khác.
 	ValidateBasic() error
 }
 
-// AcceptResponse instruments the controller of an authz message if the request is accepted
-// and if it should be updated or deleted.
+// AcceptResponse hướng dẫn controller của một authz message nếu yêu cầu được chấp nhận
+// và nếu nó nên được cập nhật hay xóa.
 type AcceptResponse struct {
-	// If Accept=true, the controller can accept and authorization and handle the update.
+	// Nếu Accept=true, controller có thể chấp nhận và ủy quyền và xử lý cập nhật.
 	Accept bool
-	// If Delete=true, the controller must delete the authorization object and release
-	// storage resources.
+	// Nếu Delete=true, controller phải xóa đối tượng ủy quyền và giải phóng
+	// tài nguyên storage.
 	Delete bool
-	// Controller, who is calling Authorization.Accept must check if `Updated != nil`. If yes,
-	// it must use the updated version and handle the update on the storage level.
+	// Controller gọi Authorization.Accept phải kiểm tra xem `Updated != nil`. Nếu có,
+	// phải sử dụng phiên bản được cập nhật và xử lý cập nhật ở cấp storage.
 	Updated Authorization
 }
 ```
 
-For example a `SendAuthorization` like this is defined for `MsgSend` that takes
-a `SpendLimit` and updates it down to zero:
+Ví dụ `SendAuthorization` như thế này được định nghĩa cho `MsgSend` lấy `SpendLimit` và cập nhật nó xuống về không:
 
 ```go
 type SendAuthorization struct {
-	// SpendLimit specifies the maximum amount of tokens that can be spent
-	// by this authorization and will be updated as tokens are spent. This field is required. (Generic authorization 
-	// can be used with bank msg type url to create limit less bank authorization).
+	// SpendLimit chỉ định số lượng token tối đa có thể được chi tiêu
+	// bởi ủy quyền này và sẽ được cập nhật khi token được chi tiêu. Trường này là bắt buộc.
 	SpendLimit sdk.Coins
 }
 
@@ -113,39 +98,34 @@ func (a SendAuthorization) Accept(ctx sdk.Context, msg sdk.Msg) (authz.AcceptRes
 }
 ```
 
-A different type of capability for `MsgSend` could be implemented
-using the `Authorization` interface with no need to change the underlying
-`bank` module.
+Một loại khả năng khác cho `MsgSend` có thể được triển khai sử dụng interface `Authorization` mà không cần thay đổi module `bank` cơ bản.
 
-##### Small notes on `AcceptResponse`
+##### Ghi Chú Nhỏ về `AcceptResponse`
 
-* The `AcceptResponse.Accept` field will be set to `true` if the authorization is accepted.
-However, if it is rejected, the function `Accept` will raise an error (without setting `AcceptResponse.Accept` to `false`).
+* Trường `AcceptResponse.Accept` sẽ được đặt thành `true` nếu ủy quyền được chấp nhận. Tuy nhiên, nếu bị từ chối, hàm `Accept` sẽ phát sinh lỗi (mà không đặt `AcceptResponse.Accept` thành `false`).
 
-* The `AcceptResponse.Updated` field will be set to a non-nil value only if there is a real change to the authorization.
-If authorization remains the same (as is, for instance, always the case for a [`GenericAuthorization`](#genericauthorization)),
-the field will be `nil`.
+* Trường `AcceptResponse.Updated` sẽ được đặt thành giá trị không phải nil chỉ khi có thay đổi thực sự đối với ủy quyền. Nếu ủy quyền giữ nguyên (như luôn luôn là trường hợp với [`GenericAuthorization`](#genericauthorization)), trường sẽ là `nil`.
 
 ### `Msg` Service
 
 ```protobuf
 service Msg {
-  // Grant grants the provided authorization to the grantee on the granter's
-  // account with the provided expiration time.
+  // Grant cấp ủy quyền được cung cấp cho grantee trên
+  // tài khoản của granter với thời gian hết hạn được cung cấp.
   rpc Grant(MsgGrant) returns (MsgGrantResponse);
 
-  // Exec attempts to execute the provided messages using
-  // authorizations granted to the grantee. Each message should have only
-  // one signer corresponding to the granter of the authorization.
+  // Exec cố gắng thực thi các message được cung cấp sử dụng
+  // các ủy quyền được cấp cho grantee. Mỗi message chỉ nên có một
+  // signer tương ứng với granter của ủy quyền.
   rpc Exec(MsgExec) returns (MsgExecResponse);
 
-  // Revoke revokes any authorization corresponding to the provided method name on the
-  // granter's account that has been granted to the grantee.
+  // Revoke thu hồi bất kỳ ủy quyền nào tương ứng với tên phương thức được cung cấp trên
+  // tài khoản của granter đã được cấp cho grantee.
   rpc Revoke(MsgRevoke) returns (MsgRevokeResponse);
 }
 
-// Grant gives permissions to execute
-// the provided method with expiration time.
+// Grant cấp quyền thực thi
+// phương thức được cung cấp với thời gian hết hạn.
 message Grant {
   google.protobuf.Any       authorization = 1 [(cosmos_proto.accepts_interface) = "cosmos.authz.v1beta1.Authorization"];
   google.protobuf.Timestamp expiration    = 2 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
@@ -164,31 +144,28 @@ message MsgExecResponse {
 
 message MsgExec {
   string   grantee                  = 1;
-  // Authorization Msg requests to execute. Each msg must implement Authorization interface
+  // Các yêu cầu Msg ủy quyền để thực thi. Mỗi msg phải triển khai interface Authorization
   repeated google.protobuf.Any msgs = 2 [(cosmos_proto.accepts_interface) = "cosmos.base.v1beta1.Msg"];
 }
 ```
 
 ### Router Middleware
 
-The `authz` `Keeper` will expose a `DispatchActions` method which allows other modules to send `Msg`s
-to the router based on `Authorization` grants:
+`authz` `Keeper` sẽ lộ một phương thức `DispatchActions` cho phép các module khác gửi `Msg` tới router dựa trên cấp ủy quyền `Authorization`:
 
 ```go
 type Keeper interface {
-	// DispatchActions routes the provided msgs to their respective handlers if the grantee was granted an authorization
-	// to send those messages by the first (and only) signer of each msg.
-    DispatchActions(ctx sdk.Context, grantee sdk.AccAddress, msgs []sdk.Msg) sdk.Result`
+	// DispatchActions định tuyến các msg được cung cấp tới các handler tương ứng nếu grantee được cấp ủy quyền
+	// để gửi các message đó bởi người ký đầu tiên (và duy nhất) của mỗi msg.
+    DispatchActions(ctx sdk.Context, grantee sdk.AccAddress, msgs []sdk.Msg) sdk.Result
 }
 ```
 
 ### CLI
 
-#### `tx exec` Method
+#### Phương Thức `tx exec`
 
-When a CLI user wants to run a transaction on behalf of another account using `MsgExec`, they
-can use the `exec` method. For instance `gaiacli tx gov vote 1 yes --from <grantee> --generate-only | gaiacli tx authz exec --send-as <granter> --from <grantee>`
-would send a transaction like this:
+Khi người dùng CLI muốn chạy một giao dịch thay mặt cho tài khoản khác sử dụng `MsgExec`, họ có thể sử dụng phương thức `exec`. Ví dụ `gaiacli tx gov vote 1 yes --from <grantee> --generate-only | gaiacli tx authz exec --send-as <granter> --from <grantee>` sẽ gửi giao dịch như thế này:
 
 ```go
 MsgExec {
@@ -205,20 +182,19 @@ MsgExec {
 
 #### `tx grant <grantee> <authorization> --from <granter>`
 
-This CLI command will send a `MsgGrant` transaction. `authorization` should be encoded as
-JSON on the CLI.
+Lệnh CLI này sẽ gửi giao dịch `MsgGrant`. `authorization` nên được mã hóa dưới dạng JSON trên CLI.
 
 #### `tx revoke <grantee> <method-name> --from <granter>`
 
-This CLI command will send a `MsgRevoke` transaction.
+Lệnh CLI này sẽ gửi giao dịch `MsgRevoke`.
 
-### Built-in Authorizations
+### Các Ủy Quyền Được Tích Hợp Sẵn
 
 #### `SendAuthorization`
 
 ```protobuf
-// SendAuthorization allows the grantee to spend up to spend_limit coins from
-// the granter's account.
+// SendAuthorization cho phép grantee chi tiêu tối đa spend_limit coin từ
+// tài khoản của granter.
 message SendAuthorization {
   repeated cosmos.base.v1beta1.Coin spend_limit = 1;
 }
@@ -227,32 +203,29 @@ message SendAuthorization {
 #### `GenericAuthorization`
 
 ```protobuf
-// GenericAuthorization gives the grantee unrestricted permissions to execute
-// the provided method on behalf of the granter's account.
+// GenericAuthorization cấp cho grantee quyền không hạn chế để thực thi
+// phương thức được cung cấp thay mặt cho tài khoản của granter.
 message GenericAuthorization {
   option (cosmos_proto.implements_interface) = "Authorization";
 
-  // Msg, identified by it's type URL, to grant unrestricted permissions to execute
+  // Msg, được xác định bởi type URL của nó, để cấp quyền không hạn chế để thực thi
   string msg = 1;
 }
 ```
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Users will be able to authorize arbitrary actions on behalf of their accounts to other
-users, improving key management for many use cases
-* The solution is more generic than previously considered approaches and the
-`Authorization` interface approach can be extended to cover other use cases by
-SDK users
+* Người dùng có thể ủy quyền các hành động tùy ý thay mặt cho tài khoản của họ cho người dùng khác, cải thiện quản lý khóa cho nhiều trường hợp sử dụng
+* Giải pháp tổng quát hơn các cách tiếp cận được xem xét trước đây và cách tiếp cận interface `Authorization` có thể được mở rộng để bao gồm các trường hợp sử dụng khác bởi người dùng SDK
 
-### Negative
+### Tiêu Cực
 
-### Neutral
+### Trung Lập
 
-## References
+## Tham Khảo
 
-* Initial Hackatom implementation: https://github.com/cosmos-gaians/cosmos-sdk/tree/hackatom/x/delegation
-* Post-Hackatom spec: https://gist.github.com/aaronc/b60628017352df5983791cad30babe56#delegation-module
-* B-Harvest subkeys spec: https://github.com/cosmos/cosmos-sdk/issues/4480
+* Triển khai Hackatom ban đầu: https://github.com/cosmos-gaians/cosmos-sdk/tree/hackatom/x/delegation
+* Đặc tả sau Hackatom: https://gist.github.com/aaronc/b60628017352df5983791cad30babe56#delegation-module
+* Đặc tả subkeys của B-Harvest: https://github.com/cosmos/cosmos-sdk/issues/4480

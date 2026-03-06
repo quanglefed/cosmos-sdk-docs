@@ -1,209 +1,101 @@
-# ADR 010: Modular AnteHandler
+# ADR 010: AnteHandler Mô-đun Hóa
 
 ## Changelog
 
-* 2019 Aug 31: Initial draft
-* 2021 Sep 14: Superseded by ADR-045
+* 31 tháng 8 năm 2019: Bản nháp đầu tiên
+* 14 tháng 9 năm 2021: Được thay thế bởi ADR-045
 
-## Status
+## Trạng Thái
 
-SUPERSEDED by ADR-045
+ĐÃ ĐƯỢC THAY THẾ bởi ADR-045
 
-## Context
+## Bối Cảnh
 
-The current AnteHandler design allows users to either use the default AnteHandler provided in `x/auth` or to build their own AnteHandler from scratch. Ideally AnteHandler functionality is split into multiple, modular functions that can be chained together along with custom ante-functions so that users do not have to rewrite common antehandler logic when they want to implement custom behavior.
+Thiết kế AnteHandler hiện tại cho phép người dùng sử dụng AnteHandler mặc định được cung cấp trong `x/auth` hoặc tự xây dựng AnteHandler từ đầu. Lý tưởng nhất, chức năng AnteHandler được chia thành nhiều hàm mô-đun, có thể kết hợp cùng với các hàm ante tùy chỉnh để người dùng không phải viết lại logic antehandler phổ biến khi muốn triển khai hành vi tùy chỉnh.
 
-For example, let's say a user wants to implement some custom signature verification logic. In the current codebase, the user would have to write their own Antehandler from scratch largely reimplementing much of the same code and then set their own custom, monolithic antehandler in the baseapp. Instead, we would like to allow users to specify custom behavior when necessary and combine them with default ante-handler functionality in a way that is as modular and flexible as possible.
+Ví dụ, giả sử người dùng muốn triển khai một số logic xác minh chữ ký tùy chỉnh. Trong codebase hiện tại, người dùng phải tự viết Antehandler từ đầu, về cơ bản là tái triển khai nhiều code tương tự và sau đó đặt antehandler tùy chỉnh nguyên khối của riêng họ trong baseapp. Thay vào đó, chúng ta muốn cho phép người dùng chỉ định hành vi tùy chỉnh khi cần thiết và kết hợp với chức năng ante-handler mặc định theo cách mô-đun và linh hoạt nhất có thể.
 
-## Proposals
+## Đề Xuất
 
-### Per-Module AnteHandler
+### AnteHandler Theo Module
 
-One approach is to use the [ModuleManager](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/types/module) and have each module implement its own antehandler if it requires custom antehandler logic. The ModuleManager can then be passed in an AnteHandler order in the same way it has an order for BeginBlockers and EndBlockers. The ModuleManager returns a single AnteHandler function that will take in a tx and run each module's `AnteHandle` in the specified order. The module manager's AnteHandler is set as the baseapp's AnteHandler.
+Một cách tiếp cận là sử dụng [ModuleManager](https://pkg.go.dev/github.com/cosmos/cosmos-sdk/types/module) và để mỗi module triển khai antehandler riêng nếu nó yêu cầu logic antehandler tùy chỉnh. ModuleManager sau đó có thể được truyền vào một thứ tự AnteHandler tương tự như cách nó có thứ tự cho BeginBlocker và EndBlocker. ModuleManager trả về một hàm AnteHandler duy nhất nhận tx và chạy `AnteHandle` của mỗi module theo thứ tự được chỉ định. AnteHandler của module manager được đặt làm AnteHandler của baseapp.
 
-Pros:
+Ưu điểm:
 
-1. Simple to implement
-2. Utilizes the existing ModuleManager architecture
+1. Đơn giản để triển khai
+2. Sử dụng kiến trúc ModuleManager hiện tại
 
-Cons:
+Nhược điểm:
 
-1. Improves granularity but still cannot get more granular than a per-module basis. e.g. If auth's `AnteHandle` function is in charge of validating memo and signatures, users cannot swap the signature-checking functionality while keeping the rest of auth's `AnteHandle` functionality.
-2. Module AnteHandler are run one after the other. There is no way for one AnteHandler to wrap or "decorate" another.
+1. Cải thiện tính chi tiết nhưng vẫn không thể chi tiết hơn cơ sở theo module. Ví dụ, nếu hàm `AnteHandle` của auth chịu trách nhiệm xác thực memo và chữ ký, người dùng không thể hoán đổi chức năng kiểm tra chữ ký trong khi giữ phần còn lại của chức năng `AnteHandle` của auth.
+2. Module AnteHandler được chạy lần lượt. Không có cách nào để một AnteHandler bao hoặc "trang trí" AnteHandler khác.
 
-### Decorator Pattern
+### Mẫu Decorator
 
-The [weave project](https://github.com/iov-one/weave) achieves AnteHandler modularity through the use of a decorator pattern. The interface is designed as follows:
+Dự án [weave](https://github.com/iov-one/weave) đạt được tính mô-đun của AnteHandler thông qua mẫu decorator. Interface được thiết kế như sau:
 
 ```go
-// Decorator wraps a Handler to provide common functionality
-// like authentication, or fee-handling, to many Handlers
+// Decorator bao một Handler để cung cấp chức năng phổ biến
+// như xác thực hoặc xử lý phí cho nhiều Handler
 type Decorator interface {
 	Check(ctx Context, store KVStore, tx Tx, next Checker) (*CheckResult, error)
 	Deliver(ctx Context, store KVStore, tx Tx, next Deliverer) (*DeliverResult, error)
 }
 ```
 
-Each decorator works like a modularized Cosmos SDK antehandler function, but it can take in a `next` argument that may be another decorator or a Handler (which does not take in a next argument). These decorators can be chained together, one decorator being passed in as the `next` argument of the previous decorator in the chain. The chain ends in a Router which can take a tx and route to the appropriate msg handler.
+Mỗi decorator hoạt động như một hàm antehandler được mô-đun hóa của Cosmos SDK, nhưng nó có thể nhận đối số `next` có thể là decorator khác hoặc Handler (không nhận đối số next). Các decorator này có thể được kết nối chuỗi với nhau, một decorator được truyền vào như đối số `next` của decorator trước đó trong chuỗi. Chuỗi kết thúc ở Router có thể nhận tx và định tuyến đến msg handler phù hợp.
 
-A key benefit of this approach is that one Decorator can wrap its internal logic around the next Checker/Deliverer. A weave Decorator may do the following:
+Lợi ích chính của cách tiếp cận này là một Decorator có thể bao logic nội bộ của nó xung quanh Checker/Deliverer tiếp theo. Một Weave Decorator có thể làm như sau:
 
 ```go
-// Example Decorator's Deliver function
+// Hàm Deliver của Decorator ví dụ
 func (example Decorator) Deliver(ctx Context, store KVStore, tx Tx, next Deliverer) {
-    // Do some pre-processing logic
+    // Thực hiện một số logic tiền xử lý
 
     res, err := next.Deliver(ctx, store, tx)
 
-    // Do some post-processing logic given the result and error
+    // Thực hiện một số logic hậu xử lý dựa trên kết quả và lỗi
 }
 ```
 
-Pros:
+Ưu điểm:
 
-1. Weave Decorators can wrap over the next decorator/handler in the chain. The ability to both pre-process and post-process may be useful in certain settings.
-2. Provides a nested modular structure that isn't possible in the solution above, while also allowing for a linear one-after-the-other structure like the solution above.
+1. Weave Decorator có thể bao quanh decorator/handler tiếp theo trong chuỗi. Khả năng cả tiền xử lý và hậu xử lý có thể hữu ích trong một số cài đặt nhất định.
+2. Cung cấp cấu trúc mô-đun lồng nhau không thể thực hiện được trong giải pháp trên, đồng thời cho phép cấu trúc tuyến tính lần lượt như giải pháp trên.
 
-Cons:
+Nhược điểm:
 
-1. It is hard to understand at first glance the state updates that would occur after a Decorator runs given the `ctx`, `store`, and `tx`. A Decorator can have an arbitrary number of nested Decorators being called within its function body, each possibly doing some pre- and post-processing before calling the next decorator on the chain. Thus to understand what a Decorator is doing, one must also understand what every other decorator further along the chain is also doing. This can get quite complicated to understand. A linear, one-after-the-other approach while less powerful, may be much easier to reason about.
+1. Khó hiểu ngay từ cái nhìn đầu tiên về các cập nhật trạng thái sẽ xảy ra sau khi Decorator chạy với `ctx`, `store` và `tx` cho trước. Một Decorator có thể có số lượng tùy ý các Decorator lồng nhau được gọi trong thân hàm của nó, mỗi cái có thể thực hiện tiền xử lý và hậu xử lý trước khi gọi decorator tiếp theo trong chuỗi. Do đó để hiểu Decorator đang làm gì, người ta cũng phải hiểu mọi decorator khác trong chuỗi cũng đang làm gì. Điều này có thể khá phức tạp để lý luận. Cách tiếp cận tuyến tính lần lượt trong khi kém mạnh mẽ hơn, có thể dễ lý luận hơn nhiều.
 
-### Chained Micro-Functions
+### Micro-Function Được Kết Nối Chuỗi
 
-The benefit of Weave's approach is that the Decorators can be very concise, which when chained together allows for maximum customizability. However, the nested structure can get quite complex and thus hard to reason about.
+Lợi ích của cách tiếp cận Weave là các Decorator có thể rất ngắn gọn, khi được kết nối chuỗi cho phép tùy biến tối đa. Tuy nhiên, cấu trúc lồng nhau có thể khá phức tạp và do đó khó lý luận.
 
-Another approach is to split the AnteHandler functionality into tightly scoped "micro-functions", while preserving the one-after-the-other ordering that would come from the ModuleManager approach.
+Một cách tiếp cận khác là chia chức năng AnteHandler thành các "micro-function" có phạm vi chặt chẽ, trong khi vẫn bảo toàn thứ tự lần lượt từ cách tiếp cận ModuleManager.
 
-We can then have a way to chain these micro-functions so that they run one after the other. Modules may define multiple ante micro-functions and then also provide a default per-module AnteHandler that implements a default, suggested order for these micro-functions.
+Sau đó chúng ta có thể có cách để kết nối chuỗi các micro-function này để chúng chạy lần lượt. Các module có thể định nghĩa nhiều ante micro-function và cũng cung cấp một AnteHandler mặc định theo module triển khai thứ tự mặc định, được đề xuất cho các micro-function này.
 
-Users can order the AnteHandlers easily by simply using the ModuleManager. The ModuleManager will take in a list of AnteHandlers and return a single AnteHandler that runs each AnteHandler in the order of the list provided. If the user is comfortable with the default ordering of each module, this is as simple as providing a list with each module's antehandler (exactly the same as BeginBlocker and EndBlocker).
+Người dùng có thể sắp xếp AnteHandler dễ dàng bằng cách đơn giản là sử dụng ModuleManager. ModuleManager sẽ nhận danh sách AnteHandler và trả về một AnteHandler duy nhất chạy mỗi AnteHandler theo thứ tự danh sách được cung cấp. Nếu người dùng hài lòng với thứ tự mặc định của mỗi module, điều này đơn giản như cung cấp danh sách với antehandler của mỗi module (hoàn toàn giống như BeginBlocker và EndBlocker).
 
-If however, users wish to change the order or add, modify, or delete ante micro-functions in anyway; they can always define their own ante micro-functions and add them explicitly to the list that gets passed into module manager.
+Tuy nhiên, nếu người dùng muốn thay đổi thứ tự hoặc thêm, sửa đổi hoặc xóa ante micro-function theo bất kỳ cách nào, họ luôn có thể định nghĩa micro-function ante riêng và thêm chúng rõ ràng vào danh sách được truyền vào module manager.
 
-#### Default Workflow
+### Simple Decorator
 
-This is an example of a user's AnteHandler if they choose not to make any custom micro-functions.
+Cách tiếp cận này lấy cảm hứng từ thiết kế decorator của Weave trong khi cố gắng giảm thiểu số lượng thay đổi breaking đối với Cosmos SDK và tối đa hóa sự đơn giản. Giống như weave decorator, cách tiếp cận này cho phép một `AnteDecorator` bao AnteHandler tiếp theo để thực hiện tiền xử lý và hậu xử lý trên kết quả. Điều này hữu ích vì các decorator có thể thực hiện defer/cleanup sau khi AnteHandler trả về cũng như thực hiện một số thiết lập trước. Khác với Weave decorator, các hàm `AnteDecorator` này chỉ có thể bao quanh AnteHandler thay vì toàn bộ đường thực thi handler. Điều này là cố ý vì chúng ta muốn các decorator từ các module khác nhau thực hiện xác thực trên `tx`. Tuy nhiên, chúng ta không muốn các decorator có khả năng bao và sửa đổi kết quả của `MsgHandler`.
 
-##### Cosmos SDK code
-
-```go
-// Chains together a list of AnteHandler micro-functions that get run one after the other.
-// Returned AnteHandler will abort on first error.
-func Chainer(order []AnteHandler) AnteHandler {
-    return func(ctx Context, tx Tx, simulate bool) (newCtx Context, err error) {
-        for _, ante := range order {
-            ctx, err := ante(ctx, tx, simulate)
-            if err != nil {
-                return ctx, err
-            }
-        }
-        return ctx, err
-    }
-}
-```
+Ngoài ra, cách tiếp cận này sẽ không phá vỡ bất kỳ API core nào của Cosmos SDK. Vì chúng ta vẫn bảo toàn khái niệm AnteHandler và vẫn đặt một AnteHandler duy nhất trong baseapp, decorator chỉ là một cách tiếp cận bổ sung có sẵn cho người dùng muốn tùy biến nhiều hơn.
 
 ```go
-// AnteHandler micro-function to verify signatures
-func VerifySignatures(ctx Context, tx Tx, simulate bool) (newCtx Context, err error) {
-    // verify signatures
-    // Returns InvalidSignature Result and abort=true if sigs invalid
-    // Return OK result and abort=false if sigs are valid
-}
-
-// AnteHandler micro-function to validate memo
-func ValidateMemo(ctx Context, tx Tx, simulate bool) (newCtx Context, err error) {
-    // validate memo
-}
-
-// Auth defines its own default ante-handler by chaining its micro-functions in a recommended order
-AuthModuleAnteHandler := Chainer([]AnteHandler{VerifySignatures, ValidateMemo})
-```
-
-```go
-// Distribution micro-function to deduct fees from tx
-func DeductFees(ctx Context, tx Tx, simulate bool) (newCtx Context, err error) {
-    // Deduct fees from tx
-    // Abort if insufficient funds in account to pay for fees
-}
-
-// Distribution micro-function to check if fees > mempool parameter
-func CheckMempoolFees(ctx Context, tx Tx, simulate bool) (newCtx Context, err error) {
-    // If CheckTx: Abort if the fees are less than the mempool's minFee parameter
-}
-
-// Distribution defines its own default ante-handler by chaining its micro-functions in a recommended order
-DistrModuleAnteHandler := Chainer([]AnteHandler{CheckMempoolFees, DeductFees})
-```
-
-```go
-type ModuleManager struct {
-    // other fields
-    AnteHandlerOrder []AnteHandler
-}
-
-func (mm ModuleManager) GetAnteHandler() AnteHandler {
-    return Chainer(mm.AnteHandlerOrder)
-}
-```
-
-##### User Code
-
-```go
-// Note: Since user is not making any custom modifications, we can just SetAnteHandlerOrder with the default AnteHandlers provided by each module in our preferred order
-moduleManager.SetAnteHandlerOrder([]AnteHandler(AuthModuleAnteHandler, DistrModuleAnteHandler))
-
-app.SetAnteHandler(mm.GetAnteHandler())
-```
-
-#### Custom Workflow
-
-This is an example workflow for a user that wants to implement custom antehandler logic. In this example, the user wants to implement custom signature verification and change the order of antehandler so that validate memo runs before signature verification.
-
-##### User Code
-
-```go
-// User can implement their own custom signature verification antehandler micro-function
-func CustomSigVerify(ctx Context, tx Tx, simulate bool) (newCtx Context, err error) {
-    // do some custom signature verification logic
-}
-```
-
-```go
-// Micro-functions allow users to change order of when they get executed, and swap out default ante-functionality with their own custom logic.
-// Note that users can still chain the default distribution module handler, and auth micro-function along with their custom ante function
-moduleManager.SetAnteHandlerOrder([]AnteHandler(ValidateMemo, CustomSigVerify, DistrModuleAnteHandler))
-```
-
-Pros:
-
-1. Allows for ante functionality to be as modular as possible.
-2. For users that do not need custom ante-functionality, there is little difference between how antehandlers work and how BeginBlock and EndBlock work in ModuleManager.
-3. Still easy to understand
-
-Cons:
-
-1. Cannot wrap antehandlers with decorators like you can with Weave.
-
-### Simple Decorators
-
-This approach takes inspiration from Weave's decorator design while trying to minimize the number of breaking changes to the Cosmos SDK and maximizing simplicity. Like Weave decorators, this approach allows one `AnteDecorator` to wrap the next AnteHandler to do pre- and post-processing on the result. This is useful since decorators can do defer/cleanups after an AnteHandler returns as well as perform some setup beforehand. Unlike Weave decorators, these `AnteDecorator` functions can only wrap over the AnteHandler rather than the entire handler execution path. This is deliberate as we want decorators from different modules to perform authentication/validation on a `tx`. However, we do not want decorators being capable of wrapping and modifying the results of a `MsgHandler`.
-
-In addition, this approach will not break any core Cosmos SDK API's. Since we preserve the notion of an AnteHandler and still set a single AnteHandler in baseapp, the decorator is simply an additional approach available for users that desire more customization. The API of modules (namely `x/auth`) may break with this approach, but the core API remains untouched.
-
-Allow Decorator interface that can be chained together to create a Cosmos SDK AnteHandler.
-
-This allows users to choose between implementing an AnteHandler by themselves and setting it in the baseapp, or use the decorator pattern to chain their custom decorators with the Cosmos SDK provided decorators in the order they wish.
-
-```go
-// An AnteDecorator wraps an AnteHandler, and can do pre- and post-processing on the next AnteHandler
+// An AnteDecorator bao một AnteHandler và có thể thực hiện tiền xử lý và hậu xử lý trên AnteHandler tiếp theo
 type AnteDecorator interface {
     AnteHandle(ctx Context, tx Tx, simulate bool, next AnteHandler) (newCtx Context, err error)
 }
 ```
 
 ```go
-// ChainAnteDecorators will recursively link all of the AnteDecorators in the chain and return a final AnteHandler function
-// This is done to preserve the ability to set a single AnteHandler function in the baseapp.
+// ChainAnteDecorators sẽ liên kết đệ quy tất cả AnteDecorator trong chuỗi và trả về hàm AnteHandler cuối cùng
+// Điều này được thực hiện để bảo toàn khả năng đặt một hàm AnteHandler duy nhất trong baseapp.
 func ChainAnteDecorators(chain ...AnteDecorator) AnteHandler {
     if len(chain) == 1 {
         return func(ctx Context, tx Tx, simulate bool) {
@@ -216,75 +108,75 @@ func ChainAnteDecorators(chain ...AnteDecorator) AnteHandler {
 }
 ```
 
-#### Example Code
+#### Code Ví Dụ
 
-Define AnteDecorator functions
+Định nghĩa các hàm AnteDecorator
 
 ```go
-// Setup GasMeter, catch OutOfGasPanic and handle appropriately
+// Thiết lập GasMeter, bắt OutOfGasPanic và xử lý phù hợp
 type SetUpContextDecorator struct{}
 
 func (sud SetUpContextDecorator) AnteHandle(ctx Context, tx Tx, simulate bool, next AnteHandler) (newCtx Context, err error) {
     ctx.GasMeter = NewGasMeter(tx.Gas)
 
     defer func() {
-        // recover from OutOfGas panic and handle appropriately
+        // phục hồi từ panic OutOfGas và xử lý phù hợp
     }
 
     return next(ctx, tx, simulate)
 }
 
-// Signature Verification decorator. Verify Signatures and move on
+// Decorator Xác Minh Chữ Ký. Xác minh Chữ Ký và tiếp tục
 type SigVerifyDecorator struct{}
 
 func (svd SigVerifyDecorator) AnteHandle(ctx Context, tx Tx, simulate bool, next AnteHandler) (newCtx Context, err error) {
-    // verify sigs. Return error if invalid
+    // xác minh sigs. Trả về lỗi nếu không hợp lệ
 
-    // call next antehandler if sigs ok
+    // gọi antehandler tiếp theo nếu sigs ổn
     return next(ctx, tx, simulate)
 }
 
-// User-defined Decorator. Can choose to pre- and post-process on AnteHandler
+// Decorator Do Người Dùng Định Nghĩa. Có thể chọn tiền xử lý và hậu xử lý trên AnteHandler
 type UserDefinedDecorator struct{
-    // custom fields
+    // các trường tùy chỉnh
 }
 
 func (udd UserDefinedDecorator) AnteHandle(ctx Context, tx Tx, simulate bool, next AnteHandler) (newCtx Context, err error) {
-    // pre-processing logic
+    // logic tiền xử lý
 
     ctx, err = next(ctx, tx, simulate)
 
-    // post-processing logic
+    // logic hậu xử lý
 }
 ```
 
-Link AnteDecorators to create a final AnteHandler. Set this AnteHandler in baseapp.
+Liên kết AnteDecorator để tạo AnteHandler cuối cùng. Đặt AnteHandler này trong baseapp.
 
 ```go
-// Create final antehandler by chaining the decorators together
+// Tạo antehandler cuối cùng bằng cách kết nối chuỗi các decorator
 antehandler := ChainAnteDecorators(NewSetUpContextDecorator(), NewSigVerifyDecorator(), NewUserDefinedDecorator())
 
-// Set chained Antehandler in the baseapp
+// Đặt Antehandler đã kết nối chuỗi trong baseapp
 bapp.SetAnteHandler(antehandler)
 ```
 
-Pros:
+Ưu điểm:
 
-1. Allows one decorator to pre- and post-process the next AnteHandler, similar to the Weave design.
-2. Do not need to break baseapp API. Users can still set a single AnteHandler if they choose.
+1. Cho phép một decorator tiền xử lý và hậu xử lý AnteHandler tiếp theo, tương tự như thiết kế Weave.
+2. Không cần phá vỡ API baseapp. Người dùng vẫn có thể đặt một AnteHandler duy nhất nếu họ chọn.
 
-Cons:
+Nhược điểm:
 
-1. Decorator pattern may have a deeply nested structure that is hard to understand, this is mitigated by having the decorator order explicitly listed in the `ChainAnteDecorators` function.
-2. Does not make use of the ModuleManager design. Since this is already being used for BeginBlocker/EndBlocker, this proposal seems unaligned with that design pattern.
+1. Mẫu Decorator có thể có cấu trúc lồng nhau sâu khó hiểu, điều này được giảm thiểu bằng cách liệt kê rõ ràng thứ tự decorator trong hàm `ChainAnteDecorators`.
+2. Không sử dụng thiết kế ModuleManager. Vì điều này đã được sử dụng cho BeginBlocker/EndBlocker, đề xuất này có vẻ không phù hợp với mẫu thiết kế đó.
 
-## Consequences
+## Hậu Quả
 
-Since pros and cons are written for each approach, it is omitted from this section
+Vì ưu và nhược điểm được viết cho mỗi cách tiếp cận, chúng được bỏ qua trong phần này.
 
-## References
+## Tài Liệu Tham Khảo
 
-* [#4572](https://github.com/cosmos/cosmos-sdk/issues/4572):  Modular AnteHandler Issue
-* [#4582](https://github.com/cosmos/cosmos-sdk/pull/4583): Initial Implementation of Per-Module AnteHandler Approach
-* [Weave Decorator Code](https://github.com/iov-one/weave/blob/master/handler.go#L35)
-* [Weave Design Videos](https://vimeo.com/showcase/6189877)
+* [#4572](https://github.com/cosmos/cosmos-sdk/issues/4572): Vấn đề AnteHandler Mô-đun Hóa
+* [#4582](https://github.com/cosmos/cosmos-sdk/pull/4583): Triển khai đầu tiên của cách tiếp cận AnteHandler Theo Module
+* [Code Weave Decorator](https://github.com/iov-one/weave/blob/master/handler.go#L35)
+* [Video Thiết Kế Weave](https://vimeo.com/showcase/6189877)

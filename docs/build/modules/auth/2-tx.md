@@ -4,41 +4,44 @@ sidebar_position: 1
 
 # `x/auth/tx`
 
-:::note Pre-requisite Readings
+::::note Tài liệu cần đọc trước
 
 * [Transactions](https://docs.cosmos.network/main/core/transactions#transaction-generation)
 * [Encoding](https://docs.cosmos.network/main/core/encoding#transaction-encoding)
 
-:::
+::::
 
-## Abstract
+## Tóm tắt
 
-This document specifies the `x/auth/tx` package of the Cosmos SDK.
+Tài liệu này mô tả gói `x/auth/tx` của Cosmos SDK.
 
-This package represents the Cosmos SDK implementation of the `client.TxConfig`, `client.TxBuilder`, `client.TxEncoder` and `client.TxDecoder` interfaces.
+Gói này là phần hiện thực trong Cosmos SDK cho các interface `client.TxConfig`,
+`client.TxBuilder`, `client.TxEncoder` và `client.TxDecoder`.
 
-## Contents
+## Nội dung
 
 * [Transactions](#transactions)
-    * [`TxConfig`](#txconfig)
-    * [`TxBuilder`](#txbuilder)
-    * [`TxEncoder`/ `TxDecoder`](#txencoder-txdecoder)
+  * [`TxConfig`](#txconfig)
+  * [`TxBuilder`](#txbuilder)
+  * [`TxEncoder`/ `TxDecoder`](#txencoder-txdecoder)
 * [Client](#client)
-    * [CLI](#cli)
-    * [gRPC](#grpc)
+  * [CLI](#cli)
+  * [gRPC](#grpc)
 
 ## Transactions
 
 ### `TxConfig`
 
-`client.TxConfig` defines an interface a client can utilize to generate an application-defined concrete transaction type.
-The interface defines a set of methods for creating a `client.TxBuilder`.
+`client.TxConfig` định nghĩa một interface mà client có thể dùng để tạo ra kiểu
+giao dịch cụ thể (concrete transaction type) do ứng dụng quy định.
+Interface này cung cấp một tập phương thức để tạo `client.TxBuilder`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/client/tx_config.go#L25-L31
 ```
 
-The default implementation of `client.TxConfig` is instantiated by `NewTxConfig` in `x/auth/tx` module.
+Hiện thực mặc định của `client.TxConfig` được khởi tạo bởi `NewTxConfig` trong
+mô-đun `x/auth/tx`.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/x/auth/tx/config.go#L22-L28
@@ -50,12 +53,13 @@ https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/x/auth/tx/config.go#L2
 https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/client/tx_config.go#L33-L50
 ```
 
-The [`client.TxBuilder`](https://docs.cosmos.network/main/core/transactions#transaction-generation) interface is as well implemented by `x/auth/tx`.
-A `client.TxBuilder` can be accessed with `TxConfig.NewTxBuilder()`.  
+Interface [`client.TxBuilder`](https://docs.cosmos.network/main/core/transactions#transaction-generation)
+cũng được `x/auth/tx` hiện thực.
+Bạn có thể lấy một `client.TxBuilder` qua `TxConfig.NewTxBuilder()`.
 
 ### `TxEncoder`/ `TxDecoder`
 
-More information about `TxEncoder` and `TxDecoder` can be found [here](https://docs.cosmos.network/main/core/encoding#transaction-encoding).
+Xem thêm thông tin về `TxEncoder` và `TxDecoder` [tại đây](https://docs.cosmos.network/main/core/encoding#transaction-encoding).
 
 ## Client
 
@@ -63,47 +67,49 @@ More information about `TxEncoder` and `TxDecoder` can be found [here](https://d
 
 #### Query
 
-The `x/auth/tx` module provides a CLI command to query any transaction, given its hash, transaction sequence or signature.
+Mô-đun `x/auth/tx` cung cấp lệnh CLI để truy vấn một giao dịch bất kỳ dựa trên
+hash, sequence của giao dịch, hoặc chữ ký.
 
-Without any argument, the command will query the transaction using the transaction hash.
+Nếu không có tham số bổ sung, lệnh sẽ truy vấn theo hash của giao dịch.
 
 ```shell
 simd query tx DFE87B78A630C0EFDF76C80CD24C997E252792E0317502AE1A02B9809F0D8685
 ```
 
-When querying a transaction from an account given its sequence, use the `--type=acc_seq` flag:
+Khi truy vấn một giao dịch từ một tài khoản theo sequence, dùng cờ `--type=acc_seq`:
 
 ```shell
 simd query tx --type=acc_seq cosmos1u69uyr6v9qwe6zaaeaqly2h6wnedac0xpxq325/1
 ```
 
-When querying a transaction given its signature, use the `--type=signature` flag:
+Khi truy vấn theo chữ ký, dùng cờ `--type=signature`:
 
 ```shell
 simd query tx --type=signature Ofjvgrqi8twZfqVDmYIhqwRLQjZZ40XbxEamk/veH3gQpRF0hL2PH4ejRaDzAX+2WChnaWNQJQ41ekToIi5Wqw==
 ```
 
-When querying a transaction given its events, use the `--type=events` flag:
+Khi truy vấn theo events, dùng cờ `--type=events`:
 
 ```shell
 simd query txs --events 'message.sender=cosmos...' --page 1 --limit 30
 ```
 
-The `x/auth/block` module provides a CLI command to query any block, given its hash, height, or events.
+Mô-đun `x/auth/block` cung cấp lệnh CLI để truy vấn một block bất kỳ theo hash,
+height hoặc events.
 
-When querying a block by its hash, use the `--type=hash` flag:
+Khi truy vấn block theo hash, dùng cờ `--type=hash`:
 
 ```shell
 simd query block --type=hash DFE87B78A630C0EFDF76C80CD24C997E252792E0317502AE1A02B9809F0D8685
 ```
 
-When querying a block by its height, use the `--type=height` flag:
+Khi truy vấn block theo height, dùng cờ `--type=height`:
 
 ```shell
 simd query block --type=height 1357
 ```
 
-When querying a block by its events, use the `--query` flag:
+Khi truy vấn block theo events, dùng cờ `--query`:
 
 ```shell
 simd query blocks --query 'message.sender=cosmos...' --page 1 --limit 30
@@ -111,12 +117,13 @@ simd query blocks --query 'message.sender=cosmos...' --page 1 --limit 30
 
 #### Transactions
 
-The `x/auth/tx` module provides a convenient CLI command for decoding and encoding transactions.
+Mô-đun `x/auth/tx` cung cấp các lệnh CLI tiện lợi để encode/decode giao dịch.
 
 #### `encode`
 
-The `encode` command encodes a transaction created with the `--generate-only` flag or signed with the sign command.
-The transaction is serialized it to Protobuf and returned as base64.
+Lệnh `encode` dùng để encode một giao dịch được tạo với cờ `--generate-only` hoặc
+đã được ký bằng lệnh `sign`.
+Giao dịch sẽ được serialize sang Protobuf và trả về dưới dạng base64.
 
 ```bash
 $ simd tx encode tx.json
@@ -124,32 +131,31 @@ Co8BCowBChwvY29zbW9zLmJhbmsudjFiZXRhMS5Nc2dTZW5kEmwKLWNvc21vczFsNnZzcWhoN3Jud3N5
 $ simd tx encode tx.signed.json
 ```
 
-More information about the `encode` command can be found running `simd tx encode --help`.
+Xem thêm thông tin về lệnh `encode` bằng cách chạy `simd tx encode --help`.
 
 #### `decode`
 
-The `decode` commands decodes a transaction encoded with the `encode` command.
-
+Lệnh `decode` dùng để giải mã (decode) một giao dịch đã được encode bởi lệnh `encode`.
 
 ```bash
 simd tx decode Co8BCowBChwvY29zbW9zLmJhbmsudjFiZXRhMS5Nc2dTZW5kEmwKLWNvc21vczFsNnZzcWhoN3Jud3N5cjJreXozampnM3FkdWF6OGd3Z3lsODI3NRItY29zbW9zMTU4c2FsZHlnOHBteHU3Znd2dDBkNng3amVzd3A0Z3d5a2xrNnkzGgwKBXN0YWtlEgMxMDASBhIEEMCaDA==
 ```
 
-More information about the `decode` command can be found running `simd tx decode --help`.
+Xem thêm thông tin về lệnh `decode` bằng cách chạy `simd tx decode --help`.
 
 ### gRPC
 
-A user can query the `x/auth/tx` module using gRPC endpoints.
+Người dùng có thể truy vấn mô-đun `x/auth/tx` thông qua các gRPC endpoint.
 
 #### `TxDecode`
 
-The `TxDecode` endpoint allows to decode a transaction.
+Endpoint `TxDecode` cho phép decode một giao dịch.
 
 ```shell
 cosmos.tx.v1beta1.Service/TxDecode
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -158,7 +164,7 @@ grpcurl -plaintext \
     cosmos.tx.v1beta1.Service/TxDecode
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -179,13 +185,13 @@ Example Output:
 
 #### `TxEncode`
 
-The `TxEncode` endpoint allows to encode a transaction.
+Endpoint `TxEncode` cho phép encode một giao dịch.
 
 ```shell
 cosmos.tx.v1beta1.Service/TxEncode
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -205,7 +211,7 @@ grpcurl -plaintext \
     cosmos.tx.v1beta1.Service/TxEncode
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -215,13 +221,13 @@ Example Output:
 
 #### `TxDecodeAmino`
 
-The `TxDecode` endpoint allows to decode an amino transaction.
+Endpoint `TxDecodeAmino` cho phép decode một giao dịch amino.
 
 ```shell
 cosmos.tx.v1beta1.Service/TxDecodeAmino
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -230,7 +236,7 @@ grpcurl -plaintext \
     cosmos.tx.v1beta1.Service/TxDecodeAmino
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
@@ -240,13 +246,13 @@ Example Output:
 
 #### `TxEncodeAmino`
 
-The `TxEncodeAmino` endpoint allows to encode an amino transaction.
+Endpoint `TxEncodeAmino` cho phép encode một giao dịch amino.
 
 ```shell
 cosmos.tx.v1beta1.Service/TxEncodeAmino
 ```
 
-Example:
+Ví dụ:
 
 ```shell
 grpcurl -plaintext \
@@ -255,10 +261,11 @@ grpcurl -plaintext \
     cosmos.tx.v1beta1.Service/TxEncodeAmino
 ```
 
-Example Output:
+Ví dụ output:
 
 ```json
 {
   "amino_binary": "KCgWqQpvqKNhmgotY29zbW9zMXRzeno3cDJ6Z2Q3dnZrYWh5ZnJlNHduNXh5dTgwcnB0ZzZ2OWg1Ei1jb3Ntb3MxdHN6ejdwMnpnZDd2dmthaHlmcmU0d241eHl1ODBycHRnNnY5aDUaCwoFc3Rha2USAjEwEhEKCwoFc3Rha2USAjEwEMCaDCIGZm9vYmFy"
 }
 ```
+

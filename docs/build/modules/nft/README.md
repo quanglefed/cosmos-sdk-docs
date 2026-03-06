@@ -4,88 +4,105 @@ sidebar_position: 1
 
 # `x/nft`
 
-⚠️ **DEPRECATED**: This package is deprecated and will be removed in the next major release.  The `x/nft` module will be moved to a separate repo `github.com/cosmos/cosmos-sdk-legacy`.
+⚠️ **DEPRECATED**: Gói này đã bị deprecate và sẽ bị loại bỏ trong bản phát hành major tiếp theo. Module `x/nft` sẽ được chuyển sang repo riêng `github.com/cosmos/cosmos-sdk-legacy`.
 
-## Contents
+## Nội dung
 
-## Abstract
+## Tóm tắt
 
-`x/nft` is an implementation of a Cosmos SDK module, per [ADR 43](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-043-nft-module.md), that allows you to create nft classification, create nft, transfer nft, update nft, and support various queries by integrating the module. It is fully compatible with the ERC721 specification.
+`x/nft` là một hiện thực module Cosmos SDK theo [ADR 43](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-043-nft-module.md), cho phép bạn tạo phân loại NFT (nft classification), tạo NFT, chuyển NFT, cập nhật NFT, và hỗ trợ nhiều truy vấn khác nhau bằng cách tích hợp module. Module tương thích hoàn toàn với đặc tả ERC721.
 
-* [Concepts](#concepts)
-    * [Class](#class)
-    * [NFT](#nft)
+* [Khái niệm](#khái-niệm)
+  * [Class](#class)
+  * [NFT](#nft)
 * [State](#state)
-    * [Class](#class-1)
-    * [NFT](#nft-1)
-    * [NFTOfClassByOwner](#nftofclassbyowner)
-    * [Owner](#owner)
-    * [TotalSupply](#totalsupply)
+  * [Class](#class-1)
+  * [NFT](#nft-1)
+  * [NFTOfClassByOwner](#nftofclassbyowner)
+  * [Owner](#owner)
+  * [TotalSupply](#totalsupply)
 * [Messages](#messages)
-    * [MsgSend](#msgsend)
+  * [MsgSend](#msgsend)
 * [Events](#events)
 
-## Concepts
+## Khái niệm
 
 ### Class
 
-`x/nft` module defines a struct `Class` to describe the common characteristics of a class of nft, under this class, you can create a variety of nft, which is equivalent to an erc721 contract for Ethereum. The design is defined in the [ADR 043](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-043-nft-module.md).
+Module `x/nft` định nghĩa struct `Class` để mô tả các đặc tính chung của một lớp NFT.
+Trong một class, bạn có thể tạo nhiều NFT khác nhau, tương đương với một hợp đồng
+ERC721 trên Ethereum. Thiết kế được định nghĩa trong [ADR 043](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-043-nft-module.md).
 
 ### NFT
 
-The full name of NFT is Non-Fungible Tokens. Because of the irreplaceable nature of NFT, it means that it can be used to represent unique things. The nft implemented by this module is fully compatible with Ethereum ERC721 standard.
+Tên đầy đủ của NFT là Non-Fungible Tokens. Do tính không thể thay thế của NFT,
+nó có thể được dùng để đại diện cho các vật/thực thể độc nhất. NFT được hiện thực
+bởi module này tương thích hoàn toàn với chuẩn ERC721 của Ethereum.
 
 ## State
 
 ### Class
 
-Class is mainly composed of `id`, `name`, `symbol`, `description`, `uri`, `uri_hash`,`data` where `id` is the unique identifier of the class, similar to the Ethereum ERC721 contract address, the others are optional.
+Class chủ yếu gồm `id`, `name`, `symbol`, `description`, `uri`, `uri_hash`, `data`,
+trong đó `id` là định danh duy nhất của class, tương tự địa chỉ hợp đồng ERC721
+trên Ethereum; các trường còn lại là tuỳ chọn.
 
 * Class: `0x01 | classID | -> ProtocolBuffer(Class)`
 
 ### NFT
 
-NFT is mainly composed of `class_id`, `id`, `uri`, `uri_hash` and `data`. Among them, `class_id` and `id` are two-tuples that identify the uniqueness of nft, `uri` and `uri_hash` is optional, which identifies the off-chain storage location of the nft, and `data` is an Any type. Use Any chain of `x/nft` modules can be customized by extending this field
+NFT chủ yếu gồm `class_id`, `id`, `uri`, `uri_hash` và `data`. Trong đó `class_id`
+và `id` là cặp (two-tuple) xác định tính duy nhất của NFT; `uri` và `uri_hash` là
+tuỳ chọn, dùng để chỉ ra vị trí lưu trữ off-chain của NFT; và `data` là kiểu Any.
+Các chain dùng `x/nft` có thể tuỳ biến bằng cách mở rộng trường này.
 
 * NFT: `0x02 | classID | 0x00 | nftID |-> ProtocolBuffer(NFT)`
 
 ### NFTOfClassByOwner
 
-NFTOfClassByOwner is mainly to realize the function of querying all nfts using classID and owner, without other redundant functions.
+NFTOfClassByOwner chủ yếu nhằm hiện thực truy vấn tất cả NFT theo classID và owner,
+không có chức năng dư thừa khác.
 
 * NFTOfClassByOwner: `0x03 | owner | 0x00 | classID | 0x00 | nftID |-> 0x01`
 
 ### Owner
 
-Since there is no extra field in NFT to indicate the owner of nft, an additional key-value pair is used to save the ownership of nft. With the transfer of nft, the key-value pair is updated synchronously.
+Vì trong NFT không có field bổ sung để chỉ ra owner, một cặp key-value bổ sung
+được dùng để lưu quyền sở hữu NFT. Khi NFT được chuyển, cặp key-value này được
+cập nhật đồng bộ.
 
 * OwnerKey: `0x04 | classID | 0x00  | nftID |-> owner`
 
 ### TotalSupply
 
-TotalSupply is responsible for tracking the number of all nfts under a certain class. Mint operation is performed under the changed class, supply increases by one, burn operation, and supply decreases by one.
+TotalSupply chịu trách nhiệm theo dõi số lượng tất cả NFT trong một class cụ thể.
+Khi mint, supply tăng 1; khi burn, supply giảm 1.
 
 * OwnerKey: `0x05 | classID |-> totalSupply`
 
 ## Messages
 
-In this section we describe the processing of messages for the NFT module.
+Phần này mô tả xử lý message cho module NFT.
 
-:::warning
-The validation of `ClassID` and `NftID` is left to the app developer.  
-The SDK does not provide any validation for these fields.
-:::
+::::warning
+Việc validate `ClassID` và `NftID` để lại cho app developer.
+SDK không cung cấp bất kỳ validate nào cho các field này.
+::::
 
 ### MsgSend
 
-You can use the `MsgSend` message to transfer the ownership of nft. This is a function provided by the `x/nft` module. Of course, you can use the `Transfer` method to implement your own transfer logic, but you need to pay extra attention to the transfer permissions.
+Bạn có thể dùng message `MsgSend` để chuyển quyền sở hữu NFT. Đây là chức năng do
+module `x/nft` cung cấp. Tất nhiên, bạn có thể dùng phương thức `Transfer` để tự
+hiện thực logic chuyển nhượng của riêng mình, nhưng bạn cần chú ý thêm về quyền
+chuyển nhượng (transfer permissions).
 
-The message handling should fail if:
+Xử lý message sẽ thất bại nếu:
 
-* provided `ClassID` does not exist.
-* provided `Id` does not exist.
-* provided `Sender` does not the owner of nft.
+* `ClassID` được cung cấp không tồn tại.
+* `Id` được cung cấp không tồn tại.
+* `Sender` được cung cấp không phải chủ sở hữu NFT.
 
 ## Events
 
-The nft module emits proto events defined in [the Protobuf reference](https://buf.build/cosmos/cosmos-sdk/docs/main:cosmos.nft.v1beta1).
+Module nft phát ra các proto event được định nghĩa trong [tham chiếu Protobuf](https://buf.build/cosmos/cosmos-sdk/docs/main:cosmos.nft.v1beta1).
+

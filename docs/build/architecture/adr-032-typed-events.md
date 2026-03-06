@@ -1,45 +1,45 @@
-# ADR 032: Typed Events
+# ADR 032: Typed Events (Sự Kiện Có Kiểu)
 
-## Changelog
+## Nhật Ký Thay Đổi
 
-* 28-Sept-2020: Initial Draft
+* 28-09-2020: Bản nháp đầu tiên
 
-## Authors
+## Tác Giả
 
 * Anil Kumar (@anilcse)
 * Jack Zampolin (@jackzampolin)
 * Adam Bozanich (@boz)
 
-## Status
+## Trạng Thái
 
-Proposed
+Đề Xuất
 
-## Abstract
+## Tóm Tắt
 
-Currently in the Cosmos SDK, events are defined in the handlers for each message as well as `BeginBlock` and `EndBlock`. Each module doesn't have types defined for each event, they are implemented as `map[string]string`. Above all else this makes these events difficult to consume as it requires a great deal of raw string matching and parsing. This proposal focuses on updating the events to use **typed events** defined in each module such that emitting and subscribing to events will be much easier. This workflow comes from the experience of the Akash Network team.
+Hiện tại trong Cosmos SDK, các sự kiện được định nghĩa trong các handler cho mỗi message cũng như `BeginBlock` và `EndBlock`. Mỗi module không có các kiểu được định nghĩa cho mỗi sự kiện, chúng được triển khai dưới dạng `map[string]string`. Trước hết điều này làm cho các sự kiện này khó tiêu thụ vì nó đòi hỏi rất nhiều khớp chuỗi thô và phân tích cú pháp. Đề xuất này tập trung vào việc cập nhật các sự kiện để sử dụng **typed events** (sự kiện có kiểu) được định nghĩa trong mỗi module sao cho việc phát ra và đăng ký các sự kiện sẽ dễ dàng hơn nhiều. Quy trình làm việc này xuất phát từ kinh nghiệm của nhóm Akash Network.
 
-## Context
+## Bối Cảnh
 
-Currently in the Cosmos SDK, events are defined in the handlers for each message, meaning each module doesn't have a canonical set of types for each event. Above all else this makes these events difficult to consume as it requires a great deal of raw string matching and parsing. This proposal focuses on updating the events to use **typed events** defined in each module such that emitting and subscribing to events will be much easier. This workflow comes from the experience of the Akash Network team.
+Hiện tại trong Cosmos SDK, các sự kiện được định nghĩa trong các handler cho mỗi message, có nghĩa là mỗi module không có tập hợp kiểu chuẩn cho mỗi sự kiện. Trước hết điều này làm cho các sự kiện này khó tiêu thụ vì nó đòi hỏi rất nhiều khớp chuỗi thô và phân tích cú pháp. Đề xuất này tập trung vào việc cập nhật các sự kiện để sử dụng **typed events** được định nghĩa trong mỗi module sao cho việc phát ra và đăng ký các sự kiện sẽ dễ dàng hơn nhiều. Quy trình làm việc này xuất phát từ kinh nghiệm của nhóm Akash Network.
 
-[Our platform](http://github.com/ovrclk/akash) requires a number of programmatic on chain interactions both on the provider (datacenter - to bid on new orders and listen for leases created) and user (application developer - to send the app manifest to the provider) side. In addition the Akash team is now maintaining the IBC [`relayer`](https://github.com/ovrclk/relayer), another very event driven process. In working on these core pieces of infrastructure, and integrating lessons learned from Kubernetes development, our team has developed a standard method for defining and consuming typed events in Cosmos SDK modules. We have found that it is extremely useful in building this type of event driven application.
+[Nền tảng của chúng tôi](http://github.com/ovrclk/akash) đòi hỏi nhiều tương tác lập trình on-chain cả ở phía nhà cung cấp (trung tâm dữ liệu - để đặt giá cho các đơn hàng mới và lắng nghe các hợp đồng thuê được tạo) và người dùng (nhà phát triển ứng dụng - để gửi manifest ứng dụng tới nhà cung cấp). Ngoài ra nhóm Akash hiện đang duy trì IBC [`relayer`](https://github.com/ovrclk/relayer), một quy trình hướng sự kiện khác. Khi làm việc trên các phần cơ sở hạ tầng cốt lõi này và tích hợp bài học từ phát triển Kubernetes, nhóm của chúng tôi đã phát triển một phương thức tiêu chuẩn để định nghĩa và tiêu thụ typed events trong các module Cosmos SDK. Chúng tôi thấy rằng nó cực kỳ hữu ích trong việc xây dựng loại ứng dụng hướng sự kiện này.
 
-As the Cosmos SDK gets used more extensively for apps like `peggy`, other peg zones, IBC, DeFi, etc... there will be an exploding demand for event driven applications to support new features desired by users. We propose upstreaming our findings into the Cosmos SDK to enable all Cosmos SDK applications to quickly and easily build event driven apps to aid their core application. Wallets, exchanges, explorers, and defi protocols all stand to benefit from this work.
+Khi Cosmos SDK được sử dụng rộng rãi hơn cho các ứng dụng như `peggy`, các peg zone khác, IBC, DeFi, v.v... sẽ có nhu cầu bùng nổ về các ứng dụng hướng sự kiện để hỗ trợ các tính năng mới mà người dùng mong muốn. Chúng tôi đề xuất đưa các phát hiện của mình vào Cosmos SDK để cho phép tất cả các ứng dụng Cosmos SDK nhanh chóng và dễ dàng xây dựng các ứng dụng hướng sự kiện hỗ trợ ứng dụng cốt lõi của họ. Ví, sàn giao dịch, trình khám phá và các giao thức DeFi đều được hưởng lợi từ công việc này.
 
-If this proposal is accepted, users will be able to build event driven Cosmos SDK apps in go by just writing `EventHandler`s for their specific event types and passing them to `EventEmitters` that are defined in the Cosmos SDK.
+Nếu đề xuất này được chấp nhận, người dùng sẽ có thể xây dựng các ứng dụng Cosmos SDK hướng sự kiện bằng go chỉ bằng cách viết `EventHandler` cho các kiểu sự kiện cụ thể của họ và truyền chúng tới `EventEmitter` được định nghĩa trong Cosmos SDK.
 
-The end of this proposal contains a detailed example of how to consume events after this refactor.
+Cuối đề xuất này chứa ví dụ chi tiết về cách tiêu thụ các sự kiện sau khi tái cấu trúc này.
 
-This proposal is specifically about how to consume these events as a client of the blockchain, not for intermodule communication.
+Đề xuất này đặc biệt về cách tiêu thụ các sự kiện này như một client của blockchain, không phải cho giao tiếp liên module.
 
-## Decision
+## Quyết Định
 
-**Step-1**:  Implement additional functionality in the `types` package: `EmitTypedEvent` and `ParseTypedEvent` functions
+**Bước 1**: Triển khai chức năng bổ sung trong gói `types`: hàm `EmitTypedEvent` và `ParseTypedEvent`
 
 ```go
 // types/events.go
 
-// EmitTypedEvent takes typed event and emits converting it into sdk.Event
+// EmitTypedEvent nhận typed event và phát ra chuyển đổi nó thành sdk.Event
 func (em *EventManager) EmitTypedEvent(event proto.Message) error {
 	evtType := proto.MessageName(event)
 	evtJSON, err := codec.ProtoMarshalJSON(event)
@@ -69,7 +69,7 @@ func (em *EventManager) EmitTypedEvent(event proto.Message) error {
 	return nil
 }
 
-// ParseTypedEvent converts abci.Event back to typed event
+// ParseTypedEvent chuyển đổi abci.Event trở lại thành typed event
 func ParseTypedEvent(event abci.Event) (proto.Message, error) {
 	concreteGoType := proto.MessageType(event.Type)
 	if concreteGoType == nil {
@@ -107,17 +107,17 @@ func ParseTypedEvent(event abci.Event) (proto.Message, error) {
 }
 ```
 
-Here, the `EmitTypedEvent` is a method on `EventManager` which takes typed event as input and apply json serialization on it. Then it maps the JSON key/value pairs to `event.Attributes` and emits it in form of `sdk.Event`. `Event.Type` will be the type URL of the proto message.
+Ở đây, `EmitTypedEvent` là một phương thức trên `EventManager` nhận typed event như đầu vào và áp dụng tuần tự hóa json trên nó. Sau đó nó ánh xạ các cặp key/value JSON tới `event.Attributes` và phát ra dưới dạng `sdk.Event`. `Event.Type` sẽ là URL kiểu của proto message.
 
-When we subscribe to emitted events on the CometBFT websocket, they are emitted in the form of an `abci.Event`. `ParseTypedEvent` parses the event back to it's original proto message.
+Khi chúng ta đăng ký các sự kiện được phát ra trên websocket CometBFT, chúng được phát ra dưới dạng `abci.Event`. `ParseTypedEvent` phân tích sự kiện trở lại thành proto message gốc của nó.
 
-**Step-2**: Add proto definitions for typed events for msgs in each module:
+**Bước 2**: Thêm định nghĩa proto cho typed events cho các msg trong mỗi module:
 
-For example, let's take `MsgSubmitProposal` of `gov` module and implement this event's type.
+Ví dụ, hãy lấy `MsgSubmitProposal` của module `gov` và triển khai kiểu của sự kiện này.
 
 ```protobuf
 // proto/cosmos/gov/v1beta1/gov.proto
-// Add typed event definition
+// Thêm định nghĩa typed event
 
 package cosmos.gov.v1beta1;
 
@@ -128,7 +128,7 @@ message EventSubmitProposal {
 }
 ```
 
-**Step-3**: Refactor event emission to use the typed event created and emit using `sdk.EmitTypedEvent`:
+**Bước 3**: Tái cấu trúc phát ra sự kiện để sử dụng typed event đã tạo và phát ra sử dụng `sdk.EmitTypedEvent`:
 
 ```go
 // x/gov/handler.go
@@ -145,41 +145,40 @@ func handleMsgSubmitProposal(ctx sdk.Context, keeper keeper.Keeper, msg types.Ms
 }
 ```
 
-### How to subscribe to these typed events in `Client`
+### Cách Đăng Ký Typed Events trong `Client`
 
-> NOTE: Full code example below
+> LƯU Ý: Xem ví dụ code đầy đủ bên dưới
 
-Users will be able to subscribe using `client.Context.Client.Subscribe` and consume events which are emitted using `EventHandler`s.
+Người dùng có thể đăng ký sử dụng `client.Context.Client.Subscribe` và tiêu thụ các sự kiện được phát ra sử dụng `EventHandler`.
 
-Akash Network has built a simple [`pubsub`](https://github.com/ovrclk/akash/blob/90d258caeb933b611d575355b8df281208a214f8/pubsub/bus.go#L20). This can be used to subscribe to `abci.Events` and [publish](https://github.com/ovrclk/akash/blob/90d258caeb933b611d575355b8df281208a214f8/events/publish.go#L21) them as typed events.
+Akash Network đã xây dựng một [`pubsub`](https://github.com/ovrclk/akash/blob/90d258caeb933b611d575355b8df281208a214f8/pubsub/bus.go#L20) đơn giản. Điều này có thể được sử dụng để đăng ký `abci.Events` và [công bố](https://github.com/ovrclk/akash/blob/90d258caeb933b611d575355b8df281208a214f8/events/publish.go#L21) chúng dưới dạng typed events.
 
-Please see the below code sample for more detail on how this flow looks for clients.
+Vui lòng xem mẫu code bên dưới để biết thêm chi tiết về luồng này trông như thế nào với các client.
 
-## Consequences
+## Hậu Quả
 
-### Positive
+### Tích Cực
 
-* Improves consistency of implementation for the events currently in the Cosmos SDK
-* Provides a much more ergonomic way to handle events and facilitates writing event driven applications
-* This implementation will support a middleware ecosystem of `EventHandler`s
+* Cải thiện tính nhất quán của triển khai cho các sự kiện hiện tại trong Cosmos SDK
+* Cung cấp một cách xử lý sự kiện thuận tiện hơn nhiều và tạo điều kiện cho việc viết các ứng dụng hướng sự kiện
+* Triển khai này sẽ hỗ trợ hệ sinh thái middleware của `EventHandler`
 
-### Negative
+### Tiêu Cực
 
-## Detailed code example of publishing events
+## Ví Dụ Code Chi Tiết về Công Bố Sự Kiện
 
-This ADR also proposes adding affordances to emit and consume these events. This way developers will only need to write
-`EventHandler`s which define the actions they desire to take.
+ADR này cũng đề xuất thêm các phương tiện để phát ra và tiêu thụ các sự kiện này. Theo cách này, các nhà phát triển chỉ cần viết `EventHandler` định nghĩa các hành động họ muốn thực hiện.
 
 ```go
-// EventEmitter is a type that describes event emitter functions
-// This should be defined in `types/events.go`
+// EventEmitter là kiểu mô tả các hàm phát sự kiện
+// Điều này nên được định nghĩa trong `types/events.go`
 type EventEmitter func(context.Context, client.Context, ...EventHandler) error
 
-// EventHandler is a type of function that handles events coming out of the event bus
-// This should be defined in `types/events.go`
+// EventHandler là kiểu hàm xử lý các sự kiện đến từ event bus
+// Điều này nên được định nghĩa trong `types/events.go`
 type EventHandler func(proto.Message) error
 
-// Sample use of the functions below
+// Ví dụ sử dụng các hàm bên dưới
 func main() {
     ctx, cancel := context.WithCancel(context.Background())
 
@@ -191,13 +190,13 @@ func main() {
     return
 }
 
-// SubmitProposalEventHandler is an example of an event handler that prints proposal details
-// when any EventSubmitProposal is emitted.
+// SubmitProposalEventHandler là ví dụ về event handler in thông tin đề xuất
+// khi bất kỳ EventSubmitProposal nào được phát ra.
 func SubmitProposalEventHandler(ev proto.Message) (err error) {
     switch event := ev.(type) {
-    // Handle governance proposal events creation events
+    // Xử lý sự kiện tạo đề xuất quản trị
     case govtypes.EventSubmitProposal:
-        // Users define business logic here e.g.
+        // Người dùng định nghĩa logic nghiệp vụ ở đây vd:
         fmt.Println(ev.FromAddress, ev.ProposalId, ev.Proposal)
         return nil
     default:
@@ -205,11 +204,10 @@ func SubmitProposalEventHandler(ev proto.Message) (err error) {
     }
 }
 
-// TxEmitter is an example of an event emitter that emits just transaction events. This can and
-// should be implemented somewhere in the Cosmos SDK. The Cosmos SDK can include an EventEmitters for tm.event='Tx'
-// and/or tm.event='NewBlock' (the new block events may contain typed events)
+// TxEmitter là ví dụ về event emitter chỉ phát ra các sự kiện giao dịch. Điều này có thể và
+// nên được triển khai ở đâu đó trong Cosmos SDK.
 func TxEmitter(ctx context.Context, cliCtx client.Context, ehs ...EventHandler) (err error) {
-    // Instantiate and start CometBFT RPC client
+    // Khởi tạo và khởi động CometBFT RPC client
     client, err := cliCtx.GetNode()
     if err != nil {
         return err
@@ -219,25 +217,25 @@ func TxEmitter(ctx context.Context, cliCtx client.Context, ehs ...EventHandler) 
         return err
     }
 
-    // Start the pubsub bus
+    // Khởi động pubsub bus
     bus := pubsub.NewBus()
     defer bus.Close()
 
-    // Initialize a new error group
+    // Khởi tạo error group mới
     eg, ctx := errgroup.WithContext(ctx)
 
-    // Publish chain events to the pubsub bus
+    // Công bố các sự kiện chain lên pubsub bus
     eg.Go(func() error {
         return PublishChainTxEvents(ctx, client, bus, simapp.ModuleBasics)
     })
 
-    // Subscribe to the bus events
+    // Đăng ký các sự kiện bus
     subscriber, err := bus.Subscribe()
     if err != nil {
         return err
     }
 
-	// Handle all the events coming out of the bus
+	// Xử lý tất cả sự kiện đến từ bus
 	eg.Go(func() error {
         var err error
         for {
@@ -259,61 +257,9 @@ func TxEmitter(ctx context.Context, cliCtx client.Context, ehs ...EventHandler) 
 
 	return group.Wait()
 }
-
-// PublishChainTxEvents events using cmtclient. Waits on context shutdown signals to exit.
-func PublishChainTxEvents(ctx context.Context, client cmtclient.EventsClient, bus pubsub.Bus, mb module.BasicManager) (err error) {
-    // Subscribe to transaction events
-    txch, err := client.Subscribe(ctx, "txevents", "tm.event='Tx'", 100)
-    if err != nil {
-        return err
-    }
-
-    // Unsubscribe from transaction events on function exit
-    defer func() {
-        err = client.UnsubscribeAll(ctx, "txevents")
-    }()
-
-    // Use errgroup to manage concurrency
-    g, ctx := errgroup.WithContext(ctx)
-
-    // Publish transaction events in a goroutine
-    g.Go(func() error {
-        var err error
-        for {
-            select {
-            case <-ctx.Done():
-                break
-            case ed := <-ch:
-                switch evt := ed.Data.(type) {
-                case cmttypes.EventDataTx:
-                    if !evt.Result.IsOK() {
-                        continue
-                    }
-                    // range over events, parse them using the basic manager and
-                    // send them to the pubsub bus
-                    for _, abciEv := range events {
-                        typedEvent, err := sdk.ParseTypedEvent(abciEv)
-                        if err != nil {
-                            return err
-                        }
-                        if err := bus.Publish(typedEvent); err != nil {
-                            bus.Close()
-                            return
-                        }
-                        continue
-                    }
-                }
-            }
-        }
-        return err
-	})
-
-    // Exit on error or context cancellation
-    return g.Wait()
-}
 ```
 
-## References
+## Tham Khảo
 
-* [Publish Custom Events via a bus](https://github.com/ovrclk/akash/blob/90d258caeb933b611d575355b8df281208a214f8/events/publish.go#L19-L58)
-* [Consuming the events in `Client`](https://github.com/ovrclk/deploy/blob/bf6c633ab6c68f3026df59efd9982d6ca1bf0561/cmd/event-handlers.go#L57)
+* [Công bố Sự kiện Tùy chỉnh qua bus](https://github.com/ovrclk/akash/blob/90d258caeb933b611d575355b8df281208a214f8/events/publish.go#L19-L58)
+* [Tiêu thụ sự kiện trong `Client`](https://github.com/ovrclk/deploy/blob/bf6c633ab6c68f3026df59efd9982d6ca1bf0561/cmd/event-handlers.go#L57)
