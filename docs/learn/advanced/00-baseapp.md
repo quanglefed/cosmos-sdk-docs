@@ -302,7 +302,7 @@ Nhấp vào [đây](../beginner/04-gas-fees.md#antehandler) để biết thêm v
 
 `RunMsgs` được gọi từ `RunTx` với `runTxModeCheck` là tham số để kiểm tra sự tồn tại của route cho mỗi message trong giao dịch, và với `execModeFinalize` để thực sự xử lý các `sdk.Msg`.
 
-Đầu tiên, nó lấy tên kiểu được định danh đầy đủ (fully-qualified type name) của `sdk.Msg` bằng cách kiểm tra `type_url` của Protobuf `Any` đại diện cho `sdk.Msg`. Sau đó, sử dụng [`msgServiceRouter`](#msg-service-router) của ứng dụng, nó kiểm tra sự tồn tại của phương thức `Msg` service liên quan đến `type_url` đó. Tại thời điểm này, nếu `mode == runTxModeCheck`, `RunMsgs` trả về. Ngược lại, nếu `mode == execModeFinalize`, RPC của [`Msg` service](../../build/building-modules/03-msg-services.md) được thực thi, sau đó `RunMsgs` trả về.
+Đầu tiên, nó lấy tên kiểu được định danh đầy đủ (fully-qualified type name) của `sdk.Msg` bằng cách kiểm tra `type_url` của Protobuf `Any` đại diện cho `sdk.Msg`. Sau đó, sử dụng [`msgServiceRouter`](#msg-service-router) của ứng dụng, nó kiểm tra sự tồn tại của phương thức `Msg` service liên quan đến `type_url` đó. Tại thời điểm này, nếu `mode == runTxModeCheck`, `RunMsgs` trả về. Ngược lại, nếu `mode == execModeFinalize`, RPC của [`Msg` service](../../build/building-modules/03-msg-services.md) được thực thi, trước khi `RunMsgs` trả về.
 
 ### PostHandler
 

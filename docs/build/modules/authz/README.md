@@ -6,10 +6,10 @@ sidebar_position: 1
 
 ## Tóm tắt
 
-`x/authz` là một hiện thực module Cosmos SDK theo [ADR 30](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-030-authz-module.md),
+`x/authz` là một triển khai module Cosmos SDK theo [ADR 30](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-030-authz-module.md),
 cho phép cấp (grant) các đặc quyền tuỳ ý từ một tài khoản (granter) sang một tài khoản khác (grantee).
 Authorization phải được cấp cho từng phương thức Msg service (Msg service method) một cách riêng lẻ,
-bằng một hiện thực của interface `Authorization`.
+bằng một triển khai của interface `Authorization`.
 
 ## Nội dung
 
@@ -39,7 +39,7 @@ hành động thay mặt một tài khoản cho tài khoản khác. Thiết kế
 [ADR 030](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-030-authz-module.md).
 
 Một *grant* là một “hạn mức/cho phép” để grantee thực thi một Msg thay mặt granter.
-Authorization là một interface cần được hiện thực bởi logic authorization cụ thể để validate và thực thi grant.
+Authorization là một interface cần được triển khai bởi logic authorization cụ thể để validate và thực thi grant.
 Authorization có thể mở rộng và có thể được định nghĩa cho bất kỳ phương thức Msg service nào, kể cả bên ngoài module nơi phương thức Msg đó được định nghĩa.
 Xem ví dụ `SendAuthorization` ở phần tiếp theo để biết thêm.
 
@@ -55,7 +55,7 @@ Module `x/authz` của Cosmos SDK cung cấp các loại authorization sau:
 
 #### GenericAuthorization
 
-`GenericAuthorization` hiện thực interface `Authorization`, cho phép không hạn chế (unrestricted)
+`GenericAuthorization` triển khai interface `Authorization`, cho phép không hạn chế (unrestricted)
 để thực thi Msg được cung cấp thay mặt tài khoản granter.
 
 ```protobuf reference
@@ -70,7 +70,7 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/x/authz/generic_authorizat
 
 #### SendAuthorization
 
-`SendAuthorization` hiện thực interface `Authorization` cho Msg `cosmos.bank.v1beta1.MsgSend`.
+`SendAuthorization` triển khai interface `Authorization` cho Msg `cosmos.bank.v1beta1.MsgSend`.
 
 * Nhận một `SpendLimit` (dương) chỉ định lượng token tối đa mà grantee có thể chi. `SpendLimit` sẽ được cập nhật khi token được chi.
 * Nhận một `AllowList` (tuỳ chọn) chỉ định grantee có thể gửi token tới các địa chỉ nào.
@@ -88,7 +88,7 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/x/bank/types/send_authoriz
 
 #### StakeAuthorization
 
-`StakeAuthorization` hiện thực interface `Authorization` cho các message trong [module staking](https://docs.cosmos.network/v0.53/build/modules/staking).
+`StakeAuthorization` triển khai interface `Authorization` cho các message trong [module staking](https://docs.cosmos.network/v0.53/build/modules/staking).
 Nó nhận một `AuthorizationType` để chỉ định bạn muốn uỷ quyền cho delegating, undelegating hay redelegating (tức là các hành động này phải được uỷ quyền riêng).
 Nó cũng nhận một `MaxTokens` (tuỳ chọn) để theo dõi giới hạn lượng token có thể delegate/undelegate/redelegate. Nếu để trống thì không giới hạn.
 Ngoài ra, Msg này nhận `AllowList` hoặc `DenyList` để bạn chọn validator nào cho phép hoặc cấm grantee stake cùng.
@@ -106,7 +106,7 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/x/staking/types/authz.go#L
 Để ngăn tấn công DoS, việc cấp `StakeAuthorization` bằng `x/authz` sẽ tốn gas.
 `StakeAuthorization` cho phép bạn uỷ quyền cho tài khoản khác delegate/undelegate/redelegate tới validator.
 Người uỷ quyền có thể định nghĩa danh sách validator cho phép hoặc cấm. Cosmos SDK sẽ lặp qua các danh sách
-và tính 10 gas cho mỗi validator trong mỗi danh sách.
+và tính 10 gas cho mỗi validator trong cả hai danh sách.
 
 Vì state duy trì danh sách cho cặp granter/grantee có cùng expiration, ta phải lặp qua danh sách để xoá grant
 (trong trường hợp revoke một `msgType` cụ thể) và tính 20 gas cho mỗi lần lặp.
@@ -167,7 +167,7 @@ Xử lý message nên thất bại nếu:
 
 * granter và grantee có cùng địa chỉ.
 * `Expiration` được cung cấp nhỏ hơn unix timestamp hiện tại (nhưng nếu không cung cấp `expiration` thì vẫn tạo grant vì `expiration` là tuỳ chọn).
-* `Grant.Authorization` được cung cấp không được hiện thực.
+* `Grant.Authorization` được cung cấp không được triển khai.
 * `Authorization.MsgTypeURL()` không được định nghĩa trong router (không có handler trong app router để xử lý Msg type đó).
 
 ### MsgRevoke
@@ -195,7 +195,7 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-rc1/proto/cosmos/authz/v1beta1
 
 Xử lý message nên thất bại nếu:
 
-* `Authorization` được cung cấp không được hiện thực.
+* `Authorization` được cung cấp không được triển khai.
 * grantee không có quyền chạy giao dịch.
 * authorization được cấp đã hết hạn.
 

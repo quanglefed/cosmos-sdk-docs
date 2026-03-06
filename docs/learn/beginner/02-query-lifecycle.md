@@ -17,7 +17,7 @@ Tài liệu này mô tả vòng đời của một truy vấn trong một ứng 
 
 Một [**truy vấn**](../../build/building-modules/02-messages-and-queries.md#queries) là một yêu cầu thông tin được tạo bởi người dùng cuối của ứng dụng qua giao diện và được xử lý bởi một full-node. Người dùng có thể truy vấn thông tin về mạng lưới, bản thân ứng dụng, và trạng thái ứng dụng trực tiếp từ các store hoặc module của ứng dụng. Lưu ý rằng truy vấn khác với [giao dịch](../advanced/01-transactions.md) (xem vòng đời [tại đây](./01-tx-lifecycle.md)), đặc biệt là chúng không yêu cầu đồng thuận để được xử lý (vì chúng không kích hoạt chuyển đổi trạng thái); chúng có thể được xử lý hoàn toàn bởi một full-node duy nhất.
 
-Để giải thích vòng đời truy vấn, giả sử truy vấn `MyQuery` đang yêu cầu danh sách các ủy quyền (delegation) được thực hiện bởi một địa chỉ delegator nhất định trong ứng dụng tên là `simapp`. Module [`staking`](../../../../x/staking/README.md) xử lý truy vấn này. Nhưng trước tiên, có một vài cách `MyQuery` có thể được tạo bởi người dùng.
+Để giải thích vòng đời truy vấn, giả sử truy vấn `MyQuery` đang yêu cầu danh sách các ủy quyền (delegation) được thực hiện bởi một địa chỉ delegator nhất định trong ứng dụng tên là `simapp`. Module [`staking`](../../../../x/staking/README.md) xử lý truy vấn này. Như mong đợi, có một vài cách `MyQuery` có thể được tạo bởi người dùng.
 
 ### CLI
 

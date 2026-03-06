@@ -97,10 +97,10 @@ và đối tượng state sẽ bị xoá khỏi storage.
 
 Message này gửi coin trực tiếp từ người gửi vào community pool.
 
-::::tip
+:::tip
 Nếu bạn biết địa chỉ module account của `x/protocolpool`, bạn có thể dùng trực tiếp
 giao dịch bank `send` thay thế.
-::::
+:::
 
 ```protobuf reference
 https://github.com/cosmos/cosmos-sdk/blob/release/v0.53.x/proto/cosmos/protocolpool/v1/tx.proto#L43-L53
@@ -150,10 +150,10 @@ Message sẽ thất bại nếu:
 * Tỷ lệ % bằng 0/âm/lớn hơn 1.
 * Thời gian hết hạn nhỏ hơn thời gian block hiện tại.
 
-::::warning
+:::warning
 Nếu tạo hai đề xuất continuous fund cho cùng một địa chỉ, ContinuousFund trước đó
 sẽ bị cập nhật bằng ContinuousFund mới.
-::::
+:::
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/release/v0.53.x/x/protocolpool/keeper/msg_server.go#L103-L166

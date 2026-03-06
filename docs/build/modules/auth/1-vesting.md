@@ -29,7 +29,7 @@ sidebar_position: 1
 
 ## Giới thiệu và yêu cầu
 
-Đặc tả này định nghĩa hiện thực vesting account được dùng bởi Cosmos Hub. Yêu cầu
+Đặc tả này định nghĩa triển khai vesting account được dùng bởi Cosmos Hub. Yêu cầu
 đối với vesting account là: nó được khởi tạo trong genesis với số dư ban đầu `X`
 và thời điểm vesting kết thúc `ET`. Một vesting account có thể được khởi tạo thêm
 với thời điểm bắt đầu vesting `ST` và số lượng kỳ vesting `P`. Nếu có thời điểm bắt
@@ -400,7 +400,7 @@ func UndelegateCoins(to Account, amount Coins) {
 
 ## Keeper & Handler
 
-Các hiện thực `VestingAccount` nằm trong `x/auth`. Tuy nhiên, bất kỳ keeper nào
+Các triển khai `VestingAccount` nằm trong `x/auth`. Tuy nhiên, bất kỳ keeper nào
 trong module (ví dụ staking trong `x/staking`) muốn có thể sử dụng vesting coin
 phải gọi các phương thức rõ ràng trên `x/bank` keeper (ví dụ `DelegateCoins`) thay
 vì `SendCoins` và `SubtractCoins`.

@@ -4,18 +4,18 @@ sidebar_position: 1
 
 # `x/auth/tx`
 
-::::note Tài liệu cần đọc trước
+:::note Tài liệu cần đọc trước
 
 * [Transactions](https://docs.cosmos.network/main/core/transactions#transaction-generation)
 * [Encoding](https://docs.cosmos.network/main/core/encoding#transaction-encoding)
 
-::::
+:::
 
 ## Tóm tắt
 
 Tài liệu này mô tả gói `x/auth/tx` của Cosmos SDK.
 
-Gói này là phần hiện thực trong Cosmos SDK cho các interface `client.TxConfig`,
+Gói này là phần triển khai trong Cosmos SDK cho các interface `client.TxConfig`,
 `client.TxBuilder`, `client.TxEncoder` và `client.TxDecoder`.
 
 ## Nội dung
@@ -54,7 +54,7 @@ https://github.com/cosmos/cosmos-sdk/tree/release/v0.50.x/client/tx_config.go#L3
 ```
 
 Interface [`client.TxBuilder`](https://docs.cosmos.network/main/core/transactions#transaction-generation)
-cũng được `x/auth/tx` hiện thực.
+cũng được `x/auth/tx` triển khai.
 Bạn có thể lấy một `client.TxBuilder` qua `TxConfig.NewTxBuilder()`.
 
 ### `TxEncoder`/ `TxDecoder`

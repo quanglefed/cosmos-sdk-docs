@@ -64,7 +64,7 @@ appd tx send <recipientAddress> 1000uatom --from <senderAddress> --gas auto --ga
 
 #### Các phương thức tạo giao dịch khác
 
-Command-line là cách dễ dàng để tương tác với ứng dụng, nhưng `Tx` cũng có thể được tạo bằng [giao diện gRPC hoặc REST](../advanced/06-grpc_rest.md) hoặc một số điểm vào khác được định nghĩa bởi nhà phát triển ứng dụng.
+Command-line là cách dễ dàng để tương tác với ứng dụng, nhưng `Tx` cũng có thể được tạo bằng [giao diện gRPC hoặc REST](../advanced/06-grpc_rest.md) hoặc một số điểm vào khác được định nghĩa bởi nhà phát triển ứng dụng. Từ góc độ người dùng, tương tác phụ thuộc vào giao diện web hoặc ví họ đang sử dụng (ví dụ: tạo `Tx` bằng [Lunie.io](https://lunie.io/#/) và ký bằng Ledger Nano S).
 
 ## Thêm vào Mempool
 
@@ -110,7 +110,7 @@ Phương thức `ValidateBasic` trên message đã bị lỗi thời thay bằng
 
 Một bản sao của cached context được cung cấp cho `AnteHandler`, thực hiện các kiểm tra giới hạn được chỉ định cho loại giao dịch. Sử dụng bản sao cho phép `AnteHandler` thực hiện các kiểm tra stateful cho `Tx` mà không sửa đổi trạng thái đã commit cuối cùng, và hoàn tác về trạng thái ban đầu nếu thực thi thất bại.
 
-Ví dụ, `AnteHandler` của module [`auth`](https://github.com/cosmos/cosmos-sdk/blob/main/x/auth/README.md) kiểm tra và tăng số sequence, kiểm tra chữ ký và số tài khoản, và khấu trừ phí từ người ký đầu tiên của giao dịch.
+Ví dụ, `AnteHandler` của module [`auth`](https://github.com/cosmos/cosmos-sdk/blob/main/x/auth/README.md) kiểm tra và tăng số sequence, kiểm tra chữ ký và số tài khoản, và khấu trừ phí từ người ký đầu tiên của giao dịch — tất cả thay đổi trạng thái được thực hiện bằng `checkState`.
 
 :::warning
 Ante handler chỉ chạy trên một giao dịch. Nếu một giao dịch nhúng nhiều message (như một số giao dịch x/authz, x/gov chẳng hạn), ante handler chỉ biết về message ngoài. Các message bên trong chủ yếu được định tuyến trực tiếp đến [message router](https://docs.cosmos.network/main/learn/advanced/baseapp#msg-service-router) và sẽ bỏ qua chuỗi ante handler. Hãy ghi nhớ điều này khi thiết kế ante handler của bạn.
@@ -190,7 +190,7 @@ Hàm ABCI `FinalizeBlock` được định nghĩa trong [`BaseApp`](../advanced/
 
 * **Kiểm tra và `AnteHandler`:** Full-node gọi `validateBasicMsgs` và `AnteHandler` một lần nữa. Lần kiểm tra thứ hai này xảy ra vì chúng có thể không đã thấy các giao dịch tương tự trong giai đoạn thêm vào Mempool, và một proposer độc hại có thể đã bao gồm các giao dịch không hợp lệ. Một điểm khác biệt là `AnteHandler` không so sánh `gas-prices` với `min-gas-prices` của node vì giá trị đó là cục bộ cho mỗi node.
 
-* **`MsgServiceRouter`:** Sau khi `CheckTx` thoát, `FinalizeBlock` tiếp tục chạy [`runMsgs`](../advanced/00-baseapp.md#runtx-antehandler-runmsgs-posthandler) để thực thi đầy đủ mỗi `Msg` trong giao dịch. Vì giao dịch có thể có message từ các module khác nhau, `BaseApp` cần biết module nào để tìm handler phù hợp bằng cách dùng `MsgServiceRouter` của `BaseApp`.
+* **`MsgServiceRouter`:** Sau khi `CheckTx` thoát, `FinalizeBlock` tiếp tục chạy [`runMsgs`](../advanced/00-baseapp.md#runtx-antehandler-runmsgs-posthandler) để thực thi đầy đủ mỗi `Msg` trong giao dịch. Vì giao dịch có thể có message từ các module khác nhau, `BaseApp` cần biết module nào để tìm handler phù hợp. Điều này được thực hiện bằng `MsgServiceRouter` của `BaseApp` để message có thể được xử lý bởi Protobuf [`Msg` service](../../build/building-modules/03-msg-services.md) của module. Đối với định tuyến `LegacyMsg`, hàm `Route` được gọi qua [module manager](../../build/building-modules/01-module-manager.md) để lấy tên route và tìm legacy [`Handler`](../../build/building-modules/03-msg-services.md#handler-type) trong module.
 
 * **`Msg` service:** Protobuf `Msg` service chịu trách nhiệm thực thi mỗi message trong `Tx` và gây ra các chuyển đổi trạng thái được lưu trong `finalizeBlockState`.
 
@@ -206,6 +206,6 @@ Bước cuối cùng là các node commit block và thay đổi trạng thái. C
 
 Khi nhận đủ phiếu validator (2/3+ _precommit_ được tính theo voting power), các full-node commit vào một block mới để thêm vào blockchain và hoàn thiện các chuyển đổi trạng thái trong lớp ứng dụng. Một state root mới được tạo ra để phục vụ như bằng chứng merkle cho các chuyển đổi trạng thái. Ứng dụng sử dụng phương thức ABCI [`Commit`](../advanced/00-baseapp.md#commit) kế thừa từ [Baseapp](../advanced/00-baseapp.md); nó đồng bộ tất cả các chuyển đổi trạng thái bằng cách ghi `deliverState` vào trạng thái nội bộ của ứng dụng. Ngay khi các thay đổi trạng thái được commit, `checkState` bắt đầu lại từ trạng thái đã commit gần đây nhất và `deliverState` được reset về `nil`.
 
-Lưu ý rằng không phải tất cả block đều có cùng số lượng giao dịch và đồng thuận có thể dẫn đến block `nil` hoặc block không có giao dịch. Trong một mạng blockchain công khai, các validator cũng có thể **byzantine** — tức là độc hại — điều này có thể ngăn `Tx` được commit vào blockchain.
+Lưu ý rằng không phải tất cả block đều có cùng số lượng giao dịch và đồng thuận có thể dẫn đến block `nil` hoặc block không có giao dịch. Trong một mạng blockchain công khai, các validator cũng có thể **byzantine** — tức là độc hại — điều này có thể ngăn `Tx` được commit vào blockchain. Các hành vi độc hại có thể bao gồm proposer quyết định kiểm duyệt `Tx` bằng cách loại trừ nó khỏi block hoặc validator bỏ phiếu chống lại block.
 
 Tại đây, vòng đời giao dịch của `Tx` đã hoàn tất: các node đã xác minh tính hợp lệ của nó, thực thi bằng cách thực hiện các thay đổi trạng thái của nó, và commit các thay đổi đó. Bản thân `Tx`, ở dạng `[]byte`, được lưu trong một block và được nối thêm vào blockchain.

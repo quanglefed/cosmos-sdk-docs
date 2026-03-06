@@ -230,7 +230,7 @@ Nếu các module không chứa bất kỳ interface nào (ví dụ: `Account` h
 
 Tuy nhiên, nếu kiểu của module chứa một interface, nó phải bọc nó trong kiểu `sdk.Any` (từ package `/types`). Để làm điều đó, file `.proto` cấp module phải dùng [`google.protobuf.Any`](https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/any.proto) cho các kiểu interface message tương ứng.
 
-Ví dụ, trong module `x/evidence` định nghĩa một interface `Evidence`, được dùng bởi `MsgSubmitEvidence`. Định nghĩa cấu trúc phải dùng `sdk.Any` để bọc file evidence. Trong file proto, chúng tôi định nghĩa như sau:
+Ví dụ, trong module `x/evidence` định nghĩa một interface `Evidence`, được dùng bởi `MsgSubmitEvidence`. Định nghĩa cấu trúc phải dùng `sdk.Any` để bọc evidence (đối tượng bằng chứng). Trong file proto, chúng tôi định nghĩa như sau:
 
 ```protobuf
 // proto/cosmos/evidence/v1beta1/tx.proto

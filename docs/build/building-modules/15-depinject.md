@@ -77,7 +77,7 @@ Tất cả các phương thức, struct và các trường của chúng phải l
     https://github.com/cosmos/cosmos-sdk/blob/v0.47.0/x/group/module/module.go#L58-L64
     ```
 
-3. Định nghĩa một struct kế thừa `depinject.In` và định nghĩa các đầu vào của module (tức là các phụ thuộc của module):
+3. Định nghĩa một struct nhúng `depinject.In` và định nghĩa các đầu vào của module (tức là các phụ thuộc của module):
    * `depinject` cung cấp các phụ thuộc đúng cho module.
    * `depinject` cũng kiểm tra rằng tất cả các phụ thuộc được cung cấp.
 
@@ -89,7 +89,7 @@ Tất cả các phương thức, struct và các trường của chúng phải l
     https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/group/module/module.go#L201-L211
     ```
 
-4. Định nghĩa các đầu ra của module với một struct public kế thừa `depinject.Out`: Các đầu ra của module là các phụ thuộc mà module cung cấp cho các module khác. Thường là bản thân module và keeper của nó.
+4. Định nghĩa các đầu ra của module với một struct public nhúng `depinject.Out`: Các đầu ra của module là các phụ thuộc mà module cung cấp cho các module khác. Thường là bản thân module và keeper của nó.
 
     ```go reference
     https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/group/module/module.go#L213-L218

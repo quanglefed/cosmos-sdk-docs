@@ -63,7 +63,7 @@ type QueryServer interface {
 }
 ```
 
-Các truy vấn tùy chỉnh cho module của chúng ta được triển khai bằng cách hiện thực interface này.
+Các truy vấn tùy chỉnh cho module của chúng ta được triển khai bằng cách triển khai interface này.
 
 Tham số đầu tiên trong interface được tạo ra này là `context.Context` chung, trong khi các phương thức querier thường cần một thể hiện của `sdk.Context` để đọc từ store. Vì các giá trị tùy ý có thể được gắn vào `context.Context` sử dụng các phương thức `WithValue` và `Value`, Cosmos SDK nên cung cấp hàm `sdk.UnwrapSDKContext` để lấy `sdk.Context` từ `context.Context` được cung cấp.
 

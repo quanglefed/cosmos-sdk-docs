@@ -27,13 +27,13 @@ https://github.com/cosmos/cosmos-sdk/blob/x/circuit/v0.1.0/x/circuit/ante/circui
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.1/baseapp/msg_service_router.go#L104-L115
 ``` 
 
-::::note
+:::note
 `CircuitBreakerDecorator` hoạt động cho phần lớn use-case, nhưng [không kiểm tra các message “bên trong” của một giao dịch](https://docs.cosmos.network/main/learn/beginner/tx-lifecycle#antehandler).
 Điều này nghĩa là một số giao dịch (như giao dịch `x/authz` hoặc một số giao dịch `x/gov`) có thể vượt qua ante handler.
 **Điều này không ảnh hưởng tới circuit breaker** vì kiểm tra ở message router vẫn sẽ làm giao dịch thất bại.
 Đánh đổi này nhằm tránh đưa thêm phụ thuộc (dependency) vào module `x/circuit`.
 Các chain có thể định nghĩa lại `CircuitBreakerDecorator` để kiểm tra inner message nếu muốn.
-::::
+:::
 
 ## State
 

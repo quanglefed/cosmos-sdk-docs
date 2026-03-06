@@ -77,7 +77,7 @@ của primary key.
 ### ParamSet
 
 Các module thường định nghĩa tham số như một proto message. Struct được generate
-có thể hiện thực interface `ParamSet` để dùng với các phương thức sau:
+có thể triển khai interface `ParamSet` để dùng với các phương thức sau:
 
 * `KeyTable.RegisterParamSet()`: đăng ký tất cả tham số trong struct
 * `Subspace.{Get, Set}ParamSet()`: lấy/đặt tham số từ struct

@@ -6,11 +6,11 @@ sidebar_position: 1
 
 ⚠️ **DEPRECATED**: Gói này đã bị deprecate và sẽ bị loại bỏ trong bản phát hành major tiếp theo. Module `x/nft` sẽ được chuyển sang repo riêng `github.com/cosmos/cosmos-sdk-legacy`.
 
-## Nội dung
-
 ## Tóm tắt
 
-`x/nft` là một hiện thực module Cosmos SDK theo [ADR 43](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-043-nft-module.md), cho phép bạn tạo phân loại NFT (nft classification), tạo NFT, chuyển NFT, cập nhật NFT, và hỗ trợ nhiều truy vấn khác nhau bằng cách tích hợp module. Module tương thích hoàn toàn với đặc tả ERC721.
+`x/nft` là một triển khai module Cosmos SDK theo [ADR 43](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-043-nft-module.md), cho phép bạn tạo phân loại NFT (nft classification), tạo NFT, chuyển NFT, cập nhật NFT, và hỗ trợ nhiều truy vấn khác nhau bằng cách tích hợp module. Module tương thích hoàn toàn với đặc tả ERC721.
+
+## Nội dung
 
 * [Khái niệm](#khái-niệm)
   * [Class](#class)
@@ -36,7 +36,7 @@ ERC721 trên Ethereum. Thiết kế được định nghĩa trong [ADR 043](http
 ### NFT
 
 Tên đầy đủ của NFT là Non-Fungible Tokens. Do tính không thể thay thế của NFT,
-nó có thể được dùng để đại diện cho các vật/thực thể độc nhất. NFT được hiện thực
+nó có thể được dùng để đại diện cho các vật/thực thể độc nhất. NFT được triển khai
 bởi module này tương thích hoàn toàn với chuẩn ERC721 của Ethereum.
 
 ## State
@@ -60,7 +60,7 @@ Các chain dùng `x/nft` có thể tuỳ biến bằng cách mở rộng trườ
 
 ### NFTOfClassByOwner
 
-NFTOfClassByOwner chủ yếu nhằm hiện thực truy vấn tất cả NFT theo classID và owner,
+NFTOfClassByOwner chủ yếu nhằm triển khai truy vấn tất cả NFT theo classID và owner,
 không có chức năng dư thừa khác.
 
 * NFTOfClassByOwner: `0x03 | owner | 0x00 | classID | 0x00 | nftID |-> 0x01`
@@ -84,16 +84,16 @@ Khi mint, supply tăng 1; khi burn, supply giảm 1.
 
 Phần này mô tả xử lý message cho module NFT.
 
-::::warning
+:::warning
 Việc validate `ClassID` và `NftID` để lại cho app developer.
 SDK không cung cấp bất kỳ validate nào cho các field này.
-::::
+:::
 
 ### MsgSend
 
 Bạn có thể dùng message `MsgSend` để chuyển quyền sở hữu NFT. Đây là chức năng do
 module `x/nft` cung cấp. Tất nhiên, bạn có thể dùng phương thức `Transfer` để tự
-hiện thực logic chuyển nhượng của riêng mình, nhưng bạn cần chú ý thêm về quyền
+triển khai logic chuyển nhượng của riêng mình, nhưng bạn cần chú ý thêm về quyền
 chuyển nhượng (transfer permissions).
 
 Xử lý message sẽ thất bại nếu:

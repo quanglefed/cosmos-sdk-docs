@@ -224,7 +224,7 @@ https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/store/cachekv/store.go#L26-L36
 
 ### `GasKv` Store
 
-Các ứng dụng Cosmos SDK sử dụng [`gas`](../beginner/04-gas-fees.md) để theo dõi mức sử dụng tài nguyên và ngăn chặn spam. [`GasKv.Store`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/store/gaskv/store.go) là một `KVStore` wrapper cho phép tự động tiêu thụ gas mỗi khi có thao tác đọc hoặc ghi vào store. Đây là giải pháp ưu tiên để theo dõi mức sử dụng bộ nhớ trong các ứng dụng Cosmos SDK.
+Các ứng dụng Cosmos SDK sử dụng [`gas`](../beginner/04-gas-fees.md) để theo dõi mức sử dụng tài nguyên và ngăn chặn spam. [`GasKv.Store`](https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/store/gaskv/store.go) là một `KVStore` wrapper cho phép tự động tiêu thụ gas mỗi khi có thao tác đọc hoặc ghi vào store. Đây là giải pháp ưu tiên để theo dõi mức sử dụng lưu trữ trong các ứng dụng Cosmos SDK.
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.53.0/store/gaskv/store.go#L11-L17

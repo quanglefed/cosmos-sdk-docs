@@ -17,7 +17,7 @@ sidebar_position: 1
 
 ## Tóm tắt
 
-`x/evidence` là một hiện thực module Cosmos SDK theo [ADR 009](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-009-evidence-module.md),
+`x/evidence` là một triển khai module Cosmos SDK theo [ADR 009](https://github.com/cosmos/cosmos-sdk/blob/main/docs/architecture/adr-009-evidence-module.md),
 cho phép gửi (submission) và xử lý các loại evidence tuỳ ý về hành vi sai trái
 (misbehavior) như equivocation và counterfactual signing.
 
@@ -25,7 +25,7 @@ Module evidence khác với cách xử lý evidence “chuẩn” vốn thườn
 engine bên dưới (ví dụ CometBFT) tự động submit evidence khi nó được phát hiện,
 bằng việc cho phép client và các chain bên ngoài submit evidence phức tạp hơn trực tiếp.
 
-Mọi kiểu evidence cụ thể (concrete evidence type) phải hiện thực interface `Evidence`.
+Mọi kiểu evidence cụ thể (concrete evidence type) phải triển khai interface `Evidence`.
 `Evidence` được submit trước tiên sẽ được route qua `Router` của module evidence, nơi nó
 cố gắng tìm `Handler` tương ứng đã được đăng ký cho kiểu `Evidence` cụ thể đó.
 Mỗi kiểu `Evidence` phải có một `Handler` được đăng ký trong keeper của module evidence

@@ -21,7 +21,7 @@ Mỗi module nên định nghĩa một Protobuf `Msg` service, chịu trách nhi
 
 Như được mô tả thêm trong [ADR 031](../../../architecture/adr-031-msg-service.md), cách tiếp cận này có ưu điểm là chỉ định rõ ràng các kiểu trả về và tạo mã server và client.
 
-Protobuf tạo ra một interface `MsgServer` dựa trên định nghĩa của `Msg` service. Vai trò của nhà phát triển module là triển khai interface này, bằng cách triển khai logic chuyển đổi trạng thái phải xảy ra khi nhận mỗi `sdk.Msg`. Ví dụ, đây là interface `MsgServer` được tạo ra cho `x/bank`, hiển thị hai `sdk.Msg`:
+Protobuf tạo ra một interface `MsgServer` dựa trên định nghĩa của `Msg` service. Vai trò của nhà phát triển module là triển khai interface này, bằng cách triển khai logic chuyển đổi trạng thái phải xảy ra khi nhận mỗi `sdk.Msg`. Ví dụ, đây là interface `MsgServer` được tạo ra cho `x/bank`, cung cấp hai `sdk.Msg`:
 
 ```go reference
 https://github.com/cosmos/cosmos-sdk/blob/v0.50.0-alpha.0/x/bank/types/tx.pb.go#L550-L568

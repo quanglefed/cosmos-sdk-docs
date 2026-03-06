@@ -6,7 +6,7 @@ sidebar_position: 1
 
 ## Tóm tắt
 
-`x/upgrade` là một hiện thực module Cosmos SDK giúp nâng cấp một chain Cosmos đang chạy
+`x/upgrade` là một triển khai module Cosmos SDK giúp nâng cấp một chain Cosmos đang chạy
 “mượt” (smoothly) sang một phiên bản phần mềm mới (có thể breaking). Module làm điều
 này bằng cách cung cấp hook `PreBlocker` để ngăn state machine của blockchain tiếp tục
 chạy khi đã đạt tới một block height nâng cấp được định nghĩa trước.
@@ -494,7 +494,7 @@ cosmos.upgrade.v1beta1.Query/CurrentPlan
 Ví dụ:
 
 ```bash
-grpcurl -plaintext localhost:9090 cosmos.slashing.v1beta1.Query/CurrentPlan
+grpcurl -plaintext localhost:9090 cosmos.upgrade.v1beta1.Query/CurrentPlan
 ```
 
 Ví dụ output:
@@ -516,7 +516,7 @@ cosmos.upgrade.v1beta1.Query/ModuleVersions
 Ví dụ:
 
 ```bash
-grpcurl -plaintext localhost:9090 cosmos.slashing.v1beta1.Query/ModuleVersions
+grpcurl -plaintext localhost:9090 cosmos.upgrade.v1beta1.Query/ModuleVersions
 ```
 
 Ví dụ output:

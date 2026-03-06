@@ -37,7 +37,7 @@ Grantee có thể thực thi bất kỳ giao dịch nào mà không cần duy tr
 `grantee` và loại `allowance` được cấp. `granter` là địa chỉ tài khoản cấp quyền cho `grantee`
 (địa chỉ tài khoản thụ hưởng) để trả một phần hoặc toàn bộ phí giao dịch của `grantee` bằng tài
 khoản của `granter`. `allowance` định nghĩa loại hạn mức trả phí (`BasicAllowance` hoặc `PeriodicAllowance`,
-xem bên dưới) được cấp cho `grantee`. `allowance` nhận một interface hiện thực `FeeAllowanceI`,
+xem bên dưới) được cấp cho `grantee`. `allowance` nhận một interface triển khai `FeeAllowanceI`,
 được encode dưới dạng `Any`. Mỗi cặp `granter`/`grantee` chỉ có thể có một fee grant; không cho phép self grant.
 
 ```protobuf reference
