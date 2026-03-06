@@ -76,7 +76,7 @@ Module crisis phát ra các event sau:
 
 Module crisis có các tham số sau:
 
-| Key         | Type          | Example                           |
+| Key         | Type          | Ví dụ                             |
 |-------------|---------------|-----------------------------------|
 | ConstantFee | object (coin) | {"denom":"uatom","amount":"1000"} |
 

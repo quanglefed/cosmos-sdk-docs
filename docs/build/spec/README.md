@@ -2,24 +2,21 @@
 sidebar_position: 1
 ---
 
-# Specifications
+# Đặc tả kỹ thuật
 
-This directory contains specifications for the modules of the Cosmos SDK as well as Interchain Standards (ICS) and other specifications.
+Thư mục này chứa các đặc tả kỹ thuật cho các module của Cosmos SDK cũng như Interchain Standards (ICS) và các đặc tả khác.
 
-Cosmos SDK applications hold this state in a Merkle store. Updates to
-the store may be made during transactions and at the beginning and end of every
-block.
+Ứng dụng Cosmos SDK lưu trữ state này trong Merkle store. Các cập nhật store có thể được thực hiện trong các giao dịch và ở đầu cũng như cuối mỗi block.
 
-## Cosmos SDK specifications
+## Đặc tả Cosmos SDK
 
-* [Store](./store) - The core Merkle store that holds the state.
-* [Bech32](./addresses/bech32.md) - Address format for Cosmos SDK applications.
+* [Store](./store) - Merkle store cốt lõi chứa state.
+* [Bech32](./addresses/bech32.md) - Định dạng địa chỉ cho ứng dụng Cosmos SDK.
 
-## Modules specifications
+## Đặc tả module
 
-Go to the [module directory](https://docs.cosmos.network/main/modules)
+Đi tới [thư mục module](https://docs.cosmos.network/main/modules)
 
 ## CometBFT
 
-For details on the underlying blockchain and p2p protocols, see
-the [CometBFT specification](https://github.com/cometbft/cometbft/tree/main/spec).
+Để biết chi tiết về blockchain và giao thức p2p cơ bản, xem [đặc tả CometBFT](https://github.com/cometbft/cometbft/tree/main/spec).

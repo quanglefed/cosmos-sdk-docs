@@ -27,11 +27,11 @@ tỷ lệ phân phối phần thưởng thì việc rút phần thưởng cũng 
 
 Các tình huống trên được mô tả trong `hooks.md`.
 
-Cơ chế phân phối được mô tả ở đây được sử dụng để phân phối lười biếng các phần thưởng
+Cơ chế phân phối được mô tả ở đây được sử dụng để phân phối thụ động các phần thưởng
 sau giữa các validator và delegator liên kết:
 
-* phí đa token để phân phối xã hội
-* cung cấp tài sản stake bị lạm phát
+* phí đa token dùng cho phân phối xã hội
+* cung ứng lạm phát của tài sản stake
 * hoa hồng validator trên tất cả phần thưởng kiếm được từ stake của delegator
 
 Phí được gom trong một pool toàn cục. Các cơ chế sử dụng cho phép validator và delegator
@@ -59,16 +59,16 @@ sau sự kiện này, làm tăng giá trị _accum_ hiện có của bạn. Xem 
 
 ## Ảnh hưởng đến Staking
 
-Thu hoa hồng trên cung cấp Atom trong khi cũng cho phép cung cấp Atom được auto-bonded
+Thu hoa hồng trên cung ứng Atom trong khi cũng cho phép cung ứng Atom được auto-bonded
 (phân phối trực tiếp vào stake bonded của validator) là có vấn đề trong BPoS. Về cơ bản,
 hai cơ chế này loại trừ lẫn nhau. Nếu cả cơ chế hoa hồng và auto-bonding được áp dụng
 đồng thời cho staking-token thì việc phân phối staking-token giữa bất kỳ validator và
 delegator của nó sẽ thay đổi mỗi block. Điều này đòi hỏi phải tính toán cho mỗi bản ghi
 delegation cho mỗi block - được coi là tốn kém về mặt tính toán.
 
-Kết luận, chúng ta chỉ có thể có hoa hồng Atom và cung cấp atom unbonded hoặc cung cấp
+Kết luận, chúng ta chỉ có thể có hoa hồng Atom và cung ứng atom unbonded hoặc cung ứng
 atom bonded mà không có hoa hồng Atom, và chúng ta chọn triển khai phương án trước.
-Các bên liên quan muốn rebond phần cung cấp của họ có thể thiết lập script để định kỳ
+Các bên liên quan muốn rebond phần cung ứng của họ có thể thiết lập script để định kỳ
 rút và rebond phần thưởng.
 
 ## Nội dung

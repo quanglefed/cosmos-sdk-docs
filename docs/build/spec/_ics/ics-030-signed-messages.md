@@ -3,67 +3,45 @@
 >TODO: Replace with valid ICS number and possibly move to new location.
 
 * [Changelog](#changelog)
-* [Abstract](#abstract)
-* [Preliminary](#preliminary)
-* [Specification](#specification)
-* [Future Adaptations](#future-adaptations)
+* [Tóm tắt](#abstract)
+* [Sơ bộ](#preliminary)
+* [Đặc tả](#specification)
+* [Các thích ứng tương lai](#future-adaptations)
 * [API](#api)
-* [References](#references)  
+* [Tài liệu tham khảo](#references)
 
-## Status
+## Trạng thái
 
-Proposed.
+Đề xuất.
 
 ## Changelog
 
-## Abstract
+## Tóm tắt {#abstract}
 
-Having the ability to sign messages off-chain has proven to be a fundamental aspect
-of nearly any blockchain. The notion of signing messages off-chain has many
-added benefits such as saving on computational costs and reducing transaction
-throughput and overhead. Within the context of the Cosmos, some of the major
-applications of signing such data includes, but is not limited to, providing a
-cryptographic secure and verifiable means of proving validator identity and
-possibly associating it with some other framework or organization. In addition,
-having the ability to sign Cosmos messages with a Ledger or similar HSM device.
+Khả năng ký thông điệp off-chain đã chứng minh là một khía cạnh cơ bản của hầu hết mọi blockchain. Việc ký thông điệp off-chain mang lại nhiều lợi ích như tiết kiệm chi phí tính toán và giảm thông lượng giao dịch cũng như chi phí phụ. Trong bối cảnh Cosmos, một số ứng dụng chính của việc ký dữ liệu như vậy bao gồm, nhưng không giới hạn ở, cung cấp phương tiện mật mã an toàn và có thể xác minh để chứng minh danh tính validator và có thể liên kết nó với một framework hoặc tổ chức khác. Ngoài ra, khả năng ký thông điệp Cosmos bằng Ledger hoặc thiết bị HSM tương tự.
 
-A standardized protocol for hashing, signing, and verifying messages that can be
-implemented by the Cosmos SDK and other third-party organizations is needed. Such a
-standardized protocol subscribes to the following:
+Một giao thức chuẩn hóa cho việc băm, ký và xác minh thông điệp mà có thể được triển khai bởi Cosmos SDK và các tổ chức bên thứ ba khác là cần thiết. Giao thức chuẩn hóa như vậy tuân theo các điều sau:
 
-* Contains a specification of human-readable and machine-verifiable typed structured data
-* Contains a framework for deterministic and injective encoding of structured data
-* Utilizes cryptographic secure hashing and signing algorithms
-* A framework for supporting extensions and domain separation
-* Is invulnerable to chosen ciphertext attacks
-* Has protection against potentially signing transactions a user did not intend to
+* Chứa đặc tả của dữ liệu có cấu trúc có kiểu có thể đọc được bởi con người và có thể xác minh bởi máy
+* Chứa framework cho việc mã hóa dữ liệu có cấu trúc mang tính xác định và đơn ánh
+* Sử dụng các thuật toán băm và ký mật mã an toàn
+* Framework hỗ trợ mở rộng và tách biệt miền
+* Không dễ bị tấn công bởi chosen ciphertext attacks
+* Có bảo vệ chống lại việc ký các giao dịch mà người dùng không có ý định
 
-This specification is only concerned with the rationale and the standardized
-implementation of Cosmos signed messages. It does **not** concern itself with the
-concept of replay attacks as that will be left up to the higher-level application
-implementation. If you view signed messages in the means of authorizing some
-action or data, then such an application would have to either treat this as
-idempotent or have mechanisms in place to reject known signed messages.
+Đặc tả này chỉ quan tâm đến lý do và triển khai chuẩn hóa của Cosmos signed messages. Nó **không** quan tâm đến khái niệm replay attacks vì điều đó sẽ được để cho triển khai ứng dụng cấp cao hơn xử lý. Nếu bạn xem signed messages như phương tiện để ủy quyền một hành động hoặc dữ liệu nào đó, thì ứng dụng đó sẽ phải coi đây là idempotent hoặc có cơ chế để từ chối các signed messages đã biết.
 
-## Preliminary
+## Sơ bộ {#preliminary}
 
-The Cosmos message signing protocol will be parameterized with a cryptographic
-secure hashing algorithm `SHA-256` and a signing algorithm `S` that contains
-the operations `sign` and `verify` which provide a digital signature over a set
-of bytes and verification of a signature respectively.
+Giao thức ký thông điệp Cosmos sẽ được tham số hóa với thuật toán băm mật mã an toàn `SHA-256` và thuật toán ký `S` chứa các thao tác `sign` và `verify` cung cấp chữ ký số trên một tập byte và xác minh chữ ký tương ứng.
 
-Note, our goal here is not to provide context and reasoning about why necessarily
-these algorithms were chosen apart from the fact they are the defacto algorithms
-used in CometBFT and the Cosmos SDK and that they satisfy our needs for such
-cryptographic algorithms such as having resistance to collision and second
-pre-image attacks, as well as being [deterministic](https://en.wikipedia.org/wiki/Hash_function#Determinism) and [uniform](https://en.wikipedia.org/wiki/Hash_function#Uniformity).
+Lưu ý, mục tiêu của chúng ta ở đây không phải cung cấp ngữ cảnh và lý do về việc tại sao các thuật toán này được chọn ngoài thực tế chúng là các thuật toán de facto được sử dụng trong CometBFT và Cosmos SDK và chúng đáp ứng nhu cầu của chúng ta về các thuật toán mật mã như khả năng chống collision và second pre-image attacks, cũng như [deterministic](https://en.wikipedia.org/wiki/Hash_function#Determinism) và [uniform](https://en.wikipedia.org/wiki/Hash_function#Uniformity).
 
-## Specification
+## Đặc tả {#specification}
 
-CometBFT has a well established protocol for signing messages using a canonical
-JSON representation as defined [here](https://github.com/cometbft/cometbft/blob/master/types/canonical.go).
+CometBFT có giao thức được thiết lập tốt cho việc ký thông điệp sử dụng biểu diễn JSON chuẩn như được định nghĩa [tại đây](https://github.com/cometbft/cometbft/blob/master/types/canonical.go).
 
-An example of such a canonical JSON structure is CometBFT's vote structure:
+Một ví dụ về cấu trúc JSON chuẩn như vậy là cấu trúc vote của CometBFT:
 
 ```go
 type CanonicalJSONVote struct {
@@ -77,22 +55,11 @@ type CanonicalJSONVote struct {
 }
 ```
 
-With such canonical JSON structures, the specification requires that they include
-meta fields: `@chain_id` and `@type`. These meta fields are reserved and must be
-included. They are both of type `string`. In addition, fields must be ordered
-in lexicographically ascending order.
+Với các cấu trúc JSON chuẩn như vậy, đặc tả yêu cầu chúng bao gồm các trường meta: `@chain_id` và `@type`. Các trường meta này được dành riêng và phải được bao gồm. Cả hai đều có kiểu `string`. Ngoài ra, các trường phải được sắp xếp theo thứ tự từ điển tăng dần.
 
-For the purposes of signing Cosmos messages, the `@chain_id` field must correspond
-to the Cosmos chain identifier. The user-agent should **refuse** signing if the
-`@chain_id` field does not match the currently active chain! The `@type` field
-must equal the constant `"message"`. The `@type` field corresponds to the type of
-structure the user will be signing in an application. For now, a user is only
-allowed to sign bytes of valid ASCII text ([see here](https://github.com/cometbft/cometbft/blob/v0.37.0/libs/strings/string.go#L35-L64)).
-However, this will change and evolve to support additional application-specific
-structures that are human-readable and machine-verifiable ([see Future Adaptations](#future-adaptations)).
+Để ký thông điệp Cosmos, trường `@chain_id` phải tương ứng với định danh chuỗi Cosmos. User-agent **phải từ chối** ký nếu trường `@chain_id` không khớp với chuỗi đang hoạt động! Trường `@type` phải bằng hằng số `"message"`. Trường `@type` tương ứng với loại cấu trúc mà người dùng sẽ ký trong một ứng dụng. Hiện tại, người dùng chỉ được phép ký các byte văn bản ASCII hợp lệ ([xem tại đây](https://github.com/cometbft/cometbft/blob/v0.37.0/libs/strings/string.go#L35-L64)). Tuy nhiên, điều này sẽ thay đổi và phát triển để hỗ trợ các cấu trúc cụ thể ứng dụng bổ sung có thể đọc được bởi con người và có thể xác minh bởi máy ([xem Các thích ứng tương lai](#future-adaptations)).
 
-Thus, we can have a canonical JSON structure for signing Cosmos messages using
-the [JSON schema](http://json-schema.org/) specification as such:
+Do đó, chúng ta có thể có cấu trúc JSON chuẩn cho việc ký thông điệp Cosmos sử dụng đặc tả [JSON schema](http://json-schema.org/) như sau:
 
 ```json
 {
@@ -128,7 +95,7 @@ the [JSON schema](http://json-schema.org/) specification as such:
 }
 ```
 
-e.g.
+ví dụ:
 
 ```json
 {
@@ -138,45 +105,38 @@ e.g.
 }
 ```
 
-## Future Adaptations
+## Các thích ứng tương lai {#future-adaptations}
 
-As applications can vary greatly in domain, it will be vital to support both
-domain separation and human-readable and machine-verifiable structures.
+Vì các ứng dụng có thể rất khác nhau về miền, việc hỗ trợ cả tách biệt miền và các cấu trúc có thể đọc được bởi con người và có thể xác minh bởi máy sẽ rất quan trọng.
 
-Domain separation will allow for application developers to prevent collisions of
-otherwise identical structures. It should be designed to be unique per application
-use and should directly be used in the signature encoding itself.
+Tách biệt miền sẽ cho phép các nhà phát triển ứng dụng ngăn chặn va chạm của các cấu trúc giống hệt nhau. Nó nên được thiết kế để duy nhất cho mỗi ứng dụng và nên được sử dụng trực tiếp trong chính việc mã hóa chữ ký.
 
-Human-readable and machine-verifiable structures will allow end users to sign
-more complex structures, apart from just string messages, and still be able to
-know exactly what they are signing (opposed to signing a bunch of arbitrary bytes).
+Các cấu trúc có thể đọc được bởi con người và có thể xác minh bởi máy sẽ cho phép người dùng cuối ký các cấu trúc phức tạp hơn, ngoài chỉ thông điệp chuỗi, và vẫn có thể biết chính xác họ đang ký gì (thay vì ký một đống byte tùy ý).
 
-Thus, in the future, the Cosmos signing message specification will be expected
-to expand upon it's canonical JSON structure to include such functionality.
+Do đó, trong tương lai, đặc tả Cosmos signing message dự kiến sẽ mở rộng cấu trúc JSON chuẩn của nó để bao gồm chức năng như vậy.
 
-## API
+## API {#api}
 
-Application developers and designers should formalize a standard set of APIs that
-adhere to the following specification:
+Các nhà phát triển và thiết kế ứng dụng nên chính thức hóa một tập API chuẩn tuân theo đặc tả sau:
 
 -----
 
 ### **cosmosSignBytes**
 
-Params:
+Tham số:
 
-* `data`: the Cosmos signed message canonical JSON structure
-* `address`: the Bech32 Cosmos account address to sign data with
+* `data`: cấu trúc JSON chuẩn Cosmos signed message
+* `address`: địa chỉ tài khoản Cosmos Bech32 để ký dữ liệu
 
-Returns:
+Trả về:
 
-* `signature`: the Cosmos signature derived using signing algorithm `S`
+* `signature`: chữ ký Cosmos được tạo ra bằng thuật toán ký `S`
 
 -----
 
-### Examples
+### Ví dụ
 
-Using the `secp256k1` as the DSA, `S`:
+Sử dụng `secp256k1` làm DSA, `S`:
 
 ```javascript
 data = {
@@ -189,4 +149,4 @@ cosmosSignBytes(data, "cosmos1pvsch6cddahhrn5e8ekw0us50dpnugwnlfngt3")
 > "0x7fc4a495473045022100dec81a9820df0102381cdbf7e8b0f1e2cb64c58e0ecda1324543742e0388e41a02200df37905a6505c1b56a404e23b7473d2c0bc5bcda96771d2dda59df6ed2b98f8"
 ```
 
-## References
+## Tài liệu tham khảo {#references}

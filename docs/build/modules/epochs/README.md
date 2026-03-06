@@ -18,9 +18,9 @@ hiệu khi các sự kiện như vậy xảy ra.
 1. **[Khái niệm](#khái-niệm)**
 2. **[State](#state)**
 3. **[Events](#events)**
-4. **[Keeper](#keeper)**
+4. **[Keepers](#keeper)**
 5. **[Hooks](#hooks)**
-6. **[Query](#query)**
+6. **[Queries](#query)**
 
 ## Khái niệm
 

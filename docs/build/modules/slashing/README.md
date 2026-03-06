@@ -673,7 +673,7 @@ Ví dụ output:
 Ví dụ:
 
 ```shell
-curl "localhost:1317/cosmos/slashing/v1beta1/signing_infos
+curl "localhost:1317/cosmos/slashing/v1beta1/signing_infos"
 ```
 
 Ví dụ output:

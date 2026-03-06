@@ -1,21 +1,21 @@
-# Bech32 on Cosmos
+# Bech32 trên Cosmos
 
-The Cosmos network prefers to use the Bech32 address format wherever users must handle binary data. Bech32 encoding provides robust integrity checks on data and the human readable part (HRP) provides contextual hints that can assist UI developers with providing informative error messages.
+Mạng Cosmos ưu tiên sử dụng định dạng địa chỉ Bech32 bất cứ nơi nào người dùng phải xử lý dữ liệu nhị phân. Mã hóa Bech32 cung cấp kiểm tra tính toàn vẹn mạnh mẽ trên dữ liệu và phần có thể đọc được bởi con người (HRP) cung cấp các gợi ý ngữ cảnh có thể hỗ trợ các nhà phát triển UI cung cấp thông báo lỗi hữu ích.
 
-In the Cosmos network, keys and addresses may refer to a number of different roles in the network like accounts, validators etc.
+Trong mạng Cosmos, khóa và địa chỉ có thể đề cập đến một số vai trò khác nhau trong mạng như tài khoản, validator, v.v.
 
-## HRP table
+## Bảng HRP
 
-| HRP              | Definition                            |
+| HRP | Định nghĩa |
 | ---------------- | ------------------------------------- |
-| cosmos           | Cosmos Account Address                |
-| cosmosvalcons    | Cosmos Validator Consensus Address    |
-| cosmosvaloper    | Cosmos Validator Operator Address     |
+| cosmos | Địa chỉ tài khoản Cosmos |
+| cosmosvalcons | Địa chỉ consensus validator Cosmos |
+| cosmosvaloper | Địa chỉ operator validator Cosmos |
 
-## Encoding
+## Mã hóa
 
-While all user facing interfaces to Cosmos software should exposed Bech32 interfaces, many internal interfaces encode binary value in hex or base64 encoded form.
+Trong khi tất cả các giao diện hướng đến người dùng của phần mềm Cosmos nên hiển thị các giao diện Bech32, nhiều giao diện nội bộ mã hóa giá trị nhị phân ở dạng hex hoặc base64.
 
-To convert between other binary representation of addresses and keys, it is important to first apply the Amino encoding process before Bech32 encoding.
+Để chuyển đổi giữa các biểu diễn nhị phân khác của địa chỉ và khóa, điều quan trọng là trước tiên áp dụng quy trình mã hóa Amino trước khi mã hóa Bech32.
 
-A complete implementation of the Amino serialization format is unnecessary in most cases. Simply prepending bytes from this [table](https://github.com/cometbft/cometbft/blob/main/spec/blockchain/encoding.md) to the byte string payload before Bech32 encoding will be sufficient for compatible representation.
+Triển khai đầy đủ định dạng tuần tự hóa Amino là không cần thiết trong hầu hết các trường hợp. Chỉ cần thêm các byte từ [bảng](https://github.com/cometbft/cometbft/blob/main/spec/blockchain/encoding.md) này vào payload chuỗi byte trước khi mã hóa Bech32 sẽ đủ cho biểu diễn tương thích.

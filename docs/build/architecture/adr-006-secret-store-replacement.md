@@ -43,7 +43,7 @@ Chạy test cục bộ trên Mac yêu cầu nhiều lần nhập password lặp 
 
 ### Trung Lập
 
-{hậu quả trung lập}
+Không có.
 
 ## Tài Liệu Tham Khảo
 

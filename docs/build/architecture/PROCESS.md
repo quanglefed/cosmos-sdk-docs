@@ -1,38 +1,38 @@
-# ADR Creation Process
+# Quy trình tạo ADR
 
-1. Copy the `adr-template.md` file. Use the following filename pattern: `adr-next_number-title.md`
-2. Create a draft Pull Request if you want to get early feedback.
-3. Make sure the context and solution are clear and well documented.
-4. Add an entry to the list in the [README](./README.md) file.
-5. Create a Pull Request to propose a new ADR.
+1. Sao chép file `adr-template.md`. Sử dụng pattern tên file sau: `adr-next_number-title.md`
+2. Tạo Pull Request nháp nếu bạn muốn nhận phản hồi sớm.
+3. Đảm bảo bối cảnh và giải pháp rõ ràng và được ghi chép đầy đủ.
+4. Thêm mục vào danh sách trong file [README](./README.md).
+5. Tạo Pull Request để đề xuất ADR mới.
 
-## What is an ADR? 
+## ADR là gì?
 
-An ADR is a document that documents an implementation and design that may or may not have been discussed in an RFC. While an RFC is meant to replace synchronous communication in a distributed environment, an ADR is meant to document an already made decision. An ADR won't come with much of a communication overhead because the discussion was recorded in an RFC or a synchronous discussion. If the consensus came from a synchronous discussion, then a short excerpt should be added to the ADR to explain the goals. 
+ADR là tài liệu ghi chép triển khai và thiết kế có thể đã hoặc chưa được thảo luận trong RFC. Trong khi RFC nhằm thay thế giao tiếp đồng bộ trong môi trường phân tán, ADR nhằm ghi chép quyết định đã được đưa ra. ADR không đi kèm nhiều chi phí giao tiếp vì thảo luận đã được ghi chép trong RFC hoặc thảo luận đồng bộ. Nếu consensus đến từ thảo luận đồng bộ, thì nên thêm đoạn trích ngắn vào ADR để giải thích các mục tiêu.
 
-## ADR life cycle
+## Vòng đời ADR
 
-ADR creation is an **iterative** process. Instead of having a high amount of communication overhead, an ADR is used when there is already a decision made and implementation details need to be added. The ADR should document what the collective consensus for the specific issue is and how to solve it. 
+Việc tạo ADR là quy trình **lặp đi lặp lại**. Thay vì có chi phí giao tiếp cao, ADR được sử dụng khi đã có quyết định và cần thêm chi tiết triển khai. ADR nên ghi chép consensus tập thể cho vấn đề cụ thể là gì và cách giải quyết.
 
-1. Every ADR should start with either an RFC or a discussion where consensus has been met. 
+1. Mọi ADR nên bắt đầu bằng RFC hoặc thảo luận nơi đã đạt được consensus.
 
-2. Once consensus is met, a GitHub Pull Request (PR) is created with a new document based on the `adr-template.md`.
+2. Khi đạt consensus, tạo GitHub Pull Request (PR) với tài liệu mới dựa trên `adr-template.md`.
 
-3. If a _proposed_ ADR is merged, then it should clearly document outstanding issues either in ADR document notes or in a GitHub Issue.
+3. Nếu ADR ở trạng thái _proposed_ được merge, thì nó nên ghi chép rõ ràng các vấn đề còn tồn đọng trong ghi chú tài liệu ADR hoặc trong GitHub Issue.
 
-4. The PR SHOULD always be merged. In the case of a faulty ADR, we still prefer to merge it with a _rejected_ status. The only time the ADR SHOULD NOT be merged is if the author abandons it.
+4. PR LUÔN NÊN được merge. Trong trường hợp ADR có lỗi, chúng ta vẫn ưu tiên merge nó với trạng thái _rejected_. Chỉ khi tác giả từ bỏ thì ADR MỚI KHÔNG NÊN được merge.
 
-5. Merged ADRs SHOULD NOT be pruned.
+5. Các ADR đã merge KHÔNG NÊN bị xóa.
 
-### ADR status
+### Trạng thái ADR
 
-Status has two components:
+Trạng thái có hai thành phần:
 
 ```text
 {CONSENSUS STATUS} {IMPLEMENTATION STATUS}
 ```
 
-IMPLEMENTATION STATUS is either `Implemented` or `Not Implemented`.
+IMPLEMENTATION STATUS là `Implemented` hoặc `Not Implemented`.
 
 #### Consensus Status
 
@@ -44,15 +44,15 @@ DRAFT -> PROPOSED -> LAST CALL yyyy-mm-dd -> ACCEPTED | REJECTED -> SUPERSEDED b
                      ABANDONED
 ```
 
-* `DRAFT`: [optional] an ADR which is a work in progress, not ready for a general review. This is to present an early work and get early feedback in a Draft Pull Request form.
-* `PROPOSED`: an ADR covering a full solution architecture and still in the review - project stakeholders haven't reached an agreement yet.
-* `LAST CALL <date for the last call>`: [optional] Notify that we are close to accepting updates. Changing a status to `LAST CALL` means that social consensus (of Cosmos SDK maintainers) has been reached, and we still want to give it a time to let the community react or analyze.
-* `ACCEPTED`: an ADR that represents a currently implemented or to be implemented architecture design.
-* `REJECTED`: ADR can go from PROPOSED or ACCEPTED to rejected if the consensus among project stakeholders will decide so.
-* `SUPERSEDED by ADR-xxx`: an ADR that has been superseded by a new ADR.
-* `ABANDONED`: the ADR is no longer pursued by the original authors.
+* `DRAFT`: [tùy chọn] ADR đang trong quá trình phát triển, chưa sẵn sàng cho đánh giá chung. Dùng để trình bày công việc sớm và nhận phản hồi sớm dưới dạng Draft Pull Request.
+* `PROPOSED`: ADR bao gồm kiến trúc giải pháp đầy đủ và vẫn đang trong giai đoạn đánh giá - các bên liên quan dự án chưa đạt thỏa thuận.
+* `LAST CALL <ngày cho last call>`: [tùy chọn] Thông báo rằng chúng ta sắp chấp nhận cập nhật. Thay đổi trạng thái thành `LAST CALL` có nghĩa là consensus xã hội (của các maintainer Cosmos SDK) đã đạt được, và chúng ta vẫn muốn dành thời gian để cộng đồng phản ứng hoặc phân tích.
+* `ACCEPTED`: ADR đại diện cho thiết kế kiến trúc hiện đã triển khai hoặc sẽ được triển khai.
+* `REJECTED`: ADR có thể chuyển từ PROPOSED hoặc ACCEPTED sang rejected nếu consensus giữa các bên liên quan dự án quyết định như vậy.
+* `SUPERSEDED by ADR-xxx`: ADR đã được thay thế bởi ADR mới.
+* `ABANDONED`: ADR không còn được tác giả ban đầu theo đuổi.
 
-## Language used in ADR
+## Ngôn ngữ sử dụng trong ADR
 
-* The context/background should be written in the present tense.
-* Avoid using the first person.
+* Phần bối cảnh/background nên được viết ở thì hiện tại.
+* Tránh sử dụng ngôi thứ nhất.

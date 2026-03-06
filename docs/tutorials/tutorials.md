@@ -3,10 +3,10 @@ sidebar_position: 0
 ---
 # Tutorials
 
-## Advanced Tutorials 
+## Advanced Tutorials
 
-This section provides a concise overview of tutorials focused on implementing vote extensions in the Cosmos SDK. Vote extensions are a powerful feature for enhancing the security and fairness of blockchain applications, particularly in scenarios like implementing oracles and mitigating auction front-running.
+Phần này cung cấp tổng quan ngắn gọn về các hướng dẫn tập trung vào việc triển khai vote extensions trong Cosmos SDK. Vote extensions là tính năng mạnh mẽ để nâng cao bảo mật và công bằng của các ứng dụng blockchain, đặc biệt trong các kịch bản như triển khai oracle và giảm thiểu front-running đấu giá.
 
-*   **Implementing Oracle with Vote Extensions** - This tutorial details how to use vote extensions for the implementation of a secure and reliable oracle within a blockchain application. It demonstrates the use of vote extensions to securely include oracle data submissions in blocks, ensuring the data's integrity and reliability for the blockchain.
+*   **Implementing Oracle with Vote Extensions** - Hướng dẫn này mô tả chi tiết cách sử dụng vote extensions để triển khai oracle an toàn và đáng tin cậy trong ứng dụng blockchain. Nó minh họa việc sử dụng vote extensions để đưa dữ liệu gửi từ oracle vào các block một cách an toàn, đảm bảo tính toàn vẹn và độ tin cậy của dữ liệu cho blockchain.
 
-*   **Mitigating Auction Front-Running with Vote Extensions** - Explore how to prevent auction front-running using vote extensions. This tutorial outlines the creation of a module aimed at mitigating front-running in nameservice auctions, emphasising the `ExtendVote`, `PrepareProposal`, and `ProcessProposal` functions to facilitate a fair auction process.
+*   **Mitigating Auction Front-Running with Vote Extensions** - Khám phá cách ngăn chặn front-running đấu giá bằng vote extensions. Hướng dẫn này phác thảo việc tạo một module nhằm giảm thiểu front-running trong các phiên đấu giá nameservice, nhấn mạnh các hàm `ExtendVote`, `PrepareProposal`, và `ProcessProposal` để tạo điều kiện cho quy trình đấu giá công bằng.

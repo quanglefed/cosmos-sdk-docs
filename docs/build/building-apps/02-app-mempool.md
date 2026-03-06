@@ -50,7 +50,7 @@ Có thể cấu hình với các tham số sau:
 Là giá trị nguyên đặt mempool ở một trong ba chế độ: *bounded* (giới hạn), *unbounded* (không giới hạn) hoặc *disabled* (vô hiệu hóa).
 
 * **âm**: Vô hiệu hóa, mempool không chèn giao dịch mới và trả về sớm.
-* **không**: Mempool không giới hạn không có giới hạn giao dịch và sẽ không bao giờ thất bại với `ErrMempoolTxMaxCapacity`.
+* **không**: Mempool không giới hạn: không có giới hạn số giao dịch và sẽ không bao giờ thất bại với `ErrMempoolTxMaxCapacity`.
 * **dương**: Giới hạn, nó thất bại với `ErrMempoolTxMaxCapacity` khi giá trị `maxTx` bằng `CountTx()`.
 
 #### Seed
@@ -73,7 +73,7 @@ Có thể cấu hình với các tham số sau:
 Là giá trị nguyên đặt mempool ở một trong ba chế độ: *bounded* (giới hạn), *unbounded* (không giới hạn) hoặc *disabled* (vô hiệu hóa).
 
 * **âm**: Vô hiệu hóa, mempool không chèn giao dịch mới và trả về sớm.
-* **không**: Mempool không giới hạn không có giới hạn giao dịch và sẽ không bao giờ thất bại với `ErrMempoolTxMaxCapacity`.
+* **không**: Mempool không giới hạn: không có giới hạn số giao dịch và sẽ không bao giờ thất bại với `ErrMempoolTxMaxCapacity`.
 * **dương**: Giới hạn, nó thất bại với `ErrMempoolTxMaxCapacity` khi giá trị `maxTx` bằng `CountTx()`.
 
 #### Callback

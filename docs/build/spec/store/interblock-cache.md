@@ -1,91 +1,90 @@
 # Inter-block Cache
 
 * [Inter-block Cache](#inter-block-cache)
-    * [Synopsis](#synopsis)
-    * [Overview and basic concepts](#overview-and-basic-concepts)
-        * [Motivation](#motivation)
-        * [Definitions](#definitions)
-    * [System model and properties](#system-model-and-properties)
-        * [Assumptions](#assumptions)
-        * [Properties](#properties)
-            * [Thread safety](#thread-safety)
-            * [Crash recovery](#crash-recovery)
-            * [Iteration](#iteration)
-    * [Technical specification](#technical-specification)
-        * [General design](#general-design)
-        * [API](#api)
-            * [CommitKVCacheManager](#commitkvcachemanager)
-            * [CommitKVStoreCache](#commitkvstorecache)
-        * [Implementation details](#implementation-details)
-    * [History](#history)
-    * [Copyright](#copyright)
+ * [Tóm tắt](#synopsis)
+ * [Tổng quan và khái niệm cơ bản](#overview-and-basic-concepts)
+ * [Động lực](#motivation)
+ * [Định nghĩa](#definitions)
+ * [Mô hình hệ thống và thuộc tính](#system-model-and-properties)
+ * [Giả định](#assumptions)
+ * [Thuộc tính](#properties)
+ * [An toàn luồng](#thread-safety)
+ * [Khôi phục sau sự cố](#crash-recovery)
+ * [Lặp](#iteration)
+ * [Đặc tả kỹ thuật](#technical-specification)
+ * [Thiết kế chung](#general-design)
+ * [API](#api)
+ * [CommitKVCacheManager](#commitkvcachemanager)
+ * [CommitKVStoreCache](#commitkvstorecache)
+ * [Chi tiết triển khai](#implementation-details)
+ * [Lịch sử](#history)
+ * [Bản quyền](#copyright)
 
-## Synopsis
+## Tóm tắt {#synopsis}
 
-The inter-block cache is an in-memory cache storing (in-most-cases) immutable state that modules need to read in between blocks. When enabled, all sub-stores of a multi store, e.g., `rootmulti`, are wrapped.
+Inter-block cache là cache trong bộ nhớ lưu trữ (trong hầu hết các trường hợp) trạng thái bất biến mà các module cần đọc giữa các block. Khi được bật, tất cả các sub-store của multi store, ví dụ `rootmulti`, được bọc.
 
-## Overview and basic concepts
+## Tổng quan và khái niệm cơ bản {#overview-and-basic-concepts}
 
-### Motivation
+### Động lực {#motivation}
 
-The goal of the inter-block cache is to allow SDK modules to have fast access to data that it is typically queried during the execution of every block. This is data that do not change often, e.g. module parameters. The inter-block cache wraps each `CommitKVStore` of a multi store such as `rootmulti` with a fixed size, write-through cache. Caches are not cleared after a block is committed, as opposed to other caching layers such as `cachekv`.
+Mục tiêu của inter-block cache là cho phép các module SDK có truy cập nhanh vào dữ liệu thường được truy vấn trong quá trình thực thi mỗi block. Đây là dữ liệu không thay đổi thường xuyên, ví dụ tham số module. Inter-block cache bọc mỗi `CommitKVStore` của multi store như `rootmulti` bằng cache write-through kích thước cố định. Các cache không được xóa sau khi block được commit, khác với các lớp cache khác như `cachekv`.
 
-### Definitions
+### Định nghĩa {#definitions}
 
-* `Store key` uniquely identifies a store.
-* `KVCache` is a `CommitKVStore` wrapped with a cache.
-* `Cache manager` is a key component of the inter-block cache responsible for maintaining a map from `store keys` to `KVCaches`.
+* `Store key` xác định duy nhất một store.
+* `KVCache` là `CommitKVStore` được bọc với cache.
+* `Cache manager` là thành phần chính của inter-block cache chịu trách nhiệm duy trì map từ `store keys` tới `KVCaches`.
 
-## System model and properties
+## Mô hình hệ thống và thuộc tính {#system-model-and-properties}
 
-### Assumptions
+### Giả định {#assumptions}
 
-This specification assumes that there exists a cache implementation accessible to the inter-block cache feature.
+Đặc tả này giả định rằng tồn tại triển khai cache có thể truy cập bởi tính năng inter-block cache.
 
-> The implementation uses adaptive replacement cache (ARC), an enhancement over the standard last-recently-used (LRU) cache in that tracks both frequency and recency of use.
+> Triển khai sử dụng adaptive replacement cache (ARC), cải tiến so với cache last-recently-used (LRU) chuẩn ở chỗ theo dõi cả tần suất và độ mới sử dụng.
 
-The inter-block cache requires that the cache implementation to provide methods to create a cache, add a key/value pair, remove a key/value pair and retrieve the value associated to a key. In this specification, we assume that a `Cache` feature offers this functionality through the following methods:
+Inter-block cache yêu cầu triển khai cache cung cấp phương thức để tạo cache, thêm cặp key/value, xóa cặp key/value và truy xuất giá trị liên kết với khóa. Trong đặc tả này, chúng ta giả định tính năng `Cache` cung cấp chức năng này thông qua các phương thức sau:
 
-* `NewCache(size int)` creates a new cache with `size` capacity and returns it.
-* `Get(key string)` attempts to retrieve a key/value pair from `Cache.` It returns `(value []byte, success bool)`. If `Cache` contains the key, it `value` contains the associated value and `success=true`. Otherwise, `success=false` and `value` should be ignored.
-* `Add(key string, value []byte)` inserts a key/value pair into the `Cache`.
-* `Remove(key string)` removes the key/value pair identified by `key` from `Cache`.
+* `NewCache(size int)` tạo cache mới với dung lượng `size` và trả về nó.
+* `Get(key string)` cố gắng truy xuất cặp key/value từ `Cache`. Trả về `(value []byte, success bool)`. Nếu `Cache` chứa khóa, `value` chứa giá trị liên kết và `success=true`. Nếu không, `success=false` và `value` nên bị bỏ qua.
+* `Add(key string, value []byte)` chèn cặp key/value vào `Cache`.
+* `Remove(key string)` xóa cặp key/value được xác định bởi `key` khỏi `Cache`.
 
-The specification also assumes that `CommitKVStore` offers the following API:
+Đặc tả cũng giả định `CommitKVStore` cung cấp API sau:
 
-* `Get(key string)` attempts to retrieve a key/value pair from `CommitKVStore`.
-* `Set(key, string, value []byte)` inserts a key/value pair into the `CommitKVStore`.
-* `Delete(key string)` removes the key/value pair identified by `key` from `CommitKVStore`.
+* `Get(key string)` cố gắng truy xuất cặp key/value từ `CommitKVStore`.
+* `Set(key, string, value []byte)` chèn cặp key/value vào `CommitKVStore`.
+* `Delete(key string)` xóa cặp key/value được xác định bởi `key` khỏi `CommitKVStore`.
 
-> Ideally, both `Cache` and `CommitKVStore` should be specified in a different document and referenced here.
+> Lý tưởng nhất, cả `Cache` và `CommitKVStore` nên được đặc tả trong tài liệu khác và được tham chiếu ở đây.
 
-### Properties
+### Thuộc tính {#properties}
 
-#### Thread safety
+#### An toàn luồng {#thread-safety}
 
-Accessing the `cache manager` or a `KVCache` is not thread-safe: no method is guarded with a lock.
-Note that this is true even if the cache implementation is thread-safe.
+Truy cập `cache manager` hoặc `KVCache` không an toàn luồng: không có phương thức nào được bảo vệ bằng khóa.
+Lưu ý rằng điều này đúng ngay cả khi triển khai cache an toàn luồng.
 
-> For instance, assume that two `Set` operations are executed concurrently on the same key, each writing a different value. After both are executed, the cache and the underlying store may be inconsistent, each storing a different value under the same key.
+> Ví dụ, giả sử hai thao tác `Set` được thực thi đồng thời trên cùng một khóa, mỗi thao tác ghi giá trị khác nhau. Sau khi cả hai được thực thi, cache và store cơ sở có thể không nhất quán, mỗi cái lưu trữ giá trị khác nhau dưới cùng một khóa.
 
-#### Crash recovery
+#### Khôi phục sau sự cố {#crash-recovery}
 
-The inter-block cache transparently delegates `Commit()` to its aggregate `CommitKVStore`. If the 
-aggregate `CommitKVStore` supports atomic writes and use them to guarantee that the store is always in a consistent state in disk, the inter-block cache can be transparently moved to a consistent state when a failure occurs.
+Inter-block cache minh bạch ủy quyền `Commit()` cho `CommitKVStore` tổng hợp của nó. Nếu `CommitKVStore` tổng hợp hỗ trợ ghi atomic và sử dụng chúng để đảm bảo trạng thái store luôn nhất quán trên đĩa, inter-block cache có thể được chuyển minh bạch sang trạng thái nhất quán khi xảy ra sự cố.
 
-> Note that this is the case for `IAVLStore`, the preferred `CommitKVStore`. On commit, it calls `SaveVersion()` on the underlying `MutableTree`. `SaveVersion` writes to disk are atomic via batching. This means that only consistent versions of the store (the tree) are written to the disk. Thus, in case of a failure during a `SaveVersion` call, on recovery from disk, the version of the store will be consistent.
+> Lưu ý rằng đây là trường hợp của `IAVLStore`, `CommitKVStore` được ưu tiên. Khi commit, nó gọi `SaveVersion()` trên `MutableTree` cơ sở. `SaveVersion` ghi vào đĩa là atomic qua batching. Điều này có nghĩa là chỉ các phiên bản nhất quán của store (cây) được ghi vào đĩa. Do đó, trong trường hợp sự cố trong lệnh gọi `SaveVersion`, khi khôi phục từ đĩa, phiên bản của store sẽ nhất quán.
 
-#### Iteration
+#### Lặp {#iteration}
 
-Iteration over each wrapped store is supported via the embedded `CommitKVStore` interface.
+Lặp qua mỗi store được bọc được hỗ trợ thông qua interface `CommitKVStore` nhúng.
 
-## Technical specification
+## Đặc tả kỹ thuật {#technical-specification}
 
-### General design
+### Thiết kế chung {#general-design}
 
-The inter-block cache feature is composed by two components: `CommitKVCacheManager` and `CommitKVCache`.
+Tính năng inter-block cache được cấu thành bởi hai thành phần: `CommitKVCacheManager` và `CommitKVCache`.
 
-`CommitKVCacheManager` implements the cache manager. It maintains a mapping from a store key to a `KVStore`.
+`CommitKVCacheManager` triển khai cache manager. Nó duy trì ánh xạ từ store key tới `KVStore`.
 
 ```go
 type CommitKVStoreCacheManager interface{
@@ -94,7 +93,7 @@ type CommitKVStoreCacheManager interface{
 }
 ```
 
-`CommitKVStoreCache` implements a `KVStore`: a write-through cache that wraps a `CommitKVStore`. This means that deletes and writes always happen to both the cache and the underlying `CommitKVStore`. Reads on the other hand first hit the internal cache. During a cache miss, the read is delegated to the underlying `CommitKVStore` and cached.
+`CommitKVStoreCache` triển khai `KVStore`: cache write-through bọc `CommitKVStore`. Điều này có nghĩa là xóa và ghi luôn xảy ra với cả cache và `CommitKVStore` cơ sở. Đọc mặt khác trước tiên truy cập cache nội bộ. Trong cache miss, đọc được ủy quyền cho `CommitKVStore` cơ sở và được cache.
 
 ```go
 type CommitKVStoreCache interface{
@@ -103,17 +102,17 @@ type CommitKVStoreCache interface{
 }
 ```
 
-To enable inter-block cache on `rootmulti`, one needs to instantiate a `CommitKVCacheManager` and set it by calling `SetInterBlockCache()` before calling one of `LoadLatestVersion()`, `LoadLatestVersionAndUpgrade(...)`, `LoadVersionAndUpgrade(...)` and `LoadVersion(version)`.
+Để bật inter-block cache trên `rootmulti`, người ta cần khởi tạo `CommitKVCacheManager` và đặt nó bằng cách gọi `SetInterBlockCache()` trước khi gọi một trong `LoadLatestVersion()`, `LoadLatestVersionAndUpgrade(...)`, `LoadVersionAndUpgrade(...)` và `LoadVersion(version)`.
 
-### API
+### API {#api}
 
-#### CommitKVCacheManager
+#### CommitKVCacheManager {#commitkvcachemanager}
 
-The method `NewCommitKVStoreCacheManager` creates a new cache manager and returns it.
+Phương thức `NewCommitKVStoreCacheManager` tạo cache manager mới và trả về nó.
 
-| Name  | Type | Description |
+| Tên | Kiểu | Mô tả |
 | ------------- | ---------|------- |
-| size  | integer | Determines the capacity of each of the KVCache maintained by the manager |
+| size | integer | Xác định dung lượng của mỗi KVCache được duy trì bởi manager |
 
 ```go
 func NewCommitKVStoreCacheManager(size uint) CommitKVStoreCacheManager {
@@ -122,13 +121,13 @@ func NewCommitKVStoreCacheManager(size uint) CommitKVStoreCacheManager {
 }
 ```
 
-`GetStoreCache` returns a cache from the CommitStoreCacheManager for a given store key. If no cache exists for the store key, then one is created and set.
+`GetStoreCache` trả về cache từ CommitStoreCacheManager cho store key đã cho. Nếu không tồn tại cache cho store key, thì một cache được tạo và đặt.
 
-| Name  | Type | Description |
+| Tên | Kiểu | Mô tả |
 | ------------- | ---------|------- |
-| manager  | `CommitKVStoreCacheManager` | The cache manager |
-| storeKey  | string | The store key of the store being retrieved |
-| store  | `CommitKVStore` | The store that it is cached in case the manager does not have any in its map of caches |
+| manager | `CommitKVStoreCacheManager` | Cache manager |
+| storeKey | string | Store key của store đang được truy xuất |
+| store | `CommitKVStore` | Store được cache trong trường hợp manager không có bất kỳ trong map caches của nó |
 
 ```go
 func GetStoreCache(
@@ -146,12 +145,12 @@ func GetStoreCache(
 }
 ```
 
-`Unwrap` returns the underlying CommitKVStore for a given store key.
+`Unwrap` trả về CommitKVStore cơ sở cho store key đã cho.
 
-| Name  | Type | Description |
+| Tên | Kiểu | Mô tả |
 | ------------- | ---------|------- |
-| manager  | `CommitKVStoreCacheManager` | The cache manager |
-| storeKey  | string | The store key of the store being unwrapped |
+| manager | `CommitKVStoreCacheManager` | Cache manager |
+| storeKey | string | Store key của store đang được unwrap |
 
 ```go
 func Unwrap(
@@ -167,11 +166,11 @@ func Unwrap(
 }
 ```
 
-`Reset` resets the manager's map of caches.
+`Reset` đặt lại map caches của manager.
 
-| Name  | Type | Description |
+| Tên | Kiểu | Mô tả |
 | ------------- | ---------|------- |
-| manager  | `CommitKVStoreCacheManager` | The cache manager |
+| manager | `CommitKVStoreCacheManager` | Cache manager |
 
 ```go
 function Reset(manager CommitKVStoreCacheManager) {
@@ -182,14 +181,14 @@ function Reset(manager CommitKVStoreCacheManager) {
 }
 ```
 
-#### CommitKVStoreCache
+#### CommitKVStoreCache {#commitkvstorecache}
 
-`NewCommitKVStoreCache` creates a new `CommitKVStoreCache` and returns it.
+`NewCommitKVStoreCache` tạo `CommitKVStoreCache` mới và trả về nó.
 
-| Name  | Type | Description |
+| Tên | Kiểu | Mô tả |
 | ------------- | ---------|------- |
-| store  | CommitKVStore | The store to be cached |
-| size  | string | Determines the capacity of the cache being created |
+| store | CommitKVStore | Store cần được cache |
+| size | string | Xác định dung lượng của cache đang được tạo |
 
 ```go
 func NewCommitKVStoreCache(
@@ -200,12 +199,12 @@ func NewCommitKVStoreCache(
 }
 ```
 
-`Get` retrieves a value by key. It first looks in the cache. If the key is not in the cache, the query is delegated to the underlying `CommitKVStore`. In the latter case, the key/value pair is cached. The method returns the value.
+`Get` truy xuất giá trị theo khóa. Trước tiên truy cập cache. Nếu khóa không có trong cache, truy vấn được ủy quyền cho `CommitKVStore` cơ sở. Trong trường hợp sau, cặp key/value được cache. Phương thức trả về giá trị.
 
-| Name  | Type | Description |
+| Tên | Kiểu | Mô tả |
 | ------------- | ---------|------- |
-| KVCache  | `CommitKVStoreCache` | The `CommitKVStoreCache` from which the key/value pair is retrieved  |
-| key  | string | Key of the key/value pair being retrieved |
+| KVCache | `CommitKVStoreCache` | `CommitKVStoreCache` mà cặp key/value được truy xuất |
+| key | string | Khóa của cặp key/value đang được truy xuất |
 
 ```go
 func Get(
@@ -224,13 +223,13 @@ func Get(
 }
 ```
 
-`Set` inserts a key/value pair into both the write-through cache and the underlying `CommitKVStore`.
+`Set` chèn cặp key/value vào cả cache write-through và `CommitKVStore` cơ sở.
 
-| Name  | Type | Description |
+| Tên | Kiểu | Mô tả |
 | ------------- | ---------|------- |
-| KVCache  | `CommitKVStoreCache` | The `CommitKVStoreCache` to which the key/value pair is inserted |
-| key  | string | Key of the key/value pair being inserted |
-| value  | []byte | Value of the key/value pair being inserted |
+| KVCache | `CommitKVStoreCache` | `CommitKVStoreCache` mà cặp key/value được chèn vào |
+| key | string | Khóa của cặp key/value đang được chèn |
+| value | []byte | Giá trị của cặp key/value đang được chèn |
 
 ```go
 func Set(
@@ -243,12 +242,12 @@ func Set(
 }
 ```
 
-`Delete` removes a key/value pair from both the write-through cache and the underlying `CommitKVStore`.
+`Delete` xóa cặp key/value khỏi cả cache write-through và `CommitKVStore` cơ sở.
 
-| Name  | Type | Description |
+| Tên | Kiểu | Mô tả |
 | ------------- | ---------|------- |
-| KVCache  | `CommitKVStoreCache` | The `CommitKVStoreCache` from which the key/value pair is deleted |
-| key  | string | Key of the key/value pair being deleted |
+| KVCache | `CommitKVStoreCache` | `CommitKVStoreCache` mà cặp key/value được xóa khỏi |
+| key | string | Khóa của cặp key/value đang được xóa |
 
 ```go
 func Delete(
@@ -260,13 +259,13 @@ func Delete(
 }
 ```
 
-`CacheWrap` wraps a `CommitKVStoreCache` with another caching layer (`CacheKV`). 
+`CacheWrap` bọc `CommitKVStoreCache` với lớp cache khác (`CacheKV`).
 
-> It is unclear whether there is a use case for `CacheWrap`. 
+> Chưa rõ liệu có trường hợp sử dụng cho `CacheWrap` hay không.
 
-| Name  | Type | Description |
+| Tên | Kiểu | Mô tả |
 | ------------- | ---------|------- |
-| KVCache  | `CommitKVStoreCache` | The `CommitKVStoreCache` being wrapped |
+| KVCache | `CommitKVStoreCache` | `CommitKVStoreCache` đang được bọc |
 
 ```go
 func CacheWrap(
@@ -276,14 +275,14 @@ func CacheWrap(
 }
 ```
 
-### Implementation details
+### Chi tiết triển khai {#implementation-details}
 
-The inter-block cache implementation uses a fixed-sized adaptive replacement cache (ARC) as cache. [The ARC implementation](https://github.com/hashicorp/golang-lru/blob/main/arc/arc.go) is thread-safe. ARC is an enhancement over the standard LRU cache in that tracks both frequency and recency of use. This avoids a burst in access to new entries from evicting the frequently used older entries. It adds some additional tracking overhead to a standard LRU cache, computationally it is roughly `2x` the cost, and the extra memory overhead is linear with the size of the cache. The default cache size is `1000`.
+Triển khai inter-block cache sử dụng adaptive replacement cache (ARC) kích thước cố định làm cache. [Triển khai ARC](https://github.com/hashicorp/golang-lru/blob/main/arc/arc.go) an toàn luồng. ARC là cải tiến so với cache LRU chuẩn ở chỗ theo dõi cả tần suất và độ mới sử dụng. Điều này tránh việc burst truy cập vào các mục mới đẩy các mục cũ thường dùng ra. Nó thêm một số chi phí theo dõi bổ sung vào cache LRU chuẩn, về mặt tính toán chi phí khoảng `2x`, và chi phí bộ nhớ bổ sung tuyến tính với kích thước cache. Kích thước cache mặc định là `1000`.
 
-## History
+## Lịch sử {#history}
 
-Dec 20, 2022 - Initial draft finished and submitted as a PR
+20 tháng 12, 2022 - Bản nháp ban đầu hoàn thành và gửi dưới dạng PR
 
-## Copyright
+## Bản quyền {#copyright}
 
-All content herein is licensed under [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+Tất cả nội dung ở đây được cấp phép theo [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0).

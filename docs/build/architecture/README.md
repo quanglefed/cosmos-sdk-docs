@@ -4,41 +4,38 @@ sidebar_position: 1
 
 # Architecture Decision Records (ADR)
 
-This is a location to record all high-level architecture decisions in the Cosmos-SDK.
+Đây là nơi ghi chép tất cả các quyết định kiến trúc cấp cao trong Cosmos-SDK.
 
-An Architectural Decision (**AD**) is a software design choice that addresses a functional or non-functional requirement that is architecturally significant.
-An Architecturally Significant Requirement (**ASR**) is a requirement that has a measurable effect on a software system’s architecture and quality.
-An Architectural Decision Record (**ADR**) captures a single AD, such as is often done when writing personal notes or meeting minutes; the collection of ADRs created and maintained in a project constitute its decision log. All these are within the topic of Architectural Knowledge Management (AKM).
+Architectural Decision (**AD**) là lựa chọn thiết kế phần mềm giải quyết yêu cầu chức năng hoặc phi chức năng có ý nghĩa về mặt kiến trúc.
+Architecturally Significant Requirement (**ASR**) là yêu cầu có ảnh hưởng đo lường được đến kiến trúc và chất lượng của hệ thống phần mềm.
+Architectural Decision Record (**ADR**) ghi lại một AD đơn lẻ, như thường được thực hiện khi viết ghi chú cá nhân hoặc biên bản cuộc họp; tập hợp các ADR được tạo và duy trì trong một dự án tạo thành nhật ký quyết định của nó. Tất cả những điều này nằm trong chủ đề Architectural Knowledge Management (AKM).
 
-You can read more about the ADR concept in this [blog post](https://product.reverb.com/documenting-architecture-decisions-the-reverb-way-a3563bb24bd0#.78xhdix6t).
+Bạn có thể đọc thêm về khái niệm ADR trong [bài viết blog](https://product.reverb.com/documenting-architecture-decisions-the-reverb-way-a3563bb24bd0#.78xhdix6t) này.
 
 ## Rationale
 
-ADRs are intended to be the primary mechanism for proposing new feature designs and new processes, for collecting community input on an issue, and for documenting the design decisions.
-An ADR should provide:
+ADR được dự định là cơ chế chính để đề xuất thiết kế tính năng mới và quy trình mới, thu thập ý kiến cộng đồng về một vấn đề, và ghi chép các quyết định thiết kế.
+Một ADR nên cung cấp:
 
-* Context on the relevant goals and the current state
-* Proposed changes to achieve the goals
-* Summary of pros and cons
-* References
+* Bối cảnh về các mục tiêu liên quan và trạng thái hiện tại
+* Các thay đổi đề xuất để đạt được mục tiêu
+* Tóm tắt ưu và nhược điểm
+* Tài liệu tham khảo
 * Changelog
 
-Note the distinction between an ADR and a spec. The ADR provides the context, intuition, reasoning, and
-justification for a change in architecture, or for the architecture of something
-new. The spec is a much more compressed and streamlined summary of everything as
-it stands today.
+Lưu ý sự khác biệt giữa ADR và spec. ADR cung cấp bối cảnh, trực giác, lập luận và biện minh cho thay đổi trong kiến trúc, hoặc cho kiến trúc của điều gì đó mới. Spec là bản tóm tắt nén và tối ưu hóa hơn nhiều về mọi thứ như hiện tại.
 
-If recorded decisions turned out to be lacking, convene a discussion, record the new decisions here, and then modify the code to match.
+Nếu các quyết định đã ghi chép hóa ra thiếu sót, hãy triệu tập thảo luận, ghi chép các quyết định mới ở đây, và sau đó sửa đổi mã để phù hợp.
 
-## Creating a new ADR
+## Tạo ADR mới
 
-Read about the [PROCESS](./PROCESS.md).
+Đọc về [PROCESS](./PROCESS.md).
 
-### Use RFC 2119 Keywords
+### Sử dụng từ khóa RFC 2119
 
-When writing ADRs, follow the same best practices for writing RFCs. When writing RFCs, key words are used to signify the requirements in the specification. These words are often capitalized: "MUST," "MUST NOT," "REQUIRED," "SHALL," "SHALL NOT," "SHOULD," "SHOULD NOT," "RECOMMENDED," "MAY," and "OPTIONAL." They are to be interpreted as described in [RFC 2119](https://datatracker.ietf.org/doc/html/rfc2119).
+Khi viết ADR, hãy tuân theo các best practice tương tự khi viết RFC. Khi viết RFC, các từ khóa được sử dụng để biểu thị các yêu cầu trong specification. Các từ này thường được viết hoa: "MUST," "MUST NOT," "REQUIRED," "SHALL," "SHALL NOT," "SHOULD," "SHOULD NOT," "RECOMMENDED," "MAY," và "OPTIONAL." Chúng được hiểu như mô tả trong [RFC 2119](https://datatracker.ietf.org/doc/html/rfc2119).
 
-## ADR Table of Contents
+## Mục lục ADR
 
 ### Accepted
 

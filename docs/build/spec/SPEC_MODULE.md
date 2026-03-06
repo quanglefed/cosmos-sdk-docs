@@ -1,59 +1,49 @@
-# Specification of Modules
+# Đặc tả Module
 
-This file intends to outline the common structure for specifications within
-this directory.
+File này nhằm phác thảo cấu trúc chung cho các đặc tả kỹ thuật trong thư mục này.
 
-## Tense
+## Thì (Tense)
 
-For consistency, specs should be written in passive present tense.
+Để nhất quán, các đặc tả nên được viết ở thì hiện tại bị động (passive present tense).
 
-## Pseudo-Code
+## Mã giả (Pseudo-Code)
 
-Generally, pseudo-code should be minimized throughout the spec. Often, simple
-bulleted-lists which describe a function's operations are sufficient and should
-be considered preferable. In certain instances, due to the complex nature of
-the functionality being described pseudo-code may the most suitable form of
-specification. In these cases use of pseudo-code is permissible, but should be
-presented in a concise manner, ideally restricted to only the complex
-element as a part of a larger description.
+Nhìn chung, mã giả nên được giảm thiểu trong toàn bộ đặc tả. Thường thì các danh sách bullet đơn giản mô tả các thao tác của hàm là đủ và nên được ưu tiên. Trong một số trường hợp nhất định, do tính chất phức tạp của chức năng được mô tả, mã giả có thể là hình thức đặc tả phù hợp nhất. Trong các trường hợp này, việc sử dụng mã giả được phép, nhưng nên trình bày ngắn gọn, lý tưởng là chỉ giới hạn ở phần tử phức tạp như một phần của mô tả lớn hơn.
 
-## Common Layout
+## Bố cục chung
 
-The following generalized `README` structure should be used to breakdown
-specifications for modules. The following list is nonbinding and all sections are optional.
+Cấu trúc `README` tổng quát sau nên được sử dụng để phân tích đặc tả cho các module. Danh sách sau không bắt buộc và tất cả các phần đều là tùy chọn.
 
-* `# {Module Name}` - overview of the module
-* `## Concepts` - describe specialized concepts and definitions used throughout the spec
-* `## State` - specify and describe structures expected to be marshaled into the store, and their keys
-* `## State Transitions` - standard state transition operations triggered by hooks, messages, etc.
-* `## Messages` - specify message structure(s) and expected state machine behavior(s)
-* `## Begin Block` - specify any begin-block operations
-* `## End Block` - specify any end-block operations
-* `## Hooks` - describe available hooks to be called by/from this module
-* `## Events` - list and describe event tags used
-* `## Client` - list and describe CLI commands and gRPC and REST endpoints
-* `## Params` - list all module parameters, their types (in JSON) and examples
-* `## Future Improvements` - describe future improvements of this module
-* `## Tests` - acceptance tests
-* `## Appendix` - supplementary details referenced elsewhere within the spec
+* `# {Tên Module}` - tổng quan về module
+* `## Concepts` - mô tả các khái niệm và định nghĩa chuyên biệt được sử dụng trong đặc tả
+* `## State` - chỉ định và mô tả các cấu trúc dự kiến được marshal vào store, và các key của chúng
+* `## State Transitions` - các thao tác chuyển trạng thái tiêu chuẩn được kích hoạt bởi hooks, messages, v.v.
+* `## Messages` - chỉ định cấu trúc message và hành vi state machine mong đợi
+* `## Begin Block` - chỉ định các thao tác begin-block nếu có
+* `## End Block` - chỉ định các thao tác end-block nếu có
+* `## Hooks` - mô tả các hook có sẵn được gọi bởi/từ module này
+* `## Events` - liệt kê và mô tả các event tag được sử dụng
+* `## Client` - liệt kê và mô tả các lệnh CLI và endpoint gRPC và REST
+* `## Params` - liệt kê tất cả tham số module, kiểu (trong JSON) và ví dụ
+* `## Future Improvements` - mô tả các cải tiến tương lai của module này
+* `## Tests` - các bài kiểm tra chấp nhận
+* `## Appendix` - chi tiết bổ sung được tham chiếu ở nơi khác trong đặc tả
 
-### Notation for key-value mapping
+### Ký hiệu ánh xạ key-value
 
-Within `## State` the following notation `->` should be used to describe key to
-value mapping:
+Trong `## State`, ký hiệu `->` sau nên được sử dụng để mô tả ánh xạ key sang value:
 
 ```text
 key -> value
 ```
 
-to represent byte concatenation the `|` may be used. In addition, encoding
-type may be specified, for example:
+để biểu diễn nối byte, ký tự `|` có thể được sử dụng. Ngoài ra, kiểu encoding có thể được chỉ định, ví dụ:
 
 ```text
 0x00 | addressBytes | address2Bytes -> amino(value_object)
 ```
 
-Additionally, index mappings may be specified by mapping to the `nil` value, for example:
+Ngoài ra, ánh xạ index có thể được chỉ định bằng cách ánh xạ sang giá trị `nil`, ví dụ:
 
 ```text
 0x01 | address2Bytes | addressBytes -> nil
